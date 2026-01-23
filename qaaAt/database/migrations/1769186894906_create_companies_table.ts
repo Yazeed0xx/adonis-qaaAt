@@ -8,6 +8,7 @@ export default class extends BaseSchema {
       table.increments('id').notNullable()
       table.string('tax_id').nullable()
       table.string('registration_number').nullable()
+      table.string('registration_number_pdf').nullable()
       table.string('business_license').nullable()
       table.string('contact_person').nullable()
       table.text('business_address').nullable()

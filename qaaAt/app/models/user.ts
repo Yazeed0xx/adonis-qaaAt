@@ -1,9 +1,13 @@
 import { DateTime } from 'luxon'
 import hash from '@adonisjs/core/services/hash'
 import { compose } from '@adonisjs/core/helpers'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, column, hasOne, hasMany } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
+import UserProfile from '#models/user_profile'
+import Company from '#models/company'
+import Booking from '#models/booking'
+import type { HasOne, HasMany } from '@adonisjs/lucid/types/relations'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
@@ -15,10 +19,13 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare id: number
 
   @column()
-  declare fullName: string | null
+  declare userName: string | null
 
   @column()
   declare email: string
+
+  @column()
+  declare userType: 'company' | 'user'
 
   @column({ serializeAs: null })
   declare password: string
@@ -28,6 +35,18 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
+
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+
+  @hasOne(() => UserProfile)
+  declare userProfile: HasOne<typeof UserProfile>
+
+  @hasOne(() => Company)
+  declare company: HasOne<typeof Company>
+
+  @hasMany(() => Booking)
+  declare bookings: HasMany<typeof Booking>
 
   static accessTokens = DbAccessTokensProvider.forModel(User)
 }
