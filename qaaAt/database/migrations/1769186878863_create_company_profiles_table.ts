@@ -11,7 +11,7 @@ export default class extends BaseSchema {
       table.string('logo').nullable()
       table.string('banner').nullable()
       table.string('website').nullable()
-      
+
       table.json('social_links').nullable()
       table
         .integer('user_id')

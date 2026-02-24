@@ -22,7 +22,10 @@ export default class CompanyProfile extends BaseModel {
   @column()
   declare website: string | null
 
-  @column()
+  @column({
+    prepare: (value: Record<string, any> | null) => (value ? JSON.stringify(value) : null),
+    consume: (value: any) => (typeof value === 'string' ? JSON.parse(value) : (value ?? null)),
+  })
   declare socialLinks: Record<string, any> | null
 
   @column()

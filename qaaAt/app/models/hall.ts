@@ -36,19 +36,7 @@ export default class Hall extends BaseModel {
   declare city: string
 
   @column()
-  declare additionalServices: Record<string, any> | null
-
-  @column()
-  declare additionalFeatures: Record<string, any> | null
-
-  @column()
-  declare additionalAmenities: Record<string, any> | null
-
-  @column()
-  declare additionalEquipments: Record<string, any> | null
-
-  @column()
-  declare additionalFacilities: Record<string, any> | null
+  declare services: string[] | null
 
   @column()
   declare isAvailable: boolean

@@ -32,10 +32,7 @@ test.group('Hall Service', (group) => {
   test('getCompanyByUserId should throw error for invalid user', async ({ assert }) => {
     const hallService = new HallService()
 
-    await assert.rejects(
-      () => hallService.getCompanyByUserId(99999),
-      'Row not found'
-    )
+    await assert.rejects(() => hallService.getCompanyByUserId(99999), 'Row not found')
   })
 
   test('getAllHalls should return paginated halls for a company', async ({ assert }) => {
@@ -61,7 +58,7 @@ test.group('Hall Service', (group) => {
         address: 'Address 1',
         city: 'City 1',
         companyId: company.id,
-        additionalServices: { services: ['Service 1', 'Service 2', 'Service 3'] },
+        services: ['Service 1', 'Service 2', 'Service 3'],
       },
       {
         name: 'Hall 2',
@@ -144,10 +141,7 @@ test.group('Hall Service', (group) => {
 
     const hallService = new HallService()
 
-    await assert.rejects(
-      () => hallService.getHallById(99999, company.id),
-      'Row not found'
-    )
+    await assert.rejects(() => hallService.getHallById(99999, company.id), 'Row not found')
   })
 
   test('getHallById should throw error for hall belonging to different company', async ({
@@ -188,10 +182,7 @@ test.group('Hall Service', (group) => {
 
     const hallService = new HallService()
 
-    await assert.rejects(
-      () => hallService.getHallById(hall.id, company2.id),
-      'Row not found'
-    )
+    await assert.rejects(() => hallService.getHallById(hall.id, company2.id), 'Row not found')
   })
 
   test('createHall should create a new hall', async ({ assert }) => {
@@ -355,9 +346,6 @@ test.group('Hall Service', (group) => {
 
     const hallService = new HallService()
 
-    await assert.rejects(
-      () => hallService.deleteHall(99999, company.id),
-      'Row not found'
-    )
+    await assert.rejects(() => hallService.deleteHall(99999, company.id), 'Row not found')
   })
 })

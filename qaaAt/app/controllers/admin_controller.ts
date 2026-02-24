@@ -4,18 +4,21 @@ import Company from '#models/company'
 import Hall from '#models/hall'
 import Booking from '#models/booking'
 import { DateTime } from 'luxon'
+import db from '@adonisjs/lucid/services/db'
+import notificationService from '#services/notification_service'
 
 export default class AdminController {
   /**
    * Get all users
    */
   async getUsers({ request, response }: HttpContext) {
-    const page = request.input('page', 1)
-    const limit = request.input('limit', 20)
+    const page = Math.max(1, Number(request.input('page', 1)) || 1)
+    const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
 
     const users = await User.query()
       .preload('userProfile')
       .where('userType', 'user')
+      .whereNull('deletedAt')
       .orderBy('createdAt', 'desc')
       .paginate(page, limit)
 
@@ -26,12 +29,13 @@ export default class AdminController {
    * Get all companies
    */
   async getCompanies({ request, response }: HttpContext) {
-    const page = request.input('page', 1)
-    const limit = request.input('limit', 20)
+    const page = Math.max(1, Number(request.input('page', 1)) || 1)
+    const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
 
     const companies = await Company.query()
       .preload('user')
       .preload('companyProfile')
+      .whereNull('deletedAt')
       .orderBy('createdAt', 'desc')
       .paginate(page, limit)
 
@@ -42,11 +46,12 @@ export default class AdminController {
    * Get all halls
    */
   async getHalls({ request, response }: HttpContext) {
-    const page = request.input('page', 1)
-    const limit = request.input('limit', 20)
+    const page = Math.max(1, Number(request.input('page', 1)) || 1)
+    const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
 
     const halls = await Hall.query()
       .preload('company')
+      .whereNull('deletedAt')
       .orderBy('createdAt', 'desc')
       .paginate(page, limit)
 
@@ -57,13 +62,14 @@ export default class AdminController {
    * Get all bookings
    */
   async getBookings({ request, response }: HttpContext) {
-    const page = request.input('page', 1)
-    const limit = request.input('limit', 20)
+    const page = Math.max(1, Number(request.input('page', 1)) || 1)
+    const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
 
     const bookings = await Booking.query()
       .preload('user')
       .preload('hall')
       .preload('services')
+      .whereNull('deletedAt')
       .orderBy('createdAt', 'desc')
       .paginate(page, limit)
 
@@ -84,6 +90,9 @@ export default class AdminController {
 
     user.deletedAt = DateTime.now()
     await user.save()
+
+    // Revoke all access tokens so the banned user is immediately logged out
+    await db.from('auth_access_tokens').where('tokenable_id', user.id).delete()
 
     return response.ok({
       message: 'User banned successfully',
@@ -130,6 +139,9 @@ export default class AdminController {
     user.deletedAt = DateTime.now()
     await user.save()
 
+    // Revoke all access tokens so the banned company is immediately logged out
+    await db.from('auth_access_tokens').where('tokenable_id', user.id).delete()
+
     return response.ok({
       message: 'Company banned successfully',
       company: {
@@ -147,7 +159,7 @@ export default class AdminController {
     const company = await Company.findOrFail(params.id)
     const user = await company.related('user').query().firstOrFail()
 
-    user.deletedAt = DateTime.now()
+    user.deletedAt = null
     await user.save()
 
     return response.ok({
@@ -166,7 +178,8 @@ export default class AdminController {
   async deleteHall({ params, response }: HttpContext) {
     const hall = await Hall.findOrFail(params.id)
 
-    await hall.delete()
+    hall.deletedAt = DateTime.now()
+    await hall.save()
 
     return response.ok({
       message: 'Hall deleted successfully',
@@ -179,7 +192,8 @@ export default class AdminController {
   async deleteBooking({ params, response }: HttpContext) {
     const booking = await Booking.findOrFail(params.id)
 
-    await booking.delete()
+    booking.deletedAt = DateTime.now()
+    await booking.save()
 
     return response.ok({
       message: 'Booking deleted successfully',
@@ -193,6 +207,7 @@ export default class AdminController {
     const user = await User.query()
       .where('id', params.id)
       .where('userType', 'user')
+      .whereNull('deletedAt')
       .preload('userProfile')
       .firstOrFail()
 
@@ -205,6 +220,7 @@ export default class AdminController {
   async getCompany({ params, response }: HttpContext) {
     const company = await Company.query()
       .where('id', params.id)
+      .whereNull('deletedAt')
       .preload('user')
       .preload('companyProfile')
       .preload('halls')
@@ -218,12 +234,21 @@ export default class AdminController {
    * Get statistics
    */
   async getStatistics({ response }: HttpContext) {
-    const totalUsers = await User.query().where('userType', 'user').count('* as total')
-    const totalCompanies = await User.query().where('userType', 'company').count('* as total')
-    const totalHalls = await Hall.query().count('* as total')
-    const totalBookings = await Booking.query().count('* as total')
+    const getCount = (result: any[]) => Number(result[0]?.$extras?.total ?? 0)
+
+    const totalUsers = await User.query()
+      .where('userType', 'user')
+      .whereNull('deletedAt')
+      .count('* as total')
+    const totalCompanies = await User.query()
+      .where('userType', 'company')
+      .whereNull('deletedAt')
+      .count('* as total')
+    const totalHalls = await Hall.query().whereNull('deletedAt').count('* as total')
+    const totalBookings = await Booking.query().whereNull('deletedAt').count('* as total')
     const activeBookings = await Booking.query()
       .where('status', 'confirmed')
+      .whereNull('deletedAt')
       .count('* as total')
     const bannedUsers = await User.query()
       .whereNotNull('deletedAt')
@@ -233,22 +258,181 @@ export default class AdminController {
       .whereNotNull('deletedAt')
       .where('userType', 'company')
       .count('* as total')
+    const pendingCompanies = await Company.query().where('status', 'pending').count('* as total')
 
     return response.ok({
       users: {
-        total: Number(totalUsers[0].$extras.total),
-        banned: Number(bannedUsers[0].$extras.total),
+        total: getCount(totalUsers),
+        banned: getCount(bannedUsers),
       },
       companies: {
-        total: Number(totalCompanies[0].$extras.total),
-        banned: Number(bannedCompanies[0].$extras.total),
+        total: getCount(totalCompanies),
+        banned: getCount(bannedCompanies),
+        pendingApproval: getCount(pendingCompanies),
       },
       halls: {
-        total: Number(totalHalls[0].$extras.total),
+        total: getCount(totalHalls),
       },
       bookings: {
-        total: Number(totalBookings[0].$extras.total),
-        active: Number(activeBookings[0].$extras.total),
+        total: getCount(totalBookings),
+        active: getCount(activeBookings),
+      },
+    })
+  }
+
+  /**
+   * Get pending company approvals
+   */
+  async getPendingCompanies({ request, response }: HttpContext) {
+    const page = Math.max(1, Number(request.input('page', 1)) || 1)
+    const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
+
+    const companies = await Company.query()
+      .where('status', 'pending')
+      .preload('user')
+      .preload('companyProfile')
+      .orderBy('createdAt', 'asc')
+      .paginate(page, limit)
+
+    return response.ok(companies)
+  }
+
+  /**
+   * Approve a company
+   */
+  async approveCompany({ params, auth, response }: HttpContext) {
+    await auth.check()
+    const admin = auth.getUserOrFail()
+
+    const company = await Company.findOrFail(params.id)
+
+    if (company.status === 'approved') {
+      return response.badRequest({
+        message: 'Company is already approved',
+      })
+    }
+
+    company.status = 'approved'
+    company.approvedAt = DateTime.now()
+    company.approvedBy = admin.id
+    company.rejectionReason = null
+    company.rejectedAt = null
+    await company.save()
+
+    // Notify the company owner
+    await company.load('companyProfile')
+    const companyName = company.companyProfile?.companyName || 'Your company'
+    await notificationService.notifyCompanyApproved(company.userId, companyName)
+
+    return response.ok({
+      message: 'Company approved successfully',
+      company: {
+        id: company.id,
+        status: company.status,
+        approvedAt: company.approvedAt,
+        approvedBy: company.approvedBy,
+      },
+    })
+  }
+
+  /**
+   * Reject a company
+   */
+  async rejectCompany({ params, request, response }: HttpContext) {
+    const { reason } = request.only(['reason'])
+
+    if (!reason || reason.trim().length < 10) {
+      return response.badRequest({
+        message: 'Rejection reason is required and must be at least 10 characters',
+      })
+    }
+
+    const company = await Company.findOrFail(params.id)
+
+    if (company.status === 'rejected') {
+      return response.badRequest({
+        message: 'Company is already rejected',
+      })
+    }
+
+    company.status = 'rejected'
+    company.rejectionReason = reason.trim()
+    company.rejectedAt = DateTime.now()
+    company.approvedAt = null
+    company.approvedBy = null
+    await company.save()
+
+    // Notify the company owner
+    await company.load('companyProfile')
+    const companyName = company.companyProfile?.companyName || 'Your company'
+    await notificationService.notifyCompanyRejected(company.userId, companyName, reason.trim())
+
+    return response.ok({
+      message: 'Company rejected successfully',
+      company: {
+        id: company.id,
+        status: company.status,
+        rejectionReason: company.rejectionReason,
+        rejectedAt: company.rejectedAt,
+      },
+    })
+  }
+
+  /**
+   * Suspend an approved company
+   */
+  async suspendCompany({ params, request, response }: HttpContext) {
+    const { reason } = request.only(['reason'])
+
+    if (!reason || reason.trim().length < 10) {
+      return response.badRequest({
+        message: 'Suspension reason is required and must be at least 10 characters',
+      })
+    }
+
+    const company = await Company.findOrFail(params.id)
+
+    if (company.status !== 'approved') {
+      return response.badRequest({
+        message: 'Only approved companies can be suspended',
+      })
+    }
+
+    company.status = 'suspended'
+    company.rejectionReason = reason.trim()
+    await company.save()
+
+    return response.ok({
+      message: 'Company suspended successfully',
+      company: {
+        id: company.id,
+        status: company.status,
+        reason: company.rejectionReason,
+      },
+    })
+  }
+
+  /**
+   * Reactivate a suspended company
+   */
+  async reactivateCompany({ params, response }: HttpContext) {
+    const company = await Company.findOrFail(params.id)
+
+    if (company.status !== 'suspended') {
+      return response.badRequest({
+        message: 'Only suspended companies can be reactivated',
+      })
+    }
+
+    company.status = 'approved'
+    company.rejectionReason = null
+    await company.save()
+
+    return response.ok({
+      message: 'Company reactivated successfully',
+      company: {
+        id: company.id,
+        status: company.status,
       },
     })
   }

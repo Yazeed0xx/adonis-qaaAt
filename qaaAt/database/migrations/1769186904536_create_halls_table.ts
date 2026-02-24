@@ -13,14 +13,14 @@ export default class extends BaseSchema {
       table.json('amenities').nullable()
       table.decimal('pricing', 10, 2).notNullable()
       table.json('images').nullable()
-      table.string("address").notNullable()
-      table.string("city").notNullable()
-      table.json("additional_services").nullable()
-      table.json("additional_features").nullable()
-      table.json("additional_amenities").nullable()
-      table.json("additional_equipments").nullable()
-      table.json("additional_facilities").nullable()
-    
+      table.string('address').notNullable()
+      table.string('city').notNullable()
+      table.json('additional_services').nullable()
+      table.json('additional_features').nullable()
+      table.json('additional_amenities').nullable()
+      table.json('additional_equipments').nullable()
+      table.json('additional_facilities').nullable()
+
       table.boolean('is_available').defaultTo(true).notNullable()
       table
         .integer('company_id')

@@ -14,11 +14,7 @@ export const hallValidator = vine.compile(
     images: vine.array(vine.string()).optional(),
     address: vine.string(),
     city: vine.string(),
-    additionalServices: vine.any().optional(),
-    additionalFeatures: vine.any().optional(),
-    additionalAmenities: vine.any().optional(),
-    additionalEquipments: vine.any().optional(),
-    additionalFacilities: vine.any().optional(),
+    services: vine.array(vine.string()).optional(),
     isAvailable: vine.boolean().optional(),
   })
 )

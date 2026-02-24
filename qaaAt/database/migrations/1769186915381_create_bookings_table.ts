@@ -1,4 +1,3 @@
-
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {
@@ -10,7 +9,18 @@ export default class extends BaseSchema {
       table.date('booking_date').notNullable()
       table.time('start_time').notNullable()
       table.time('end_time').notNullable()
-      table.enum('status', ['pending', 'confirmed', 'cancelled', 'completed']).notNullable().defaultTo('pending')
+      table
+        .enum('status', [
+          'pending',
+          'accepted',
+          'rejected',
+          'expired',
+          'confirmed',
+          'cancelled',
+          'completed',
+        ])
+        .notNullable()
+        .defaultTo('pending')
       table.decimal('total_price', 10, 2).notNullable()
       table.text('special_requests').nullable()
       table

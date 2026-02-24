@@ -14,6 +14,7 @@ A hall booking application built with AdonisJS, allowing users and companies to 
 ## Database Schema
 
 ### Core Tables
+
 - `users` - Base user authentication (supports both "user" and "company" types)
 - `user_profiles` - Profile information for regular users
 - `company_profiles` - Public-facing profile information for companies
@@ -41,17 +42,20 @@ A hall booking application built with AdonisJS, allowing users and companies to 
 ### Installation
 
 1. Clone the repository
+
 ```bash
 git clone <repository-url>
 cd qaaAt
 ```
 
 2. Install dependencies
+
 ```bash
 npm install
 ```
 
 3. Copy environment file
+
 ```bash
 cp .env.example .env
 ```
@@ -59,11 +63,13 @@ cp .env.example .env
 4. Configure your `.env` file with database credentials
 
 5. Run migrations
+
 ```bash
 node ace migration:run
 ```
 
 6. Start the development server
+
 ```bash
 npm run dev
 ```

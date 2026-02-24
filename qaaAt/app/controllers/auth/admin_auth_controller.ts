@@ -10,7 +10,7 @@ export default class AdminAuthController {
     const { email, password } = await request.validateUsing(adminLoginValidator)
 
     // Find user by email and user type
-    const user = await User.findBy('email', email)
+    const user = await User.query().where('email', email).whereNull('deletedAt').first()
 
     if (!user || user.userType !== 'admin') {
       return response.unauthorized({
@@ -19,9 +19,9 @@ export default class AdminAuthController {
     }
 
     // Verify password
-    const isPasswordValid = await User.verifyCredentials(email, password)
-
-    if (!isPasswordValid) {
+    try {
+      await User.verifyCredentials(email, password)
+    } catch {
       return response.unauthorized({
         message: 'Invalid credentials',
       })
@@ -76,7 +76,7 @@ export default class AdminAuthController {
     await auth.check()
 
     const user = auth.getUserOrFail()
-    const token = auth.user!.currentAccessToken
+    const token = user.currentAccessToken
 
     if (token) {
       await User.accessTokens.delete(user, token.identifier)

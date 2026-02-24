@@ -4,6 +4,9 @@ import Company from '#models/company'
 import CompanyProfile from '#models/company_profile'
 import { companyRegisterValidator } from '#validators/company_register_validator'
 import { companyLoginValidator } from '#validators/company_login_validator'
+import db from '@adonisjs/lucid/services/db'
+import { cuid } from '@adonisjs/core/helpers'
+import drive from '@adonisjs/drive/services/main'
 
 export default class CompanyAuthController {
   /**
@@ -12,41 +15,72 @@ export default class CompanyAuthController {
   async register({ request, response }: HttpContext) {
     const payload = await request.validateUsing(companyRegisterValidator)
 
-    // Create user with company type
-    const user = await User.create({
-      email: payload.email,
-      password: payload.password,
-      userType: 'company',
-    })
+    // Upload CR PDF
+    const pdfFile = payload.registrationNumberPdf
+    const key = `cr_documents/${cuid()}.${pdfFile.extname}`
+    await pdfFile.moveToDisk(key, 'fs')
+    const pdfUrl = await drive.use('fs').getUrl(key)
 
-    // Create company record
-    const company = await Company.create({
-      userId: user.id,
-      taxId: payload.taxId || null,
-      registrationNumber: payload.registrationNumber || null,
-      registrationNumberPdf: payload.registrationNumberPdf || null,
-      businessLicense: payload.businessLicense || null,
-      contactPerson: payload.contactPerson || null,
-      businessAddress: payload.businessAddress || null,
-      city: payload.city,
-    })
+    // Use transaction to ensure atomicity
+    const trx = await db.transaction()
+    let user: User
+    let company: Company
+    try {
+      user = await User.create(
+        {
+          email: payload.email,
+          password: payload.password,
+          userName: payload.companyName,
+          userType: 'company',
+        },
+        { client: trx }
+      )
 
-    // Create company profile
-    await CompanyProfile.create({
-      userId: user.id,
-      companyName: payload.companyName,
-      description: payload.description || null,
-      logo: payload.logo || null,
-      banner: payload.banner || null,
-      website: payload.website || null,
-      socialLinks: payload.socialLinks || null,
-    })
+      company = await Company.create(
+        {
+          userId: user.id,
+          taxId: payload.taxId || null,
+          registrationNumber: payload.registrationNumber,
+          registrationNumberPdf: pdfUrl,
+          businessLicense: payload.businessLicense || null,
+          contactPerson: payload.contactPerson || null,
+          businessAddress: payload.businessAddress,
+          city: payload.city,
+          status: 'pending',
+        },
+        { client: trx }
+      )
+
+      await CompanyProfile.create(
+        {
+          userId: user.id,
+          companyName: payload.companyName,
+          description: payload.description || null,
+          logo: payload.logo || null,
+          banner: payload.banner || null,
+          website: payload.website || null,
+          socialLinks: payload.socialLinks || null,
+        },
+        { client: trx }
+      )
+
+      await trx.commit()
+    } catch (error) {
+      await trx.rollback()
+      // Clean up orphaned file on disk
+      try {
+        await drive.use('fs').delete(key)
+      } catch {
+        // File cleanup failed — not critical
+      }
+      throw error
+    }
 
     // Generate access token
     const token = await User.accessTokens.create(user)
 
     return response.created({
-      message: 'Company registered successfully',
+      message: 'Company registered successfully. Your account is pending admin approval.',
       user: {
         id: user.id,
         email: user.email,
@@ -56,6 +90,7 @@ export default class CompanyAuthController {
         id: company.id,
         companyName: payload.companyName,
         city: company.city,
+        status: company.status,
       },
       token: {
         type: 'bearer',
@@ -71,7 +106,7 @@ export default class CompanyAuthController {
     const { email, password } = await request.validateUsing(companyLoginValidator)
 
     // Find user by email and user type
-    const user = await User.findBy('email', email)
+    const user = await User.query().where('email', email).whereNull('deletedAt').first()
 
     if (!user || user.userType !== 'company') {
       return response.unauthorized({
@@ -80,9 +115,9 @@ export default class CompanyAuthController {
     }
 
     // Verify password
-    const isPasswordValid = await User.verifyCredentials(email, password)
-
-    if (!isPasswordValid) {
+    try {
+      await User.verifyCredentials(email, password)
+    } catch {
       return response.unauthorized({
         message: 'Invalid credentials',
       })
@@ -96,8 +131,18 @@ export default class CompanyAuthController {
     // Generate access token
     const token = await User.accessTokens.create(user)
 
+    // Build message based on company status
+    let message = 'Login successful'
+    if (user.company?.status === 'pending') {
+      message = 'Login successful. Your company is pending admin approval.'
+    } else if (user.company?.status === 'rejected') {
+      message = 'Login successful. Your company registration was rejected.'
+    } else if (user.company?.status === 'suspended') {
+      message = 'Login successful. Your company account is suspended.'
+    }
+
     return response.ok({
-      message: 'Login successful',
+      message,
       user: {
         id: user.id,
         email: user.email,
@@ -147,7 +192,7 @@ export default class CompanyAuthController {
     await auth.check()
 
     const user = auth.getUserOrFail()
-    const token = auth.user!.currentAccessToken
+    const token = user.currentAccessToken
 
     if (token) {
       await User.accessTokens.delete(user, token.identifier)

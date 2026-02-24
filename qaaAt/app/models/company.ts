@@ -34,6 +34,21 @@ export default class Company extends BaseModel {
   @column()
   declare userId: number
 
+  @column()
+  declare status: 'pending' | 'approved' | 'rejected' | 'suspended'
+
+  @column.dateTime()
+  declare approvedAt: DateTime | null
+
+  @column()
+  declare approvedBy: number | null
+
+  @column()
+  declare rejectionReason: string | null
+
+  @column.dateTime()
+  declare rejectedAt: DateTime | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
@@ -43,10 +58,21 @@ export default class Company extends BaseModel {
   @column.dateTime()
   declare deletedAt: DateTime | null
 
+  get isApproved(): boolean {
+    return this.status === 'approved'
+  }
+
+  get isPending(): boolean {
+    return this.status === 'pending'
+  }
+
   @belongsTo(() => User)
   declare user: BelongsTo<typeof User>
 
-  @hasOne(() => CompanyProfile)
+  @belongsTo(() => User, { foreignKey: 'approvedBy' })
+  declare approvedByAdmin: BelongsTo<typeof User>
+
+  @hasOne(() => CompanyProfile, { foreignKey: 'userId', localKey: 'userId' })
   declare companyProfile: HasOne<typeof CompanyProfile>
 
   @hasMany(() => Hall)

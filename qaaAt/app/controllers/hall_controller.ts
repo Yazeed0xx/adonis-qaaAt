@@ -10,8 +10,8 @@ export default class HallController {
     const user = auth.getUserOrFail()
     const hallService = new HallService()
     const company = await hallService.getCompanyByUserId(user.id)
-    const page = request.input('page', 1)
-    const limit = request.input('limit', 20)
+    const page = Math.max(1, Number(request.input('page', 1)) || 1)
+    const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
 
     const halls = await hallService.getAllHalls(company.id, page, limit)
     return response.ok(halls)

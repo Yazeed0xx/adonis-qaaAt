@@ -7,6 +7,7 @@ import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import UserProfile from '#models/user_profile'
 import Company from '#models/company'
 import Booking from '#models/booking'
+import Notification from '#models/notification'
 import type { HasOne, HasMany } from '@adonisjs/lucid/types/relations'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
@@ -34,10 +35,23 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare createdAt: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
+  declare updatedAt: DateTime
 
   @column.dateTime()
   declare deletedAt: DateTime | null
+
+  @column.dateTime()
+  declare emailVerifiedAt: DateTime | null
+
+  @column()
+  declare emailVerificationToken: string | null
+
+  @column.dateTime()
+  declare emailVerificationExpiresAt: DateTime | null
+
+  get isEmailVerified(): boolean {
+    return this.emailVerifiedAt !== null
+  }
 
   @hasOne(() => UserProfile)
   declare userProfile: HasOne<typeof UserProfile>
@@ -47,6 +61,9 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   @hasMany(() => Booking)
   declare bookings: HasMany<typeof Booking>
+
+  @hasMany(() => Notification)
+  declare notifications: HasMany<typeof Notification>
 
   static accessTokens = DbAccessTokensProvider.forModel(User)
 }

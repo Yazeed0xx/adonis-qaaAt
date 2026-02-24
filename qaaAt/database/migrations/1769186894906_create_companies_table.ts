@@ -12,8 +12,8 @@ export default class extends BaseSchema {
       table.string('business_license').nullable()
       table.string('contact_person').nullable()
       table.text('business_address').nullable()
-      table.string("city").notNullable()
-      
+      table.string('city').notNullable()
+
       table
         .integer('user_id')
         .unsigned()
