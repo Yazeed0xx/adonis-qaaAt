@@ -5,7 +5,7 @@ import CompanyProfile from '#models/company_profile'
 import { companyRegisterValidator } from '#validators/company_register_validator'
 import { companyLoginValidator } from '#validators/company_login_validator'
 import db from '@adonisjs/lucid/services/db'
-import { cuid } from '@adonisjs/core/helpers'
+import { randomUUID } from 'node:crypto'
 import drive from '@adonisjs/drive/services/main'
 
 export default class CompanyAuthController {
@@ -17,7 +17,7 @@ export default class CompanyAuthController {
 
     // Upload CR PDF
     const pdfFile = payload.registrationNumberPdf
-    const key = `cr_documents/${cuid()}.${pdfFile.extname}`
+    const key = `cr_documents/${randomUUID()}.${pdfFile.extname}`
     await pdfFile.moveToDisk(key, 'fs')
     const pdfUrl = await drive.use('fs').getUrl(key)
 

@@ -1,9 +1,26 @@
 import Hall from '#models/hall'
 import Company from '#models/company'
-import { ApiOperation, ApiResponse } from '@foadonis/openapi/decorators'
 import { DateTime } from 'luxon'
 
+interface HallInput {
+  name: string
+  capacity: number
+  location: string
+  pricing: number
+  address: string
+  city: string
+  description?: string
+  amenities?: any
+  images?: string[]
+  services?: string[]
+  isAvailable?: boolean
+}
+
 export class HallService {
+  private toDatabaseAmount(value: number) {
+    return String(value)
+  }
+
   /**
    * Get company by user ID
    */
@@ -15,14 +32,6 @@ export class HallService {
    * Get all halls for a company
    */
 
-  @ApiOperation({
-    summary: 'Get all halls for a company',
-    description: 'Get all halls for a company',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Halls fetched successfully',
-  })
   async getAllHalls(companyId: number, page: number = 1, limit: number = 20) {
     return Hall.query()
       .where('companyId', companyId)
@@ -46,9 +55,10 @@ export class HallService {
   /**
    * Create a new hall
    */
-  async createHall(companyId: number, data: Partial<Hall>) {
+  async createHall(companyId: number, data: HallInput) {
     return Hall.create({
       ...data,
+      pricing: this.toDatabaseAmount(data.pricing),
       companyId,
       isAvailable: data.isAvailable ?? true,
     })
@@ -57,10 +67,13 @@ export class HallService {
   /**
    * Update a hall
    */
-  async updateHall(hallId: number, companyId: number, data: Partial<Hall>) {
+  async updateHall(hallId: number, companyId: number, data: Partial<HallInput>) {
     const hall = await Hall.query().where('id', hallId).where('companyId', companyId).firstOrFail()
 
-    hall.merge(data)
+    hall.merge({
+      ...data,
+      pricing: data.pricing !== undefined ? this.toDatabaseAmount(data.pricing) : undefined,
+    })
     await hall.save()
 
     return hall

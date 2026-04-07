@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo, hasMany, manyToMany, scope } from '@adonisjs/lucid/orm'
+import { belongsTo, hasMany, manyToMany, scope } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
+import { BookingSchema } from '#database/schema'
 import User from '#models/user'
 import Hall from '#models/hall'
 import BookingService from '#models/booking_service'
@@ -16,58 +17,7 @@ export type BookingStatus =
   | 'expired'
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded'
 
-export default class Booking extends BaseModel {
-  @column({ isPrimary: true })
-  declare id: number
-
-  @column.date()
-  declare bookingDate: DateTime
-
-  @column()
-  declare startTime: string
-
-  @column()
-  declare endTime: string
-
-  @column()
-  declare status: BookingStatus
-
-  @column()
-  declare totalPrice: number
-
-  @column()
-  declare specialRequests: string | null
-
-  @column()
-  declare rejectionReason: string | null
-
-  @column.dateTime()
-  declare companyRespondedAt: DateTime | null
-
-  @column.dateTime()
-  declare expiresAt: DateTime | null
-
-  @column()
-  declare paymentStatus: PaymentStatus
-
-  @column.dateTime()
-  declare paymentDueDate: DateTime | null
-
-  @column()
-  declare userId: number
-
-  @column()
-  declare hallId: number
-
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
-
-  @column.dateTime()
-  declare deletedAt: DateTime | null
-
+export default class Booking extends BookingSchema {
   /**
    * Check if booking has expired (company didn't respond within 7 days)
    */

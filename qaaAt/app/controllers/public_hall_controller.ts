@@ -2,12 +2,14 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 import Hall from '#models/hall'
 import bookingManagementService from '#services/booking_management_service'
+import apiSerializer from '#transformers/api_serializer'
+import HallTransformer from '#transformers/hall_transformer'
 
 export default class PublicHallController {
   /**
    * Browse all available halls (public, no auth required)
    */
-  async index({ request, response }: HttpContext) {
+  async index({ request }: HttpContext) {
     const page = Math.max(1, Number(request.input('page', 1)) || 1)
     const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
     const city = request.input('city')
@@ -50,7 +52,7 @@ export default class PublicHallController {
 
     const halls = await query.paginate(page, limit)
 
-    return response.ok(halls)
+    return apiSerializer.serialize(HallTransformer.paginate(halls.all(), halls.getMeta()))
   }
 
   /**
@@ -75,7 +77,7 @@ export default class PublicHallController {
       })
     }
 
-    return response.ok(hall)
+    return apiSerializer.serialize(HallTransformer.transform(hall))
   }
 
   /**

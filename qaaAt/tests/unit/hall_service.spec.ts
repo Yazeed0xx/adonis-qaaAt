@@ -54,7 +54,7 @@ test.group('Hall Service', (group) => {
         name: 'Hall 1',
         capacity: 100,
         location: 'Location 1',
-        pricing: 5000,
+        pricing: '5000',
         address: 'Address 1',
         city: 'City 1',
         companyId: company.id,
@@ -64,7 +64,7 @@ test.group('Hall Service', (group) => {
         name: 'Hall 2',
         capacity: 200,
         location: 'Location 2',
-        pricing: 10000,
+        pricing: '10000',
         address: 'Address 2',
         city: 'City 2',
         companyId: company.id,
@@ -113,7 +113,7 @@ test.group('Hall Service', (group) => {
       name: 'Test Hall',
       capacity: 150,
       location: 'Test Location',
-      pricing: 7500,
+      pricing: '7500',
       address: 'Test Address',
       city: 'Test City',
       companyId: company.id,
@@ -174,7 +174,7 @@ test.group('Hall Service', (group) => {
       name: 'Test Hall',
       capacity: 150,
       location: 'Test Location',
-      pricing: 7500,
+      pricing: '7500',
       address: 'Test Address',
       city: 'Test City',
       companyId: company1.id,
@@ -260,7 +260,7 @@ test.group('Hall Service', (group) => {
       name: 'Original Hall',
       capacity: 100,
       location: 'Original Location',
-      pricing: 5000,
+      pricing: '5000',
       address: 'Original Address',
       city: 'Original City',
       companyId: company.id,
@@ -277,7 +277,7 @@ test.group('Hall Service', (group) => {
 
     assert.equal(result.name, 'Updated Hall')
     assert.equal(result.capacity, 150)
-    assert.equal(result.pricing, 7500)
+    assert.equal(result.pricing, '7500')
     // Other fields should remain unchanged
     assert.equal(result.location, 'Original Location')
   })
@@ -318,7 +318,7 @@ test.group('Hall Service', (group) => {
       name: 'Hall to Delete',
       capacity: 100,
       location: 'Location',
-      pricing: 5000,
+      pricing: '5000',
       address: 'Address',
       city: 'City',
       companyId: company.id,

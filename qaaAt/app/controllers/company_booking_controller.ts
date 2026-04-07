@@ -3,7 +3,7 @@ import Company from '#models/company'
 import bookingManagementService from '#services/booking_management_service'
 import { rejectBookingValidator } from '#validators/booking_validator'
 import Booking from '#models/booking'
-// test
+
 export default class CompanyBookingController {
   /**
    * Get company's company from user

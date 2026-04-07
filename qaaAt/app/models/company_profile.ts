@@ -1,45 +1,9 @@
-import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
+import { belongsTo } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import { CompanyProfileSchema } from '#database/schema'
 import User from '#models/user'
 
-export default class CompanyProfile extends BaseModel {
-  @column({ isPrimary: true })
-  declare id: number
-
-  @column()
-  declare companyName: string
-
-  @column()
-  declare description: string | null
-
-  @column()
-  declare logo: string | null
-
-  @column()
-  declare banner: string | null
-
-  @column()
-  declare website: string | null
-
-  @column({
-    prepare: (value: Record<string, any> | null) => (value ? JSON.stringify(value) : null),
-    consume: (value: any) => (typeof value === 'string' ? JSON.parse(value) : (value ?? null)),
-  })
-  declare socialLinks: Record<string, any> | null
-
-  @column()
-  declare userId: number
-
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
-
-  @column.dateTime()
-  declare deletedAt: DateTime | null
-
+export default class CompanyProfile extends CompanyProfileSchema {
   @belongsTo(() => User)
   declare user: BelongsTo<typeof User>
 }

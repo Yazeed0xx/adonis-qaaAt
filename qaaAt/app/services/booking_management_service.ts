@@ -22,6 +22,14 @@ interface TimeSlot {
 export class BookingManagementService {
   private static EXPIRY_DAYS = 7
 
+  private fromDatabaseAmount(value: string) {
+    return Number(value)
+  }
+
+  private toDatabaseAmount(value: number) {
+    return String(value)
+  }
+
   /**
    * Create a new booking request
    */
@@ -79,7 +87,7 @@ export class BookingManagementService {
       bookingDate: data.bookingDate,
       startTime: data.startTime,
       endTime: data.endTime,
-      totalPrice,
+      totalPrice: this.toDatabaseAmount(totalPrice),
       specialRequests: data.specialRequests || null,
       status: 'pending',
       paymentStatus: 'unpaid',
@@ -94,7 +102,7 @@ export class BookingManagementService {
       if (services.length !== data.serviceIds.length) {
         throw new Error('One or more selected services are not available for this hall')
       }
-      const pivotData: Record<number, { price_at_booking: number }> = {}
+      const pivotData: Record<number, { price_at_booking: string }> = {}
       services.forEach((service) => {
         pivotData[service.id] = { price_at_booking: service.price }
       })
@@ -187,12 +195,15 @@ export class BookingManagementService {
     const hours = (endHour * 60 + endMin - (startHour * 60 + startMin)) / 60
 
     // Hall price (pricing is per hour)
-    let totalPrice = hall.pricing * hours
+    let totalPrice = this.fromDatabaseAmount(hall.pricing) * hours
 
     // Add service prices
     if (serviceIds && serviceIds.length > 0) {
       const services = await Service.query().whereIn('id', serviceIds)
-      totalPrice += services.reduce((sum, service) => sum + service.price, 0)
+      totalPrice += services.reduce(
+        (sum, service) => sum + this.fromDatabaseAmount(service.price),
+        0
+      )
     }
 
     return totalPrice

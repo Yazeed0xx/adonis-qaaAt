@@ -8,21 +8,8 @@
 */
 
 import router from '@adonisjs/core/services/router'
+import { controllers } from '#generated/controllers'
 import { middleware } from './kernel.js'
-import openapi from '@foadonis/openapi/services/main'
-
-openapi.registerRoutes()
-
-const UserAuthController = () => import('#controllers/auth/user_auth_controller')
-const CompanyAuthController = () => import('#controllers/auth/company_auth_controller')
-const AdminAuthController = () => import('#controllers/auth/admin_auth_controller')
-const AdminController = () => import('#controllers/admin_controller')
-const HallController = () => import('#controllers/hall_controller')
-const NotificationController = () => import('#controllers/notification_controller')
-const PublicHallController = () => import('#controllers/public_hall_controller')
-const UserBookingController = () => import('#controllers/user_booking_controller')
-const CompanyBookingController = () => import('#controllers/company_booking_controller')
-const HealthChecksController = () => import('#controllers/health_checks_controller')
 
 router.get('/', async () => {
   return {
@@ -33,86 +20,94 @@ router.get('/', async () => {
 // Public Hall Routes (no auth required)
 router
   .group(() => {
-    router.get('/', [PublicHallController, 'index'])
-    router.get('/cities', [PublicHallController, 'cities'])
-    router.get('/:id', [PublicHallController, 'show'])
-    router.get('/:id/availability', [PublicHallController, 'availability'])
+    router.get('/', [controllers.PublicHall, 'index'])
+    router.get('/cities', [controllers.PublicHall, 'cities'])
+    router.get('/:id', [controllers.PublicHall, 'show'])
+    router.get('/:id/availability', [controllers.PublicHall, 'availability'])
   })
   .prefix('/api/halls')
 
 // User Authentication Routes
 router
   .group(() => {
-    router.post('/register', [UserAuthController, 'register'])
-    router.post('/login', [UserAuthController, 'login'])
-    router.get('/me', [UserAuthController, 'me']).use(middleware.auth())
-    router.post('/logout', [UserAuthController, 'logout']).use(middleware.auth())
+    router.post('/register', [controllers.auth.UserAuth, 'register'])
+    router.post('/login', [controllers.auth.UserAuth, 'login'])
+    router.get('/me', [controllers.auth.UserAuth, 'me']).use(middleware.auth())
+    router.post('/logout', [controllers.auth.UserAuth, 'logout']).use(middleware.auth())
 
     // Email verification routes (no auth required)
-    router.get('/verify-email/:token', [UserAuthController, 'verifyEmail'])
-    router.post('/resend-verification', [UserAuthController, 'resendVerification'])
+    router.get('/verify-email/:token', [controllers.auth.UserAuth, 'verifyEmail'])
+    router.post('/resend-verification', [controllers.auth.UserAuth, 'resendVerification'])
 
     // User notification routes (auth + user type required)
     router
-      .get('/notifications', [NotificationController, 'index'])
+      .get('/notifications', [controllers.Notification, 'index'])
+      .as('users.notification.index')
       .use([middleware.auth(), middleware.userType()])
     router
-      .get('/notifications/unread-count', [NotificationController, 'unreadCount'])
+      .get('/notifications/unread-count', [controllers.Notification, 'unreadCount'])
+      .as('users.notification.unreadCount')
       .use([middleware.auth(), middleware.userType()])
     router
-      .post('/notifications/:id/read', [NotificationController, 'markAsRead'])
+      .post('/notifications/:id/read', [controllers.Notification, 'markAsRead'])
+      .as('users.notification.markAsRead')
       .use([middleware.auth(), middleware.userType()])
     router
-      .post('/notifications/read-all', [NotificationController, 'markAllAsRead'])
+      .post('/notifications/read-all', [controllers.Notification, 'markAllAsRead'])
+      .as('users.notification.markAllAsRead')
       .use([middleware.auth(), middleware.userType()])
 
     // User booking routes (auth + verified email required)
-    router.get('/bookings', [UserBookingController, 'index']).use(middleware.auth())
+    router.get('/bookings', [controllers.UserBooking, 'index']).use(middleware.auth())
     router
-      .post('/bookings', [UserBookingController, 'store'])
+      .post('/bookings', [controllers.UserBooking, 'store'])
       .use([middleware.auth(), middleware.verifiedEmail()])
-    router.get('/bookings/:id', [UserBookingController, 'show']).use(middleware.auth())
-    router.post('/bookings/:id/cancel', [UserBookingController, 'cancel']).use(middleware.auth())
+    router.get('/bookings/:id', [controllers.UserBooking, 'show']).use(middleware.auth())
+    router.post('/bookings/:id/cancel', [controllers.UserBooking, 'cancel']).use(middleware.auth())
   })
   .prefix('/api/users')
 
 // Company Authentication Routes
 router
   .group(() => {
-    router.post('/register', [CompanyAuthController, 'register'])
-    router.post('/login', [CompanyAuthController, 'login'])
-    router.get('/me', [CompanyAuthController, 'me']).use(middleware.auth())
-    router.post('/logout', [CompanyAuthController, 'logout']).use(middleware.auth())
+    router.post('/register', [controllers.auth.CompanyAuth, 'register'])
+    router.post('/login', [controllers.auth.CompanyAuth, 'login'])
+    router.get('/me', [controllers.auth.CompanyAuth, 'me']).use(middleware.auth())
+    router.post('/logout', [controllers.auth.CompanyAuth, 'logout']).use(middleware.auth())
 
     // Company notification routes (auth required)
     router
-      .get('/notifications', [NotificationController, 'index'])
+      .get('/notifications', [controllers.Notification, 'index'])
+      .as('companies.notification.index')
       .use([middleware.auth(), middleware.company()])
     router
-      .get('/notifications/unread-count', [NotificationController, 'unreadCount'])
+      .get('/notifications/unread-count', [controllers.Notification, 'unreadCount'])
+      .as('companies.notification.unreadCount')
       .use([middleware.auth(), middleware.company()])
     router
-      .post('/notifications/:id/read', [NotificationController, 'markAsRead'])
+      .post('/notifications/:id/read', [controllers.Notification, 'markAsRead'])
+      .as('companies.notification.markAsRead')
       .use([middleware.auth(), middleware.company()])
     router
-      .post('/notifications/read-all', [NotificationController, 'markAllAsRead'])
+      .post('/notifications/read-all', [controllers.Notification, 'markAllAsRead'])
+      .as('companies.notification.markAllAsRead')
       .use([middleware.auth(), middleware.company()])
 
     // Company booking routes (auth + company + approved required)
     router
-      .get('/bookings', [CompanyBookingController, 'index'])
+      .get('/bookings', [controllers.CompanyBooking, 'index'])
       .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
     router
-      .get('/bookings/pending', [CompanyBookingController, 'pending'])
+      .get('/bookings/pending', [controllers.CompanyBooking, 'pending'])
       .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
     router
-      .get('/bookings/:id', [CompanyBookingController, 'show'])
+      .get('/bookings/:id', [controllers.CompanyBooking, 'show'])
       .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
     router
-      .post('/bookings/:id/accept', [CompanyBookingController, 'accept'])
+      .post('/bookings/:id/accept', [controllers.CompanyBooking, 'accept'])
       .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
     router
-      .post('/bookings/:id/reject', [CompanyBookingController, 'reject'])
+      .post('/bookings/:id/reject', [controllers.CompanyBooking, 'reject'])
       .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
   })
   .prefix('/api/companies')
@@ -120,11 +115,11 @@ router
 // Company Hall Management Routes (requires auth + approved company)
 router
   .group(() => {
-    router.get('/', [HallController, 'index'])
-    router.get('/:id', [HallController, 'show'])
-    router.post('/', [HallController, 'store']).use([middleware.approvedCompany()])
-    router.put('/:id', [HallController, 'update']).use([middleware.approvedCompany()])
-    router.delete('/:id', [HallController, 'destroy']).use([middleware.approvedCompany()])
+    router.get('/', [controllers.Hall, 'index'])
+    router.get('/:id', [controllers.Hall, 'show'])
+    router.post('/', [controllers.Hall, 'store']).use([middleware.approvedCompany()])
+    router.put('/:id', [controllers.Hall, 'update']).use([middleware.approvedCompany()])
+    router.delete('/:id', [controllers.Hall, 'destroy']).use([middleware.approvedCompany()])
   })
   .prefix('/api/companies/halls')
   .use([middleware.auth(), middleware.company()])
@@ -132,9 +127,9 @@ router
 // Admin Authentication Routes
 router
   .group(() => {
-    router.post('/login', [AdminAuthController, 'login'])
-    router.get('/me', [AdminAuthController, 'me']).use(middleware.auth())
-    router.post('/logout', [AdminAuthController, 'logout']).use(middleware.auth())
+    router.post('/login', [controllers.auth.AdminAuth, 'login'])
+    router.get('/me', [controllers.auth.AdminAuth, 'me']).use(middleware.auth())
+    router.post('/logout', [controllers.auth.AdminAuth, 'logout']).use(middleware.auth())
   })
   .prefix('/api/admin')
 
@@ -142,35 +137,35 @@ router
 router
   .group(() => {
     // Statistics
-    router.get('/statistics', [AdminController, 'getStatistics'])
+    router.get('/statistics', [controllers.Admin, 'getStatistics'])
 
     // Users Management
-    router.get('/users', [AdminController, 'getUsers'])
-    router.get('/users/:id', [AdminController, 'getUser'])
-    router.post('/users/:id/ban', [AdminController, 'banUser'])
-    router.post('/users/:id/unban', [AdminController, 'unbanUser'])
+    router.get('/users', [controllers.Admin, 'getUsers'])
+    router.get('/users/:id', [controllers.Admin, 'getUser'])
+    router.post('/users/:id/ban', [controllers.Admin, 'banUser'])
+    router.post('/users/:id/unban', [controllers.Admin, 'unbanUser'])
 
     // Companies Management
-    router.get('/companies', [AdminController, 'getCompanies'])
-    router.get('/companies/pending', [AdminController, 'getPendingCompanies'])
-    router.get('/companies/:id', [AdminController, 'getCompany'])
-    router.post('/companies/:id/ban', [AdminController, 'banCompany'])
-    router.post('/companies/:id/unban', [AdminController, 'unbanCompany'])
-    router.post('/companies/:id/approve', [AdminController, 'approveCompany'])
-    router.post('/companies/:id/reject', [AdminController, 'rejectCompany'])
-    router.post('/companies/:id/suspend', [AdminController, 'suspendCompany'])
-    router.post('/companies/:id/reactivate', [AdminController, 'reactivateCompany'])
+    router.get('/companies', [controllers.Admin, 'getCompanies'])
+    router.get('/companies/pending', [controllers.Admin, 'getPendingCompanies'])
+    router.get('/companies/:id', [controllers.Admin, 'getCompany'])
+    router.post('/companies/:id/ban', [controllers.Admin, 'banCompany'])
+    router.post('/companies/:id/unban', [controllers.Admin, 'unbanCompany'])
+    router.post('/companies/:id/approve', [controllers.Admin, 'approveCompany'])
+    router.post('/companies/:id/reject', [controllers.Admin, 'rejectCompany'])
+    router.post('/companies/:id/suspend', [controllers.Admin, 'suspendCompany'])
+    router.post('/companies/:id/reactivate', [controllers.Admin, 'reactivateCompany'])
 
     // Halls Management
-    router.get('/halls', [AdminController, 'getHalls'])
-    router.delete('/halls/:id', [AdminController, 'deleteHall'])
+    router.get('/halls', [controllers.Admin, 'getHalls'])
+    router.delete('/halls/:id', [controllers.Admin, 'deleteHall'])
 
     // Bookings Management
-    router.get('/bookings', [AdminController, 'getBookings'])
-    router.delete('/bookings/:id', [AdminController, 'deleteBooking'])
+    router.get('/bookings', [controllers.Admin, 'getBookings'])
+    router.delete('/bookings/:id', [controllers.Admin, 'deleteBooking'])
   })
   .prefix('/api/admin')
   .use([middleware.auth(), middleware.admin()])
 
 // Health Check Routes
-router.get('/health', [HealthChecksController, 'handle'])
+router.get('/health', [controllers.HealthChecks, 'handle'])

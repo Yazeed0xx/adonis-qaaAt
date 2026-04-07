@@ -1,32 +1,11 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo, scope } from '@adonisjs/lucid/orm'
+import { belongsTo, scope } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import { NotificationSchema } from '#database/schema'
 import User from '#models/user'
 
-export default class Notification extends BaseModel {
-  @column({ isPrimary: true })
-  declare id: number
-
-  @column()
-  declare userId: number
-
-  @column()
-  declare type: string
-
-  @column()
-  declare title: string
-
-  @column()
-  declare message: string
-
-  @column()
+export default class Notification extends NotificationSchema {
   declare data: Record<string, any> | null
-
-  @column.dateTime()
-  declare readAt: DateTime | null
-
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
 
   get isRead(): boolean {
     return this.readAt !== null

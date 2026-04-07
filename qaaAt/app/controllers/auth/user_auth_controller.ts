@@ -19,7 +19,7 @@ export default class UserAuthController {
     try {
       user = await User.create(
         {
-          userName: payload.userName || null,
+          userName: payload.userName || undefined,
           email: payload.email,
           password: payload.password,
           userType: 'user',
