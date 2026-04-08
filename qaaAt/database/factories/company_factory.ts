@@ -1,23 +1,46 @@
 import factory from '@adonisjs/lucid/factories'
-import Company from '#models/company'
-import User from '#models/user'
 import { DateTime } from 'luxon'
+import Company from '#models/company'
+import { CompanyProfileFactory } from '#database/factories/company_profile_factory'
+import { UserFactory } from '#database/factories/user_factory'
 
 export const CompanyFactory = factory
-  .define(Company, async ({ faker }) => {
-    const user = await User.create({
-      userName: faker.person.fullName(),
-      email: faker.internet.email(),
-      password: 'password123',
-      userType: 'company' as const,
-      createdAt: DateTime.now(),
-    })
-
+  .define(Company, ({ faker }) => {
     return {
-      userId: user.id,
-      city: faker.location.city(),
+      taxId: faker.string.numeric(12),
+      registrationNumber: `CR-${faker.string.numeric(10)}`,
+      registrationNumberPdf: faker.internet.url(),
+      businessLicense: faker.internet.url(),
       contactPerson: faker.person.fullName(),
       businessAddress: faker.location.streetAddress(),
+      city: faker.helpers.arrayElement(['Riyadh', 'Jeddah', 'Dammam', 'Khobar']),
+      status: 'pending',
     }
   })
+  .state('pending', (company) => {
+    company.status = 'pending'
+    company.approvedAt = null
+    company.approvedBy = null
+    company.rejectionReason = null
+    company.rejectedAt = null
+  })
+  .state('approved', (company) => {
+    company.status = 'approved'
+    company.approvedAt = DateTime.now().minus({ days: 7 })
+    company.rejectionReason = null
+    company.rejectedAt = null
+  })
+  .state('rejected', (company, { faker }) => {
+    company.status = 'rejected'
+    company.approvedAt = null
+    company.approvedBy = null
+    company.rejectionReason = faker.lorem.sentence()
+    company.rejectedAt = DateTime.now().minus({ days: 3 })
+  })
+  .state('suspended', (company, { faker }) => {
+    company.status = 'suspended'
+    company.rejectionReason = faker.lorem.sentence()
+  })
+  .relation('user', () => UserFactory)
+  .relation('companyProfile', () => CompanyProfileFactory)
   .build()

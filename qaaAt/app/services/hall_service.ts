@@ -1,6 +1,8 @@
 import Hall from '#models/hall'
 import Company from '#models/company'
 import { DateTime } from 'luxon'
+import CompanyNotFoundException from '#exceptions/company_not_found_exception'
+import { toDatabaseAmount } from '#lib/money'
 
 interface HallInput {
   name: string
@@ -17,15 +19,16 @@ interface HallInput {
 }
 
 export class HallService {
-  private toDatabaseAmount(value: number) {
-    return String(value)
-  }
-
   /**
    * Get company by user ID
    */
   private async getCompany(userId: number) {
-    return Company.findByOrFail('userId', userId)
+    const company = await Company.findBy('userId', userId)
+    if (!company) {
+      throw new CompanyNotFoundException()
+    }
+
+    return company
   }
 
   /**
@@ -58,7 +61,7 @@ export class HallService {
   async createHall(companyId: number, data: HallInput) {
     return Hall.create({
       ...data,
-      pricing: this.toDatabaseAmount(data.pricing),
+      pricing: toDatabaseAmount(data.pricing),
       companyId,
       isAvailable: data.isAvailable ?? true,
     })
@@ -68,11 +71,15 @@ export class HallService {
    * Update a hall
    */
   async updateHall(hallId: number, companyId: number, data: Partial<HallInput>) {
-    const hall = await Hall.query().where('id', hallId).where('companyId', companyId).firstOrFail()
+    const hall = await Hall.query()
+      .where('id', hallId)
+      .where('companyId', companyId)
+      .whereNull('deletedAt')
+      .firstOrFail()
 
     hall.merge({
       ...data,
-      pricing: data.pricing !== undefined ? this.toDatabaseAmount(data.pricing) : undefined,
+      pricing: data.pricing !== undefined ? toDatabaseAmount(data.pricing) : undefined,
     })
     await hall.save()
 
@@ -83,7 +90,11 @@ export class HallService {
    * Delete a hall
    */
   async deleteHall(hallId: number, companyId: number) {
-    const hall = await Hall.query().where('id', hallId).where('companyId', companyId).firstOrFail()
+    const hall = await Hall.query()
+      .where('id', hallId)
+      .where('companyId', companyId)
+      .whereNull('deletedAt')
+      .firstOrFail()
 
     hall.deletedAt = DateTime.now()
     await hall.save()

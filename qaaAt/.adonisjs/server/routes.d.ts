@@ -5,6 +5,9 @@ type ParamValue = string | number | bigint | boolean
 export type ScannedRoutes = {
   ALL: {
     'drive.fs.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
+    'openapi.html': { paramsTuple?: []; params?: {} }
+    'openapi.json': { paramsTuple?: []; params?: {} }
+    'openapi.yaml': { paramsTuple?: []; params?: {} }
     'public_hall.index': { paramsTuple?: []; params?: {} }
     'public_hall.cities': { paramsTuple?: []; params?: {} }
     'public_hall.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -66,6 +69,9 @@ export type ScannedRoutes = {
   }
   GET: {
     'drive.fs.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
+    'openapi.html': { paramsTuple?: []; params?: {} }
+    'openapi.json': { paramsTuple?: []; params?: {} }
+    'openapi.yaml': { paramsTuple?: []; params?: {} }
     'public_hall.index': { paramsTuple?: []; params?: {} }
     'public_hall.cities': { paramsTuple?: []; params?: {} }
     'public_hall.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -97,6 +103,9 @@ export type ScannedRoutes = {
   }
   HEAD: {
     'drive.fs.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
+    'openapi.html': { paramsTuple?: []; params?: {} }
+    'openapi.json': { paramsTuple?: []; params?: {} }
+    'openapi.yaml': { paramsTuple?: []; params?: {} }
     'public_hall.index': { paramsTuple?: []; params?: {} }
     'public_hall.cities': { paramsTuple?: []; params?: {} }
     'public_hall.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

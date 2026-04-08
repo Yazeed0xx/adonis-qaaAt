@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
+import SendMailJob from '#jobs/send_mail_job'
 import Notification from '#models/notification'
 import User from '#models/user'
-import mail from '@adonisjs/mail/services/main'
 import env from '#start/env'
 
 export type NotificationType =
@@ -24,6 +24,8 @@ interface NotificationData {
   sendEmail?: boolean
   emailSubject?: string
 }
+
+export type QueuedNotificationData = NotificationData
 
 export class NotificationService {
   /**
@@ -69,12 +71,11 @@ export class NotificationService {
     message: string,
     data?: Record<string, any>
   ): Promise<void> {
-    await mail.send((msg) => {
-      msg
-        .to(user.email)
-        .subject(subject)
-        .html(this.getEmailHtml(user, title, message, data))
-    })
+    await SendMailJob.dispatch({
+      to: user.email,
+      subject,
+      html: this.getEmailHtml(user, title, message, data),
+    }).toQueue('emails')
   }
 
   /**

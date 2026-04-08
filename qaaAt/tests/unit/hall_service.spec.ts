@@ -11,6 +11,7 @@ test.group('Hall Service', (group) => {
   test('getCompanyByUserId should return company for valid user', async ({ assert }) => {
     // Create a user
     const user = await User.create({
+      userName: 'company-test-1',
       email: 'company@test.com',
       password: 'password123',
       userType: 'company',
@@ -32,12 +33,13 @@ test.group('Hall Service', (group) => {
   test('getCompanyByUserId should throw error for invalid user', async ({ assert }) => {
     const hallService = new HallService()
 
-    await assert.rejects(() => hallService.getCompanyByUserId(99999), 'Row not found')
+    await assert.rejects(() => hallService.getCompanyByUserId(99999), 'Company not found')
   })
 
   test('getAllHalls should return paginated halls for a company', async ({ assert }) => {
     // Create user and company
     const user = await User.create({
+      userName: 'company-test-2',
       email: 'company2@test.com',
       password: 'password123',
       userType: 'company',
@@ -81,6 +83,7 @@ test.group('Hall Service', (group) => {
 
   test('getAllHalls should return empty array for company with no halls', async ({ assert }) => {
     const user = await User.create({
+      userName: 'company-test-3',
       email: 'company3@test.com',
       password: 'password123',
       userType: 'company',
@@ -99,6 +102,7 @@ test.group('Hall Service', (group) => {
 
   test('getHallById should return hall with bookings for valid hall', async ({ assert }) => {
     const user = await User.create({
+      userName: 'company-test-4',
       email: 'company4@test.com',
       password: 'password123',
       userType: 'company',
@@ -129,6 +133,7 @@ test.group('Hall Service', (group) => {
 
   test('getHallById should throw error for invalid hall', async ({ assert }) => {
     const user = await User.create({
+      userName: 'company-test-5',
       email: 'company5@test.com',
       password: 'password123',
       userType: 'company',
@@ -149,12 +154,14 @@ test.group('Hall Service', (group) => {
   }) => {
     // Create two companies
     const user1 = await User.create({
+      userName: 'company-test-6',
       email: 'company6@test.com',
       password: 'password123',
       userType: 'company',
     })
 
     const user2 = await User.create({
+      userName: 'company-test-7',
       email: 'company7@test.com',
       password: 'password123',
       userType: 'company',
@@ -187,6 +194,7 @@ test.group('Hall Service', (group) => {
 
   test('createHall should create a new hall', async ({ assert }) => {
     const user = await User.create({
+      userName: 'company-test-8',
       email: 'company8@test.com',
       password: 'password123',
       userType: 'company',
@@ -219,6 +227,7 @@ test.group('Hall Service', (group) => {
 
   test('createHall should default isAvailable to true if not provided', async ({ assert }) => {
     const user = await User.create({
+      userName: 'company-test-9',
       email: 'company9@test.com',
       password: 'password123',
       userType: 'company',
@@ -246,6 +255,7 @@ test.group('Hall Service', (group) => {
 
   test('updateHall should update hall successfully', async ({ assert }) => {
     const user = await User.create({
+      userName: 'company-test-10',
       email: 'company10@test.com',
       password: 'password123',
       userType: 'company',
@@ -284,6 +294,7 @@ test.group('Hall Service', (group) => {
 
   test('updateHall should throw error for invalid hall', async ({ assert }) => {
     const user = await User.create({
+      userName: 'company-test-11',
       email: 'company11@test.com',
       password: 'password123',
       userType: 'company',
@@ -296,14 +307,12 @@ test.group('Hall Service', (group) => {
 
     const hallService = new HallService()
 
-    await assert.rejects(
-      () => hallService.updateHall(99999, company.id, { name: 'Updated' }),
-      'Row not found'
-    )
+    await assert.rejects(() => hallService.updateHall(99999, company.id, { name: 'Updated' }), 'Row not found')
   })
 
   test('deleteHall should delete hall successfully', async ({ assert }) => {
     const user = await User.create({
+      userName: 'company-test-12',
       email: 'company12@test.com',
       password: 'password123',
       userType: 'company',
@@ -328,12 +337,13 @@ test.group('Hall Service', (group) => {
     await hallService.deleteHall(hall.id, company.id)
 
     // Check hall is soft deleted
-    const deletedHall = await Hall.find(hall.id)
-    assert.isNull(deletedHall)
+    const deletedHall = await Hall.findOrFail(hall.id)
+    assert.isNotNull(deletedHall.deletedAt)
   })
 
   test('deleteHall should throw error for invalid hall', async ({ assert }) => {
     const user = await User.create({
+      userName: 'company-test-13',
       email: 'company13@test.com',
       password: 'password123',
       userType: 'company',

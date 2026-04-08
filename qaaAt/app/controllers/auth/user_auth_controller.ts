@@ -1,6 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import User from '#models/user'
 import UserProfile from '#models/user_profile'
+import InvalidCredentialsException from '#exceptions/invalid_credentials_exception'
+import InvalidInputException from '#exceptions/invalid_input_exception'
 import { userRegisterValidator } from '#validators/user_register_validator'
 import { userLoginValidator } from '#validators/user_login_validator'
 import emailVerificationService from '#services/email_verification_service'
@@ -19,7 +21,7 @@ export default class UserAuthController {
     try {
       user = await User.create(
         {
-          userName: payload.userName || undefined,
+          userName: payload.userName,
           email: payload.email,
           password: payload.password,
           userType: 'user',
@@ -47,6 +49,8 @@ export default class UserAuthController {
       throw error
     }
 
+    user = await User.findOrFail(user.id)
+
     // Send verification email (non-blocking — don't fail registration if mail fails)
     try {
       await emailVerificationService.sendVerificationEmail(user)
@@ -59,16 +63,18 @@ export default class UserAuthController {
 
     return response.created({
       message: 'User registered successfully. Please check your email to verify your account.',
-      user: {
-        id: user.id,
-        userName: user.userName,
-        email: user.email,
-        userType: user.userType,
-        emailVerified: false,
-      },
-      token: {
-        type: 'bearer',
-        token: token.value!.release(),
+      data: {
+        user: {
+          id: user.id,
+          userName: user.userName,
+          email: user.email,
+          userType: user.userType,
+          emailVerified: false,
+        },
+        token: {
+          type: 'bearer',
+          token: token.value!.release(),
+        },
       },
     })
   }
@@ -79,22 +85,15 @@ export default class UserAuthController {
   async login({ request, response }: HttpContext) {
     const { email, password } = await request.validateUsing(userLoginValidator)
 
-    // Find user by email and user type
-    const user = await User.query().where('email', email).whereNull('deletedAt').first()
-
-    if (!user || user.userType !== 'user') {
-      return response.unauthorized({
-        message: 'Invalid credentials',
-      })
+    let user: User
+    try {
+      user = await User.verifyCredentials(email, password)
+    } catch {
+      throw new InvalidCredentialsException()
     }
 
-    // Verify password
-    try {
-      await User.verifyCredentials(email, password)
-    } catch {
-      return response.unauthorized({
-        message: 'Invalid credentials',
-      })
+    if (user.userType !== 'user' || user.deletedAt) {
+      throw new InvalidCredentialsException()
     }
 
     // Generate access token
@@ -102,16 +101,18 @@ export default class UserAuthController {
 
     return response.ok({
       message: 'Login successful',
-      user: {
-        id: user.id,
-        userName: user.userName,
-        email: user.email,
-        userType: user.userType,
-        emailVerified: user.isEmailVerified,
-      },
-      token: {
-        type: 'bearer',
-        token: token.value!.release(),
+      data: {
+        user: {
+          id: user.id,
+          userName: user.userName,
+          email: user.email,
+          userType: user.userType,
+          emailVerified: user.isEmailVerified,
+        },
+        token: {
+          type: 'bearer',
+          token: token.value!.release(),
+        },
       },
     })
   }
@@ -128,13 +129,15 @@ export default class UserAuthController {
     await user.load('userProfile')
 
     return response.ok({
-      user: {
-        id: user.id,
-        userName: user.userName,
-        email: user.email,
-        userType: user.userType,
-        emailVerified: user.isEmailVerified,
-        profile: user.userProfile,
+      data: {
+        user: {
+          id: user.id,
+          userName: user.userName,
+          email: user.email,
+          userType: user.userType,
+          emailVerified: user.isEmailVerified,
+          profile: user.userProfile,
+        },
       },
     })
   }
@@ -143,22 +146,18 @@ export default class UserAuthController {
    * Verify email address with token
    */
   async verifyEmail({ params, response }: HttpContext) {
-    try {
-      const user = await emailVerificationService.verifyEmail(params.token)
+    const user = await emailVerificationService.verifyEmail(params.token)
 
-      return response.ok({
-        message: 'Email verified successfully',
+    return response.ok({
+      message: 'Email verified successfully',
+      data: {
         user: {
           id: user.id,
           email: user.email,
           emailVerified: true,
         },
-      })
-    } catch (error: unknown) {
-      return response.badRequest({
-        message: error instanceof Error ? error.message : 'Invalid or expired verification token',
-      })
-    }
+      },
+    })
   }
 
   /**
@@ -168,23 +167,15 @@ export default class UserAuthController {
     const { email } = request.only(['email'])
 
     if (!email) {
-      return response.badRequest({
-        message: 'Email address is required',
-      })
+      throw new InvalidInputException('Email address is required', 'EMAIL_REQUIRED')
     }
 
-    try {
-      await emailVerificationService.resendVerification(email)
+    await emailVerificationService.resendVerification(email)
 
-      return response.ok({
-        message:
-          'If an account with that email exists and is not verified, a verification email has been sent.',
-      })
-    } catch (error: unknown) {
-      return response.badRequest({
-        message: error instanceof Error ? error.message : 'Failed to resend verification email',
-      })
-    }
+    return response.ok({
+      message:
+        'If an account with that email exists and is not verified, a verification email has been sent.',
+    })
   }
 
   /**

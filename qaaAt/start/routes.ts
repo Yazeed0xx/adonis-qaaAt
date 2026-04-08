@@ -8,8 +8,16 @@
 */
 
 import router from '@adonisjs/core/services/router'
+import openapi from '@foadonis/openapi/services/main'
 import { controllers } from '#generated/controllers'
+import {
+  authThrottle,
+  bookingCreationThrottle,
+  resendVerificationThrottle,
+} from '#start/limiter'
 import { middleware } from './kernel.js'
+
+openapi.registerRoutes()
 
 router.get('/', async () => {
   return {
@@ -30,14 +38,16 @@ router
 // User Authentication Routes
 router
   .group(() => {
-    router.post('/register', [controllers.auth.UserAuth, 'register'])
-    router.post('/login', [controllers.auth.UserAuth, 'login'])
+    router.post('/register', [controllers.auth.UserAuth, 'register']).use(authThrottle)
+    router.post('/login', [controllers.auth.UserAuth, 'login']).use(authThrottle)
     router.get('/me', [controllers.auth.UserAuth, 'me']).use(middleware.auth())
     router.post('/logout', [controllers.auth.UserAuth, 'logout']).use(middleware.auth())
 
     // Email verification routes (no auth required)
     router.get('/verify-email/:token', [controllers.auth.UserAuth, 'verifyEmail'])
-    router.post('/resend-verification', [controllers.auth.UserAuth, 'resendVerification'])
+    router
+      .post('/resend-verification', [controllers.auth.UserAuth, 'resendVerification'])
+      .use(resendVerificationThrottle)
 
     // User notification routes (auth + user type required)
     router
@@ -61,7 +71,7 @@ router
     router.get('/bookings', [controllers.UserBooking, 'index']).use(middleware.auth())
     router
       .post('/bookings', [controllers.UserBooking, 'store'])
-      .use([middleware.auth(), middleware.verifiedEmail()])
+      .use([middleware.auth(), middleware.verifiedEmail(), bookingCreationThrottle])
     router.get('/bookings/:id', [controllers.UserBooking, 'show']).use(middleware.auth())
     router.post('/bookings/:id/cancel', [controllers.UserBooking, 'cancel']).use(middleware.auth())
   })
@@ -70,8 +80,8 @@ router
 // Company Authentication Routes
 router
   .group(() => {
-    router.post('/register', [controllers.auth.CompanyAuth, 'register'])
-    router.post('/login', [controllers.auth.CompanyAuth, 'login'])
+    router.post('/register', [controllers.auth.CompanyAuth, 'register']).use(authThrottle)
+    router.post('/login', [controllers.auth.CompanyAuth, 'login']).use(authThrottle)
     router.get('/me', [controllers.auth.CompanyAuth, 'me']).use(middleware.auth())
     router.post('/logout', [controllers.auth.CompanyAuth, 'logout']).use(middleware.auth())
 
@@ -127,7 +137,7 @@ router
 // Admin Authentication Routes
 router
   .group(() => {
-    router.post('/login', [controllers.auth.AdminAuth, 'login'])
+    router.post('/login', [controllers.auth.AdminAuth, 'login']).use(authThrottle)
     router.get('/me', [controllers.auth.AdminAuth, 'me']).use(middleware.auth())
     router.post('/logout', [controllers.auth.AdminAuth, 'logout']).use(middleware.auth())
   })

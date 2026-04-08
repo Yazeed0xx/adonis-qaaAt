@@ -2,6 +2,8 @@ import type { HttpContext } from '@adonisjs/core/http'
 import User from '#models/user'
 import Company from '#models/company'
 import CompanyProfile from '#models/company_profile'
+import AccessDeniedException from '#exceptions/access_denied_exception'
+import InvalidCredentialsException from '#exceptions/invalid_credentials_exception'
 import { companyRegisterValidator } from '#validators/company_register_validator'
 import { companyLoginValidator } from '#validators/company_login_validator'
 import db from '@adonisjs/lucid/services/db'
@@ -19,7 +21,6 @@ export default class CompanyAuthController {
     const pdfFile = payload.registrationNumberPdf
     const key = `cr_documents/${randomUUID()}.${pdfFile.extname}`
     await pdfFile.moveToDisk(key, 'fs')
-    const pdfUrl = await drive.use('fs').getUrl(key)
 
     // Use transaction to ensure atomicity
     const trx = await db.transaction()
@@ -41,7 +42,7 @@ export default class CompanyAuthController {
           userId: user.id,
           taxId: payload.taxId || null,
           registrationNumber: payload.registrationNumber,
-          registrationNumberPdf: pdfUrl,
+          registrationNumberPdf: key,
           businessLicense: payload.businessLicense || null,
           contactPerson: payload.contactPerson || null,
           businessAddress: payload.businessAddress,
@@ -76,25 +77,30 @@ export default class CompanyAuthController {
       throw error
     }
 
+    user = await User.findOrFail(user.id)
+    company = await Company.findOrFail(company.id)
+
     // Generate access token
     const token = await User.accessTokens.create(user)
 
     return response.created({
       message: 'Company registered successfully. Your account is pending admin approval.',
-      user: {
-        id: user.id,
-        email: user.email,
-        userType: user.userType,
-      },
-      company: {
-        id: company.id,
-        companyName: payload.companyName,
-        city: company.city,
-        status: company.status,
-      },
-      token: {
-        type: 'bearer',
-        token: token.value!.release(),
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          userType: user.userType,
+        },
+        company: {
+          id: company.id,
+          companyName: payload.companyName,
+          city: company.city,
+          status: company.status,
+        },
+        token: {
+          type: 'bearer',
+          token: token.value!.release(),
+        },
       },
     })
   }
@@ -105,22 +111,15 @@ export default class CompanyAuthController {
   async login({ request, response }: HttpContext) {
     const { email, password } = await request.validateUsing(companyLoginValidator)
 
-    // Find user by email and user type
-    const user = await User.query().where('email', email).whereNull('deletedAt').first()
-
-    if (!user || user.userType !== 'company') {
-      return response.unauthorized({
-        message: 'Invalid credentials',
-      })
+    let user: User
+    try {
+      user = await User.verifyCredentials(email, password)
+    } catch {
+      throw new InvalidCredentialsException()
     }
 
-    // Verify password
-    try {
-      await User.verifyCredentials(email, password)
-    } catch {
-      return response.unauthorized({
-        message: 'Invalid credentials',
-      })
+    if (user.userType !== 'company' || user.deletedAt) {
+      throw new InvalidCredentialsException()
     }
 
     // Load company and profile
@@ -143,15 +142,17 @@ export default class CompanyAuthController {
 
     return response.ok({
       message,
-      user: {
-        id: user.id,
-        email: user.email,
-        userType: user.userType,
-      },
-      company: user.company,
-      token: {
-        type: 'bearer',
-        token: token.value!.release(),
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          userType: user.userType,
+        },
+        company: user.company,
+        token: {
+          type: 'bearer',
+          token: token.value!.release(),
+        },
       },
     })
   }
@@ -165,9 +166,7 @@ export default class CompanyAuthController {
     const user = auth.getUserOrFail()
 
     if (user.userType !== 'company') {
-      return response.forbidden({
-        message: 'Access denied. Company account required.',
-      })
+      throw new AccessDeniedException('Access denied. Company account required.')
     }
 
     // Load company with profile
@@ -176,12 +175,14 @@ export default class CompanyAuthController {
     })
 
     return response.ok({
-      user: {
-        id: user.id,
-        email: user.email,
-        userType: user.userType,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          userType: user.userType,
+        },
+        company: user.company,
       },
-      company: user.company,
     })
   }
 

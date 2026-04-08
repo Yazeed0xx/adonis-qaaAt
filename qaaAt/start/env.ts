@@ -48,6 +48,20 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   /*
   |----------------------------------------------------------
+  | Variables for configuring queues
+  |----------------------------------------------------------
+  */
+  QUEUE_DRIVER: Env.schema.enum.optional(['sync', 'database'] as const),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring rate limiting
+  |----------------------------------------------------------
+  */
+  LIMITER_STORE: Env.schema.enum.optional(['database', 'memory'] as const),
+
+  /*
+  |----------------------------------------------------------
   | Variables for configuring the drive package
   |----------------------------------------------------------
   */

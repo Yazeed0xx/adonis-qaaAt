@@ -1,5 +1,6 @@
 import { BaseTransformer } from '@adonisjs/core/transformers'
 import type Hall from '#models/hall'
+import { fromDatabaseAmount } from '#lib/money'
 import CompanyTransformer from '#transformers/company_transformer'
 
 export default class HallTransformer extends BaseTransformer<Hall> {
@@ -20,8 +21,16 @@ export default class HallTransformer extends BaseTransformer<Hall> {
         'createdAt',
         'updatedAt',
       ]),
-      pricing: Number(this.resource.pricing),
+      pricing: fromDatabaseAmount(this.resource.pricing),
       company: CompanyTransformer.transform(this.whenLoaded(this.resource.company)),
+    }
+  }
+
+  forAdminView() {
+    return {
+      ...this.toObject(),
+      deletedAt: this.resource.deletedAt,
+      companyId: this.resource.companyId,
     }
   }
 }

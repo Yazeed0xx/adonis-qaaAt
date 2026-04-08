@@ -17,9 +17,10 @@ export default class extends BaseSchema {
   }
 
   async down() {
+    await this.db.rawQuery('DROP INDEX IF EXISTS bookings_expires_at_index')
+    await this.db.rawQuery('DROP INDEX IF EXISTS bookings_payment_status_index')
+
     this.schema.alterTable(this.tableName, (table) => {
-      table.dropIndex(['expires_at'])
-      table.dropIndex(['payment_status'])
       table.dropColumn('rejection_reason')
       table.dropColumn('company_responded_at')
       table.dropColumn('expires_at')

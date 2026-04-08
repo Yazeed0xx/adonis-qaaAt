@@ -14,8 +14,9 @@ export default class extends BaseSchema {
   }
 
   async down() {
+    await this.db.rawQuery('DROP INDEX IF EXISTS users_email_verification_token_index')
+
     this.schema.alterTable(this.tableName, (table) => {
-      table.dropIndex(['email_verification_token'])
       table.dropColumn('email_verified_at')
       table.dropColumn('email_verification_token')
       table.dropColumn('email_verification_expires_at')

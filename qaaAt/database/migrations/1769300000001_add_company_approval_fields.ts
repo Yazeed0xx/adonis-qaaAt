@@ -25,8 +25,9 @@ export default class extends BaseSchema {
   }
 
   async down() {
+    await this.db.rawQuery('DROP INDEX IF EXISTS companies_status_index')
+
     this.schema.alterTable(this.tableName, (table) => {
-      table.dropIndex(['status'])
       table.dropColumn('status')
       table.dropColumn('approved_at')
       table.dropColumn('approved_by')

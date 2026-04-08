@@ -1,12 +1,16 @@
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { DateTime } from 'luxon'
+import db from '@adonisjs/lucid/services/db'
+import InvalidInputException from '#exceptions/invalid_input_exception'
+import InvalidStateException from '#exceptions/invalid_state_exception'
+import SendMailJob from '#jobs/send_mail_job'
 import User from '#models/user'
-import mail from '@adonisjs/mail/services/main'
 import env from '#start/env'
 
 export class EmailVerificationService {
   private static TOKEN_LENGTH = 64
   private static TOKEN_EXPIRY_HOURS = 24
+  private static RESEND_COOLDOWN_MINUTES = 5
 
   /**
    * Generate a cryptographically secure random token
@@ -16,11 +20,24 @@ export class EmailVerificationService {
   }
 
   /**
+   * Hash verification tokens before storing them in the database
+   */
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex')
+  }
+
+  /**
    * Get the verification URL for a token
    */
   private getVerificationUrl(token: string): string {
-    const baseUrl = env.get('APP_URL')
-    return `${baseUrl}/api/users/verify-email/${token}`
+    return new URL(`/api/users/verify-email/${token}`, env.get('APP_URL')).toString()
+  }
+
+  /**
+   * Infer the last time a token was issued from its expiration timestamp
+   */
+  private getTokenIssuedAt(user: User): DateTime | null {
+    return user.emailVerificationExpiresAt?.minus({ hours: EmailVerificationService.TOKEN_EXPIRY_HOURS }) ?? null
   }
 
   /**
@@ -30,47 +47,57 @@ export class EmailVerificationService {
     const token = this.generateToken()
     const expiresAt = DateTime.now().plus({ hours: EmailVerificationService.TOKEN_EXPIRY_HOURS })
 
-    user.emailVerificationToken = token
+    user.emailVerificationToken = this.hashToken(token)
     user.emailVerificationExpiresAt = expiresAt
     await user.save()
 
     const verificationUrl = this.getVerificationUrl(token)
 
-    await mail.send((message) => {
-      message
-        .to(user.email)
-        .subject('Verify your email address - QaaAt')
-        .html(this.getEmailHtml(user, verificationUrl))
-    })
+    await SendMailJob.dispatch({
+      to: user.email,
+      subject: 'Verify your email address - QaaAt',
+      html: this.getEmailHtml(user, verificationUrl),
+    }).toQueue('emails')
   }
 
   /**
    * Verify email with token
    */
   async verifyEmail(token: string): Promise<User> {
-    const user = await User.query()
-      .where('emailVerificationToken', token)
-      .whereNull('deletedAt')
-      .first()
+    const hashedToken = this.hashToken(token)
 
-    if (!user) {
-      throw new Error('Invalid verification token')
-    }
+    return db.transaction(async (trx) => {
+      const user = await User.query({ client: trx })
+        .where((query) => {
+          query.where('emailVerificationToken', hashedToken).orWhere('emailVerificationToken', token)
+        })
+        .whereNull('deletedAt')
+        .forUpdate()
+        .first()
 
-    if (user.emailVerificationExpiresAt && user.emailVerificationExpiresAt < DateTime.now()) {
-      throw new Error('Verification token has expired')
-    }
+      if (!user) {
+        throw new InvalidInputException('Invalid verification token', 'INVALID_VERIFICATION_TOKEN')
+      }
 
-    if (user.emailVerifiedAt) {
-      throw new Error('Email is already verified')
-    }
+      if (user.emailVerifiedAt) {
+        throw new InvalidStateException('Email is already verified', 'EMAIL_ALREADY_VERIFIED')
+      }
 
-    user.emailVerifiedAt = DateTime.now()
-    user.emailVerificationToken = null
-    user.emailVerificationExpiresAt = null
-    await user.save()
+      if (user.emailVerificationExpiresAt && user.emailVerificationExpiresAt < DateTime.now()) {
+        throw new InvalidInputException(
+          'Verification token has expired',
+          'EXPIRED_VERIFICATION_TOKEN'
+        )
+      }
 
-    return user
+      user.useTransaction(trx)
+      user.emailVerifiedAt = DateTime.now()
+      user.emailVerificationToken = null
+      user.emailVerificationExpiresAt = null
+      await user.save()
+
+      return user
+    })
   }
 
   /**
@@ -86,6 +113,15 @@ export class EmailVerificationService {
 
     if (user.emailVerifiedAt) {
       // Don't reveal that the email exists and is already verified
+      return
+    }
+
+    const issuedAt = this.getTokenIssuedAt(user)
+    if (
+      user.emailVerificationToken &&
+      issuedAt &&
+      issuedAt.plus({ minutes: EmailVerificationService.RESEND_COOLDOWN_MINUTES }) > DateTime.now()
+    ) {
       return
     }
 

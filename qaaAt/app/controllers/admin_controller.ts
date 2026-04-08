@@ -1,17 +1,25 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import AccessDeniedException from '#exceptions/access_denied_exception'
+import InvalidInputException from '#exceptions/invalid_input_exception'
+import InvalidStateException from '#exceptions/invalid_state_exception'
 import User from '#models/user'
 import Company from '#models/company'
 import Hall from '#models/hall'
 import Booking from '#models/booking'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
-import notificationService from '#services/notification_service'
+import adminAuditService from '#services/admin_audit_service'
+import SendNotificationJob from '#jobs/send_notification_job'
+import BookingTransformer from '#transformers/booking_transformer'
+import CompanyTransformer from '#transformers/company_transformer'
+import HallTransformer from '#transformers/hall_transformer'
+import UserTransformer from '#transformers/user_transformer'
 
 export default class AdminController {
   /**
    * Get all users
    */
-  async getUsers({ request, response }: HttpContext) {
+  async getUsers({ request, serialize }: HttpContext) {
     const page = Math.max(1, Number(request.input('page', 1)) || 1)
     const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
 
@@ -22,13 +30,13 @@ export default class AdminController {
       .orderBy('createdAt', 'desc')
       .paginate(page, limit)
 
-    return response.ok(users)
+    return serialize(UserTransformer.paginate(users.all(), users.getMeta()).useVariant('forAdminView'))
   }
 
   /**
    * Get all companies
    */
-  async getCompanies({ request, response }: HttpContext) {
+  async getCompanies({ request, serialize }: HttpContext) {
     const page = Math.max(1, Number(request.input('page', 1)) || 1)
     const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
 
@@ -39,13 +47,15 @@ export default class AdminController {
       .orderBy('createdAt', 'desc')
       .paginate(page, limit)
 
-    return response.ok(companies)
+    return serialize(
+      CompanyTransformer.paginate(companies.all(), companies.getMeta()).useVariant('forAdminView')
+    )
   }
 
   /**
    * Get all halls
    */
-  async getHalls({ request, response }: HttpContext) {
+  async getHalls({ request, serialize }: HttpContext) {
     const page = Math.max(1, Number(request.input('page', 1)) || 1)
     const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
 
@@ -55,13 +65,13 @@ export default class AdminController {
       .orderBy('createdAt', 'desc')
       .paginate(page, limit)
 
-    return response.ok(halls)
+    return serialize(HallTransformer.paginate(halls.all(), halls.getMeta()).useVariant('forAdminView'))
   }
 
   /**
    * Get all bookings
    */
-  async getBookings({ request, response }: HttpContext) {
+  async getBookings({ request, serialize }: HttpContext) {
     const page = Math.max(1, Number(request.input('page', 1)) || 1)
     const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
 
@@ -73,19 +83,21 @@ export default class AdminController {
       .orderBy('createdAt', 'desc')
       .paginate(page, limit)
 
-    return response.ok(bookings)
+    return serialize(
+      BookingTransformer.paginate(bookings.all(), bookings.getMeta()).useVariant('forAdminView')
+    )
   }
 
   /**
    * Ban a user (soft delete)
    */
-  async banUser({ params, response }: HttpContext) {
+  async banUser({ params, auth, response }: HttpContext) {
+    await auth.check()
+    const admin = auth.getUserOrFail()
     const user = await User.findOrFail(params.id)
 
     if (user.userType === 'admin') {
-      return response.forbidden({
-        message: 'Cannot ban admin users',
-      })
+      throw new AccessDeniedException('Cannot ban admin users')
     }
 
     user.deletedAt = DateTime.now()
@@ -94,9 +106,17 @@ export default class AdminController {
     // Revoke all access tokens so the banned user is immediately logged out
     await db.from('auth_access_tokens').where('tokenable_id', user.id).delete()
 
+    await adminAuditService.record({
+      adminUserId: admin.id,
+      action: 'user.ban',
+      targetType: 'user',
+      targetId: user.id,
+      metadata: { email: user.email },
+    })
+
     return response.ok({
       message: 'User banned successfully',
-      user: {
+      data: {
         id: user.id,
         email: user.email,
         deletedAt: user.deletedAt,
@@ -107,15 +127,25 @@ export default class AdminController {
   /**
    * Unban a user
    */
-  async unbanUser({ params, response }: HttpContext) {
+  async unbanUser({ params, auth, response }: HttpContext) {
+    await auth.check()
+    const admin = auth.getUserOrFail()
     const user = await User.findOrFail(params.id)
 
     user.deletedAt = null
     await user.save()
 
+    await adminAuditService.record({
+      adminUserId: admin.id,
+      action: 'user.unban',
+      targetType: 'user',
+      targetId: user.id,
+      metadata: { email: user.email },
+    })
+
     return response.ok({
       message: 'User unbanned successfully',
-      user: {
+      data: {
         id: user.id,
         email: user.email,
         deletedAt: user.deletedAt,
@@ -126,14 +156,14 @@ export default class AdminController {
   /**
    * Ban a company (soft delete)
    */
-  async banCompany({ params, response }: HttpContext) {
+  async banCompany({ params, auth, response }: HttpContext) {
+    await auth.check()
+    const admin = auth.getUserOrFail()
     const company = await Company.findOrFail(params.id)
     const user = await company.related('user').query().firstOrFail()
 
     if (user.userType === 'admin') {
-      return response.forbidden({
-        message: 'Cannot ban admin users',
-      })
+      throw new AccessDeniedException('Cannot ban admin users')
     }
 
     user.deletedAt = DateTime.now()
@@ -142,9 +172,17 @@ export default class AdminController {
     // Revoke all access tokens so the banned company is immediately logged out
     await db.from('auth_access_tokens').where('tokenable_id', user.id).delete()
 
+    await adminAuditService.record({
+      adminUserId: admin.id,
+      action: 'company.ban',
+      targetType: 'company',
+      targetId: company.id,
+      metadata: { userId: user.id },
+    })
+
     return response.ok({
       message: 'Company banned successfully',
-      company: {
+      data: {
         id: company.id,
         userId: company.userId,
         deletedAt: user.deletedAt,
@@ -155,16 +193,26 @@ export default class AdminController {
   /**
    * Unban a company
    */
-  async unbanCompany({ params, response }: HttpContext) {
+  async unbanCompany({ params, auth, response }: HttpContext) {
+    await auth.check()
+    const admin = auth.getUserOrFail()
     const company = await Company.findOrFail(params.id)
     const user = await company.related('user').query().firstOrFail()
 
     user.deletedAt = null
     await user.save()
 
+    await adminAuditService.record({
+      adminUserId: admin.id,
+      action: 'company.unban',
+      targetType: 'company',
+      targetId: company.id,
+      metadata: { userId: user.id },
+    })
+
     return response.ok({
       message: 'Company unbanned successfully',
-      company: {
+      data: {
         id: company.id,
         userId: company.userId,
         deletedAt: user.deletedAt,
@@ -175,11 +223,21 @@ export default class AdminController {
   /**
    * Delete a hall
    */
-  async deleteHall({ params, response }: HttpContext) {
+  async deleteHall({ params, auth, response }: HttpContext) {
+    await auth.check()
+    const admin = auth.getUserOrFail()
     const hall = await Hall.findOrFail(params.id)
 
     hall.deletedAt = DateTime.now()
     await hall.save()
+
+    await adminAuditService.record({
+      adminUserId: admin.id,
+      action: 'hall.delete',
+      targetType: 'hall',
+      targetId: hall.id,
+      metadata: { companyId: hall.companyId },
+    })
 
     return response.ok({
       message: 'Hall deleted successfully',
@@ -189,11 +247,21 @@ export default class AdminController {
   /**
    * Delete a booking
    */
-  async deleteBooking({ params, response }: HttpContext) {
+  async deleteBooking({ params, auth, response }: HttpContext) {
+    await auth.check()
+    const admin = auth.getUserOrFail()
     const booking = await Booking.findOrFail(params.id)
 
     booking.deletedAt = DateTime.now()
     await booking.save()
+
+    await adminAuditService.record({
+      adminUserId: admin.id,
+      action: 'booking.delete',
+      targetType: 'booking',
+      targetId: booking.id,
+      metadata: { userId: booking.userId, hallId: booking.hallId },
+    })
 
     return response.ok({
       message: 'Booking deleted successfully',
@@ -203,7 +271,7 @@ export default class AdminController {
   /**
    * Get user by ID
    */
-  async getUser({ params, response }: HttpContext) {
+  async getUser({ params, serialize }: HttpContext) {
     const user = await User.query()
       .where('id', params.id)
       .where('userType', 'user')
@@ -211,13 +279,13 @@ export default class AdminController {
       .preload('userProfile')
       .firstOrFail()
 
-    return response.ok(user)
+    return serialize(UserTransformer.transform(user).useVariant('forAdminView'))
   }
 
   /**
    * Get company by ID
    */
-  async getCompany({ params, response }: HttpContext) {
+  async getCompany({ params, serialize }: HttpContext) {
     const company = await Company.query()
       .where('id', params.id)
       .whereNull('deletedAt')
@@ -227,7 +295,7 @@ export default class AdminController {
       .preload('services')
       .firstOrFail()
 
-    return response.ok(company)
+    return serialize(CompanyTransformer.transform(company).useVariant('forAdminView'))
   }
 
   /**
@@ -261,21 +329,23 @@ export default class AdminController {
     const pendingCompanies = await Company.query().where('status', 'pending').count('* as total')
 
     return response.ok({
-      users: {
-        total: getCount(totalUsers),
-        banned: getCount(bannedUsers),
-      },
-      companies: {
-        total: getCount(totalCompanies),
-        banned: getCount(bannedCompanies),
-        pendingApproval: getCount(pendingCompanies),
-      },
-      halls: {
-        total: getCount(totalHalls),
-      },
-      bookings: {
-        total: getCount(totalBookings),
-        active: getCount(activeBookings),
+      data: {
+        users: {
+          total: getCount(totalUsers),
+          banned: getCount(bannedUsers),
+        },
+        companies: {
+          total: getCount(totalCompanies),
+          banned: getCount(bannedCompanies),
+          pendingApproval: getCount(pendingCompanies),
+        },
+        halls: {
+          total: getCount(totalHalls),
+        },
+        bookings: {
+          total: getCount(totalBookings),
+          active: getCount(activeBookings),
+        },
       },
     })
   }
@@ -283,7 +353,7 @@ export default class AdminController {
   /**
    * Get pending company approvals
    */
-  async getPendingCompanies({ request, response }: HttpContext) {
+  async getPendingCompanies({ request, serialize }: HttpContext) {
     const page = Math.max(1, Number(request.input('page', 1)) || 1)
     const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
 
@@ -294,7 +364,9 @@ export default class AdminController {
       .orderBy('createdAt', 'asc')
       .paginate(page, limit)
 
-    return response.ok(companies)
+    return serialize(
+      CompanyTransformer.paginate(companies.all(), companies.getMeta()).useVariant('forAdminView')
+    )
   }
 
   /**
@@ -307,9 +379,7 @@ export default class AdminController {
     const company = await Company.findOrFail(params.id)
 
     if (company.status === 'approved') {
-      return response.badRequest({
-        message: 'Company is already approved',
-      })
+      throw new InvalidStateException('Company is already approved', 'COMPANY_ALREADY_APPROVED')
     }
 
     company.status = 'approved'
@@ -319,14 +389,29 @@ export default class AdminController {
     company.rejectedAt = null
     await company.save()
 
+    await adminAuditService.record({
+      adminUserId: admin.id,
+      action: 'company.approve',
+      targetType: 'company',
+      targetId: company.id,
+      metadata: { userId: company.userId },
+    })
+
     // Notify the company owner
     await company.load('companyProfile')
     const companyName = company.companyProfile?.companyName || 'Your company'
-    await notificationService.notifyCompanyApproved(company.userId, companyName)
+    await SendNotificationJob.dispatch({
+      userId: company.userId,
+      type: 'company_approved',
+      title: 'Company Approved',
+      message: `Congratulations! Your company "${companyName}" has been approved. You can now create halls and start receiving bookings.`,
+      sendEmail: true,
+      emailSubject: 'Your Company Has Been Approved - QaaAt',
+    })
 
     return response.ok({
       message: 'Company approved successfully',
-      company: {
+      data: {
         id: company.id,
         status: company.status,
         approvedAt: company.approvedAt,
@@ -338,21 +423,22 @@ export default class AdminController {
   /**
    * Reject a company
    */
-  async rejectCompany({ params, request, response }: HttpContext) {
+  async rejectCompany({ params, request, auth, response }: HttpContext) {
+    await auth.check()
+    const admin = auth.getUserOrFail()
     const { reason } = request.only(['reason'])
 
     if (!reason || reason.trim().length < 10) {
-      return response.badRequest({
-        message: 'Rejection reason is required and must be at least 10 characters',
-      })
+      throw new InvalidInputException(
+        'Rejection reason is required and must be at least 10 characters',
+        'REJECTION_REASON_INVALID'
+      )
     }
 
     const company = await Company.findOrFail(params.id)
 
     if (company.status === 'rejected') {
-      return response.badRequest({
-        message: 'Company is already rejected',
-      })
+      throw new InvalidStateException('Company is already rejected', 'COMPANY_ALREADY_REJECTED')
     }
 
     company.status = 'rejected'
@@ -362,14 +448,31 @@ export default class AdminController {
     company.approvedBy = null
     await company.save()
 
+    await adminAuditService.record({
+      adminUserId: admin.id,
+      action: 'company.reject',
+      targetType: 'company',
+      targetId: company.id,
+      reason: reason.trim(),
+      metadata: { userId: company.userId },
+    })
+
     // Notify the company owner
     await company.load('companyProfile')
     const companyName = company.companyProfile?.companyName || 'Your company'
-    await notificationService.notifyCompanyRejected(company.userId, companyName, reason.trim())
+    await SendNotificationJob.dispatch({
+      userId: company.userId,
+      type: 'company_rejected',
+      title: 'Company Registration Rejected',
+      message: `Your company "${companyName}" registration was rejected. Reason: ${reason.trim()}`,
+      data: { reason: reason.trim() },
+      sendEmail: true,
+      emailSubject: 'Company Registration Update - QaaAt',
+    })
 
     return response.ok({
       message: 'Company rejected successfully',
-      company: {
+      data: {
         id: company.id,
         status: company.status,
         rejectionReason: company.rejectionReason,
@@ -381,30 +484,43 @@ export default class AdminController {
   /**
    * Suspend an approved company
    */
-  async suspendCompany({ params, request, response }: HttpContext) {
+  async suspendCompany({ params, request, auth, response }: HttpContext) {
+    await auth.check()
+    const admin = auth.getUserOrFail()
     const { reason } = request.only(['reason'])
 
     if (!reason || reason.trim().length < 10) {
-      return response.badRequest({
-        message: 'Suspension reason is required and must be at least 10 characters',
-      })
+      throw new InvalidInputException(
+        'Suspension reason is required and must be at least 10 characters',
+        'SUSPENSION_REASON_INVALID'
+      )
     }
 
     const company = await Company.findOrFail(params.id)
 
     if (company.status !== 'approved') {
-      return response.badRequest({
-        message: 'Only approved companies can be suspended',
-      })
+      throw new InvalidStateException(
+        'Only approved companies can be suspended',
+        'COMPANY_SUSPEND_INVALID_STATE'
+      )
     }
 
     company.status = 'suspended'
     company.rejectionReason = reason.trim()
     await company.save()
 
+    await adminAuditService.record({
+      adminUserId: admin.id,
+      action: 'company.suspend',
+      targetType: 'company',
+      targetId: company.id,
+      reason: reason.trim(),
+      metadata: { userId: company.userId },
+    })
+
     return response.ok({
       message: 'Company suspended successfully',
-      company: {
+      data: {
         id: company.id,
         status: company.status,
         reason: company.rejectionReason,
@@ -415,22 +531,33 @@ export default class AdminController {
   /**
    * Reactivate a suspended company
    */
-  async reactivateCompany({ params, response }: HttpContext) {
+  async reactivateCompany({ params, auth, response }: HttpContext) {
+    await auth.check()
+    const admin = auth.getUserOrFail()
     const company = await Company.findOrFail(params.id)
 
     if (company.status !== 'suspended') {
-      return response.badRequest({
-        message: 'Only suspended companies can be reactivated',
-      })
+      throw new InvalidStateException(
+        'Only suspended companies can be reactivated',
+        'COMPANY_REACTIVATE_INVALID_STATE'
+      )
     }
 
     company.status = 'approved'
     company.rejectionReason = null
     await company.save()
 
+    await adminAuditService.record({
+      adminUserId: admin.id,
+      action: 'company.reactivate',
+      targetType: 'company',
+      targetId: company.id,
+      metadata: { userId: company.userId },
+    })
+
     return response.ok({
       message: 'Company reactivated successfully',
-      company: {
+      data: {
         id: company.id,
         status: company.status,
       },

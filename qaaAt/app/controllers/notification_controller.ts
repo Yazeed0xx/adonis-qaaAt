@@ -1,11 +1,13 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import NotificationNotFoundException from '#exceptions/notification_not_found_exception'
 import notificationService from '#services/notification_service'
+import NotificationTransformer from '#transformers/notification_transformer'
 
 export default class NotificationController {
   /**
    * Get all notifications for the authenticated user
    */
-  async index({ auth, request, response }: HttpContext) {
+  async index({ auth, request, serialize }: HttpContext) {
     await auth.check()
     const user = auth.getUserOrFail()
 
@@ -20,7 +22,7 @@ export default class NotificationController {
       unreadOnly === 'true' || unreadOnly === true
     )
 
-    return response.ok(notifications)
+    return serialize(NotificationTransformer.paginate(notifications.all(), notifications.getMeta()))
   }
 
   /**
@@ -33,28 +35,28 @@ export default class NotificationController {
     const count = await notificationService.getUnreadCount(user.id)
 
     return response.ok({
-      unreadCount: count,
+      data: {
+        unreadCount: count,
+      },
     })
   }
 
   /**
    * Mark a single notification as read
    */
-  async markAsRead({ auth, params, response }: HttpContext) {
+  async markAsRead({ auth, params, response, serialize }: HttpContext) {
     await auth.check()
     const user = auth.getUserOrFail()
 
     const notification = await notificationService.markAsRead(params.id, user.id)
 
     if (!notification) {
-      return response.notFound({
-        message: 'Notification not found',
-      })
+      throw new NotificationNotFoundException()
     }
 
     return response.ok({
       message: 'Notification marked as read',
-      notification,
+      data: await serialize.withoutWrapping(NotificationTransformer.transform(notification)),
     })
   }
 
@@ -69,7 +71,9 @@ export default class NotificationController {
 
     return response.ok({
       message: 'All notifications marked as read',
-      markedCount: count,
+      data: {
+        markedCount: count,
+      },
     })
   }
 }

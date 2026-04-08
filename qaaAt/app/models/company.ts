@@ -1,5 +1,7 @@
 import { belongsTo, hasOne, hasMany } from '@adonisjs/lucid/orm'
+import { ApiProperty, ApiPropertyOptional } from '@foadonis/openapi/decorators'
 import type { BelongsTo, HasOne, HasMany } from '@adonisjs/lucid/types/relations'
+import { DateTime } from 'luxon'
 import { CompanySchema } from '#database/schema'
 import User from '#models/user'
 import CompanyProfile from '#models/company_profile'
@@ -7,6 +9,21 @@ import Hall from '#models/hall'
 import Service from '#models/service'
 
 export default class Company extends CompanySchema {
+  @ApiProperty({ type: Number })
+  declare id: number
+
+  @ApiProperty({ type: String })
+  declare city: string
+
+  @ApiProperty({ type: String })
+  declare status: string
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  declare createdAt: DateTime
+
+  @ApiPropertyOptional({ type: String, format: 'date-time' })
+  declare updatedAt: DateTime | null
+
   get isApproved(): boolean {
     return this.status === 'approved'
   }
@@ -22,6 +39,7 @@ export default class Company extends CompanySchema {
   declare approvedByAdmin: BelongsTo<typeof User>
 
   @hasOne(() => CompanyProfile, { foreignKey: 'userId', localKey: 'userId' })
+  @ApiPropertyOptional({ type: () => CompanyProfile })
   declare companyProfile: HasOne<typeof CompanyProfile>
 
   @hasMany(() => Hall)
