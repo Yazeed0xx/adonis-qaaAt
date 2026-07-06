@@ -1,5 +1,7 @@
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
+import { createHash } from 'node:crypto'
+import assert from 'node:assert/strict'
 import User from '#models/user'
 import Company from '#models/company'
 import CompanyProfile from '#models/company_profile'
@@ -17,7 +19,7 @@ test.group('Auth flows', (group) => {
 
     response.assertStatus(201)
     response.assertBodyContains({
-      message: 'User registered successfully. Please check your email to verify your account.',
+      message: 'User registered successfully. Please check your email for your verification code.',
       data: {
         user: {
           userName: 'Mohammed Ahmed',
@@ -94,6 +96,48 @@ test.group('Auth flows', (group) => {
         },
       },
     })
+  })
+
+  test('verify email accepts otp code and marks user as verified', async ({ client }) => {
+    const response = await client.post('/api/users/register').json({
+      userName: 'Otp User',
+      email: 'otp@example.com',
+      password: 'password123',
+    })
+
+    response.assertStatus(201)
+
+    const user = await User.findByOrFail('email', 'otp@example.com')
+    const storedCodeHash = user.emailVerificationToken
+    const expiresAt = user.emailVerificationExpiresAt
+
+    assert.ok(storedCodeHash)
+    assert.ok(expiresAt)
+
+    // Set a known test code so the verify endpoint can be exercised end-to-end.
+    user.emailVerificationToken = createHash('sha256').update('123456').digest('hex')
+    user.emailVerificationExpiresAt = expiresAt
+    await user.save()
+
+    const verifyResponse = await client.post('/api/users/verify-email').json({
+      email: 'otp@example.com',
+      code: '123456',
+    })
+
+    verifyResponse.assertStatus(200)
+    verifyResponse.assertBodyContains({
+      message: 'Email verified successfully',
+      data: {
+        user: {
+          email: 'otp@example.com',
+          emailVerified: true,
+        },
+      },
+    })
+
+    await user.refresh()
+    assert.notEqual(user.emailVerifiedAt, null)
+    assert.equal(user.emailVerificationToken, null)
   })
 
   test('company login returns standardized success envelope', async ({ client }) => {

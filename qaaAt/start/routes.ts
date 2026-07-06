@@ -44,7 +44,7 @@ router
     router.post('/logout', [controllers.auth.UserAuth, 'logout']).use(middleware.auth())
 
     // Email verification routes (no auth required)
-    router.get('/verify-email/:token', [controllers.auth.UserAuth, 'verifyEmail'])
+    router.post('/verify-email', [controllers.auth.UserAuth, 'verifyEmail']).use(authThrottle)
     router
       .post('/resend-verification', [controllers.auth.UserAuth, 'resendVerification'])
       .use(resendVerificationThrottle)

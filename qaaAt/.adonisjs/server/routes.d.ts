@@ -16,7 +16,7 @@ export type ScannedRoutes = {
     'user_auth.login': { paramsTuple?: []; params?: {} }
     'user_auth.me': { paramsTuple?: []; params?: {} }
     'user_auth.logout': { paramsTuple?: []; params?: {} }
-    'user_auth.verify_email': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'user_auth.verify_email': { paramsTuple?: []; params?: {} }
     'user_auth.resend_verification': { paramsTuple?: []; params?: {} }
     'users.notification.index': { paramsTuple?: []; params?: {} }
     'users.notification.unreadCount': { paramsTuple?: []; params?: {} }
@@ -77,7 +77,6 @@ export type ScannedRoutes = {
     'public_hall.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'public_hall.availability': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'user_auth.me': { paramsTuple?: []; params?: {} }
-    'user_auth.verify_email': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'users.notification.index': { paramsTuple?: []; params?: {} }
     'users.notification.unreadCount': { paramsTuple?: []; params?: {} }
     'user_booking.index': { paramsTuple?: []; params?: {} }
@@ -111,7 +110,6 @@ export type ScannedRoutes = {
     'public_hall.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'public_hall.availability': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'user_auth.me': { paramsTuple?: []; params?: {} }
-    'user_auth.verify_email': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'users.notification.index': { paramsTuple?: []; params?: {} }
     'users.notification.unreadCount': { paramsTuple?: []; params?: {} }
     'user_booking.index': { paramsTuple?: []; params?: {} }
@@ -139,6 +137,7 @@ export type ScannedRoutes = {
     'user_auth.register': { paramsTuple?: []; params?: {} }
     'user_auth.login': { paramsTuple?: []; params?: {} }
     'user_auth.logout': { paramsTuple?: []; params?: {} }
+    'user_auth.verify_email': { paramsTuple?: []; params?: {} }
     'user_auth.resend_verification': { paramsTuple?: []; params?: {} }
     'users.notification.markAsRead': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.notification.markAllAsRead': { paramsTuple?: []; params?: {} }

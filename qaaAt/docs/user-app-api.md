@@ -165,32 +165,45 @@ Revoke the current access token.
 
 ---
 
-### GET `/users/verify-email/:token`
+### POST `/users/verify-email`
 
-Verify a user's email using the token sent via email.
+Verify a user's email using the OTP code sent via email.
 
 **Auth:** None
+
+**Request Body:**
+
+```json
+{ "email": "john@example.com", "code": "123456" }
+```
 
 **Response 200:**
 
 ```json
 {
   "message": "Email verified successfully",
-  "user": { "id": 1, "email": "john@example.com", "emailVerified": true }
+  "data": {
+    "user": { "id": 1, "email": "john@example.com", "emailVerified": true }
+  }
 }
 ```
 
-**Response 400:**
+**Response 422:**
 
 ```json
-{ "message": "Invalid or expired verification token" }
+{
+  "error": {
+    "code": "INVALID_VERIFICATION_CODE",
+    "message": "Invalid verification code"
+  }
+}
 ```
 
 ---
 
 ### POST `/users/resend-verification`
 
-Resend the email verification link.
+Resend the email verification code.
 
 **Auth:** None
 
@@ -204,7 +217,7 @@ Resend the email verification link.
 
 ```json
 {
-  "message": "If an account with that email exists and is not verified, a verification email has been sent."
+  "message": "If an account with that email exists and is not verified, a verification code has been sent."
 }
 ```
 

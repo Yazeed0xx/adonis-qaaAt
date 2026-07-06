@@ -1,11 +1,13 @@
 import limiter from '@adonisjs/limiter/services/main'
 
 export const authThrottle = limiter.define('auth', (ctx) => {
+  const routeKey = ctx.route?.pattern || ctx.request.url()
+
   return limiter
     .allowRequests(5)
     .every('1 minute')
     .blockFor('10 mins')
-    .usingKey(`auth_${ctx.request.ip()}`)
+    .usingKey(`auth_${ctx.request.ip()}_${routeKey}`)
 })
 
 export const resendVerificationThrottle = limiter.define('resendVerification', (ctx) => {

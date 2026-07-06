@@ -99,23 +99,25 @@ Register a new user account. No auth required.
 
 ```json
 {
-  "message": "User registered successfully. Please check your email to verify your account.",
-  "user": {
-    "id": 1,
-    "userName": "Ahmed",
-    "email": "user@example.com",
-    "userType": "user",
-    "emailVerified": false
-  },
-  "token": {
-    "type": "bearer",
-    "token": "oat_NTY..."
+  "message": "User registered successfully. Please check your email for your verification code.",
+  "data": {
+    "user": {
+      "id": 1,
+      "userName": "Ahmed",
+      "email": "user@example.com",
+      "userType": "user",
+      "emailVerified": false
+    },
+    "token": {
+      "type": "bearer",
+      "token": "oat_NTY..."
+    }
   }
 }
 ```
 
 **Notes:**
-- A verification email is sent automatically after registration.
+- A 6-digit verification code is sent automatically after registration.
 - The user can start using the app immediately but cannot create bookings until email is verified.
 - Store the token securely for subsequent authenticated requests.
 
@@ -146,16 +148,18 @@ Login with existing credentials. No auth required.
 ```json
 {
   "message": "Login successful",
-  "user": {
-    "id": 1,
-    "userName": "Ahmed",
-    "email": "user@example.com",
-    "userType": "user",
-    "emailVerified": true
-  },
-  "token": {
-    "type": "bearer",
-    "token": "oat_NTY..."
+  "data": {
+    "user": {
+      "id": 1,
+      "userName": "Ahmed",
+      "email": "user@example.com",
+      "userType": "user",
+      "emailVerified": true
+    },
+    "token": {
+      "type": "bearer",
+      "token": "oat_NTY..."
+    }
   }
 }
 ```
@@ -164,7 +168,10 @@ Login with existing credentials. No auth required.
 
 ```json
 {
-  "message": "Invalid credentials"
+  "error": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "Invalid credentials"
+  }
 }
 ```
 
@@ -178,22 +185,24 @@ Get the authenticated user's profile. **Auth required.**
 
 ```json
 {
-  "user": {
-    "id": 1,
-    "userName": "Ahmed",
-    "email": "user@example.com",
-    "userType": "user",
-    "emailVerified": true,
-    "profile": {
+  "data": {
+    "user": {
       "id": 1,
-      "firstName": "Ahmed",
-      "lastName": "Ali",
-      "phone": "+966501234567",
-      "address": "Riyadh, Saudi Arabia",
-      "avatar": null,
-      "userId": 1,
-      "createdAt": "2026-02-20T10:00:00.000+00:00",
-      "updatedAt": "2026-02-20T10:00:00.000+00:00"
+      "userName": "Ahmed",
+      "email": "user@example.com",
+      "userType": "user",
+      "emailVerified": true,
+      "profile": {
+        "id": 1,
+        "firstName": "Ahmed",
+        "lastName": "Ali",
+        "phone": "+966501234567",
+        "address": "Riyadh, Saudi Arabia",
+        "avatar": null,
+        "userId": 1,
+        "createdAt": "2026-02-20T10:00:00.000+00:00",
+        "updatedAt": "2026-02-20T10:00:00.000+00:00"
+      }
     }
   }
 }
@@ -220,34 +229,40 @@ Revoke the current access token. **Auth required.**
 
 ## 2. Email Verification
 
-### GET `/api/users/verify-email/:token`
+### POST `/api/users/verify-email`
 
-Verify a user's email address using the token from the verification email. No auth required.
+Verify a user's email address using the OTP code from the verification email. No auth required.
 
-**URL Params:**
+**Request Body:**
 
-| Param | Type   | Description                          |
-|-------|--------|--------------------------------------|
-| token | string | Verification token from email link   |
+| Field | Type   | Required | Notes              |
+|-------|--------|----------|--------------------|
+| email | string | Yes      | User email address |
+| code  | string | Yes      | 6-digit OTP code   |
 
 **Success Response (200):**
 
 ```json
 {
   "message": "Email verified successfully",
-  "user": {
-    "id": 1,
-    "email": "user@example.com",
-    "emailVerified": true
+  "data": {
+    "user": {
+      "id": 1,
+      "email": "user@example.com",
+      "emailVerified": true
+    }
   }
 }
 ```
 
-**Error Response (400):**
+**Error Response (422):**
 
 ```json
 {
-  "message": "Invalid or expired verification token"
+  "error": {
+    "code": "INVALID_VERIFICATION_CODE",
+    "message": "Invalid verification code"
+  }
 }
 ```
 
@@ -255,7 +270,7 @@ Verify a user's email address using the token from the verification email. No au
 
 ### POST `/api/users/resend-verification`
 
-Resend the verification email. No auth required.
+Resend the verification code. No auth required.
 
 **Request Body:**
 
@@ -275,7 +290,7 @@ Resend the verification email. No auth required.
 
 ```json
 {
-  "message": "If an account with that email exists and is not verified, a verification email has been sent."
+  "message": "If an account with that email exists and is not verified, a verification code has been sent."
 }
 ```
 

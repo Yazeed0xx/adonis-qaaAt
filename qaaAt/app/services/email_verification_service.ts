@@ -1,93 +1,87 @@
-import { createHash, randomBytes } from 'node:crypto'
+import { createHash, randomInt } from 'node:crypto'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import InvalidInputException from '#exceptions/invalid_input_exception'
 import InvalidStateException from '#exceptions/invalid_state_exception'
 import SendMailJob from '#jobs/send_mail_job'
 import User from '#models/user'
-import env from '#start/env'
 
 export class EmailVerificationService {
-  private static TOKEN_LENGTH = 64
-  private static TOKEN_EXPIRY_HOURS = 24
+  private static OTP_LENGTH = 6
+  private static OTP_EXPIRY_MINUTES = 10
   private static RESEND_COOLDOWN_MINUTES = 5
 
   /**
-   * Generate a cryptographically secure random token
+   * Generate a cryptographically secure numeric OTP
    */
-  private generateToken(): string {
-    return randomBytes(EmailVerificationService.TOKEN_LENGTH / 2).toString('hex')
+  private generateOtp(): string {
+    const max = 10 ** EmailVerificationService.OTP_LENGTH
+    return String(randomInt(0, max)).padStart(EmailVerificationService.OTP_LENGTH, '0')
   }
 
   /**
-   * Hash verification tokens before storing them in the database
+   * Hash verification codes before storing them in the database
    */
-  private hashToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex')
+  private hashCode(code: string): string {
+    return createHash('sha256').update(code).digest('hex')
   }
 
   /**
-   * Get the verification URL for a token
-   */
-  private getVerificationUrl(token: string): string {
-    return new URL(`/api/users/verify-email/${token}`, env.get('APP_URL')).toString()
-  }
-
-  /**
-   * Infer the last time a token was issued from its expiration timestamp
+   * Infer the last time a code was issued from its expiration timestamp
    */
   private getTokenIssuedAt(user: User): DateTime | null {
-    return user.emailVerificationExpiresAt?.minus({ hours: EmailVerificationService.TOKEN_EXPIRY_HOURS }) ?? null
+    return (
+      user.emailVerificationExpiresAt?.minus({
+        minutes: EmailVerificationService.OTP_EXPIRY_MINUTES,
+      }) ?? null
+    )
   }
 
   /**
    * Send verification email to user
    */
   async sendVerificationEmail(user: User): Promise<void> {
-    const token = this.generateToken()
-    const expiresAt = DateTime.now().plus({ hours: EmailVerificationService.TOKEN_EXPIRY_HOURS })
+    const code = this.generateOtp()
+    const expiresAt = DateTime.now().plus({ minutes: EmailVerificationService.OTP_EXPIRY_MINUTES })
 
-    user.emailVerificationToken = this.hashToken(token)
+    user.emailVerificationToken = this.hashCode(code)
     user.emailVerificationExpiresAt = expiresAt
     await user.save()
 
-    const verificationUrl = this.getVerificationUrl(token)
-
     await SendMailJob.dispatch({
       to: user.email,
-      subject: 'Verify your email address - QaaAt',
-      html: this.getEmailHtml(user, verificationUrl),
+      subject: 'Your QaaAt verification code',
+      html: this.getEmailHtml(user, code),
     }).toQueue('emails')
   }
 
   /**
-   * Verify email with token
+   * Verify email with OTP code
    */
-  async verifyEmail(token: string): Promise<User> {
-    const hashedToken = this.hashToken(token)
+  async verifyEmail(email: string, code: string): Promise<User> {
+    const hashedCode = this.hashCode(code)
 
     return db.transaction(async (trx) => {
       const user = await User.query({ client: trx })
-        .where((query) => {
-          query.where('emailVerificationToken', hashedToken).orWhere('emailVerificationToken', token)
-        })
+        .where('email', email)
         .whereNull('deletedAt')
         .forUpdate()
         .first()
 
       if (!user) {
-        throw new InvalidInputException('Invalid verification token', 'INVALID_VERIFICATION_TOKEN')
+        throw new InvalidInputException('Invalid verification code', 'INVALID_VERIFICATION_CODE')
       }
 
       if (user.emailVerifiedAt) {
         throw new InvalidStateException('Email is already verified', 'EMAIL_ALREADY_VERIFIED')
       }
 
+      if (!user.emailVerificationToken || user.emailVerificationToken !== hashedCode) {
+        throw new InvalidInputException('Invalid verification code', 'INVALID_VERIFICATION_CODE')
+      }
+
       if (user.emailVerificationExpiresAt && user.emailVerificationExpiresAt < DateTime.now()) {
-        throw new InvalidInputException(
-          'Verification token has expired',
-          'EXPIRED_VERIFICATION_TOKEN'
-        )
+        throw new InvalidInputException('Verification code has expired', 'EXPIRED_VERIFICATION_CODE')
       }
 
       user.useTransaction(trx)
@@ -131,7 +125,7 @@ export class EmailVerificationService {
   /**
    * Generate email HTML content
    */
-  private getEmailHtml(user: User, verificationUrl: string): string {
+  private getEmailHtml(user: User, code: string): string {
     return `
 <!DOCTYPE html>
 <html>
@@ -151,16 +145,17 @@ export class EmailVerificationService {
 
     <p>Hi${user.userName ? ` ${user.userName}` : ''},</p>
 
-    <p>Thank you for registering with QaaAt. Please verify your email address by clicking the button below:</p>
+    <p>Thank you for registering with QaaAt. Use the verification code below to confirm your email address:</p>
 
     <div style="text-align: center; margin: 30px 0;">
-      <a href="${verificationUrl}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Verify Email Address</a>
+      <div style="display: inline-block; background: #f5f5f5; border: 1px dashed #c7c7c7; border-radius: 8px; padding: 18px 24px; font-size: 32px; letter-spacing: 8px; font-weight: bold; color: #333;">
+        ${code}
+      </div>
     </div>
 
-    <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
-    <p style="background: #f5f5f5; padding: 10px; border-radius: 5px; word-break: break-all; font-size: 12px; color: #666;">${verificationUrl}</p>
+    <p style="color: #666; font-size: 14px;">Enter this code in the QaaAt app to complete verification.</p>
 
-    <p style="color: #999; font-size: 13px; margin-top: 30px;">This link will expire in 24 hours. If you didn't create an account with QaaAt, you can safely ignore this email.</p>
+    <p style="color: #999; font-size: 13px; margin-top: 30px;">This code will expire in ${EmailVerificationService.OTP_EXPIRY_MINUTES} minutes. If you didn't create an account with QaaAt, you can safely ignore this email.</p>
   </div>
 
   <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">

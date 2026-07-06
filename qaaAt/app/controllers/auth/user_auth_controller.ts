@@ -5,6 +5,7 @@ import InvalidCredentialsException from '#exceptions/invalid_credentials_excepti
 import InvalidInputException from '#exceptions/invalid_input_exception'
 import { userRegisterValidator } from '#validators/user_register_validator'
 import { userLoginValidator } from '#validators/user_login_validator'
+import { verifyEmailValidator } from '#validators/verify_email_validator'
 import emailVerificationService from '#services/email_verification_service'
 import db from '@adonisjs/lucid/services/db'
 
@@ -62,7 +63,7 @@ export default class UserAuthController {
     const token = await User.accessTokens.create(user)
 
     return response.created({
-      message: 'User registered successfully. Please check your email to verify your account.',
+      message: 'User registered successfully. Please check your email for your verification code.',
       data: {
         user: {
           id: user.id,
@@ -143,10 +144,12 @@ export default class UserAuthController {
   }
 
   /**
-   * Verify email address with token
+   * Verify email address with OTP code
    */
-  async verifyEmail({ params, response }: HttpContext) {
-    const user = await emailVerificationService.verifyEmail(params.token)
+  async verifyEmail({ request, response }: HttpContext) {
+    const { email, code } = await request.validateUsing(verifyEmailValidator)
+
+    const user = await emailVerificationService.verifyEmail(email, code)
 
     return response.ok({
       message: 'Email verified successfully',
@@ -174,7 +177,7 @@ export default class UserAuthController {
 
     return response.ok({
       message:
-        'If an account with that email exists and is not verified, a verification email has been sent.',
+        'If an account with that email exists and is not verified, a verification code has been sent.',
     })
   }
 

@@ -99,6 +99,20 @@ qaaAt/
 └── start/               # Application entry points
 ```
 
+## Mobile Integration Docs
+
+Canonical mobile integration docs live in:
+
+- `docs/mobile/README.md`
+- `docs/mobile/user-app.md`
+- `docs/mobile/company-app.md`
+
+Generated API docs are also available at runtime:
+
+- `/api`
+- `/api.json`
+- `/api.yaml`
+
 ## License
 
 UNLICENSED

@@ -175,10 +175,19 @@ Authorization: Bearer {token}
 
 ### Verify Email
 
-Called when user clicks the verification link in their email.
+Called when user enters the verification code from their email.
 
 ```
-GET /api/users/verify-email/{token}
+POST /api/users/verify-email
+```
+
+**Request Body:**
+
+```json
+{
+  "email": "user@example.com",
+  "code": "123456"
+}
 ```
 
 **Response (200 OK):**
@@ -186,19 +195,24 @@ GET /api/users/verify-email/{token}
 ```json
 {
   "message": "Email verified successfully",
-  "user": {
-    "id": 1,
-    "email": "user@example.com",
-    "emailVerified": true
+  "data": {
+    "user": {
+      "id": 1,
+      "email": "user@example.com",
+      "emailVerified": true
+    }
   }
 }
 ```
 
-**Error Response (400 Bad Request):**
+**Error Response (422 Unprocessable Entity):**
 
 ```json
 {
-  "message": "Invalid or expired verification token"
+  "error": {
+    "code": "INVALID_VERIFICATION_CODE",
+    "message": "Invalid verification code"
+  }
 }
 ```
 
@@ -224,7 +238,7 @@ POST /api/users/resend-verification
 
 ```json
 {
-  "message": "If an account with that email exists and is not verified, a verification email has been sent."
+  "message": "If an account with that email exists and is not verified, a verification code has been sent."
 }
 ```
 
