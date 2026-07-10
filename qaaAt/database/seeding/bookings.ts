@@ -8,7 +8,18 @@ export async function seedBookings(context: DemoScenarioContext) {
   const { royalGrand, royalGarden, goldenBallroom, pearlHall } = context.halls
   const { royalDecoration, royalPhotography, goldenDecoration } = context.services
 
-  if (!mohammed || !sara || !ahmed || !royalGrand || !royalGarden || !goldenBallroom || !pearlHall || !royalDecoration || !royalPhotography || !goldenDecoration) {
+  if (
+    !mohammed ||
+    !sara ||
+    !ahmed ||
+    !royalGrand ||
+    !royalGarden ||
+    !goldenBallroom ||
+    !pearlHall ||
+    !royalDecoration ||
+    !royalPhotography ||
+    !goldenDecoration
+  ) {
     throw new Error('Accounts and inventory must be seeded before bookings')
   }
 

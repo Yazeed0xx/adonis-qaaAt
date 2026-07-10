@@ -1,5 +1,6 @@
 import { defineConfig } from '@adonisjs/core/app'
 import { indexEntities } from '@adonisjs/core'
+import { generateRegistry } from '@tuyau/core/hooks'
 
 export default defineConfig({
   /*
@@ -15,6 +16,7 @@ export default defineConfig({
     () => import('@adonisjs/core/commands'),
     () => import('@adonisjs/lucid/commands'),
     () => import('@adonisjs/queue/commands'),
+    () => import('@outloud/adonis-openapi/commands'),
   ],
 
   /*
@@ -41,7 +43,7 @@ export default defineConfig({
     () => import('@adonisjs/drive/drive_provider'),
     () => import('@adonisjs/queue/queue_provider'),
     () => import('@adonisjs/limiter/limiter_provider'),
-    () => import('@foadonis/openapi/openapi_provider')
+    () => import('@outloud/adonis-openapi/provider'),
   ],
 
   /*
@@ -55,7 +57,10 @@ export default defineConfig({
   preloads: [
     () => import('#start/routes'),
     () => import('#start/kernel'),
-    () => import('#start/scheduler'),
+    {
+      file: () => import('#start/scheduler'),
+      environment: ['web'],
+    },
     () => import('#start/limiter'),
     () => import('#providers/api_provider'),
   ],
@@ -70,6 +75,7 @@ export default defineConfig({
       indexEntities({
         transformers: { enabled: true },
       }),
+      generateRegistry(),
     ],
   },
 
@@ -97,4 +103,10 @@ export default defineConfig({
     ],
     forceExit: false,
   },
+  metaFiles: [
+    {
+      pattern: '.adonisjs/openapi.json',
+      reloadServer: false,
+    },
+  ],
 })

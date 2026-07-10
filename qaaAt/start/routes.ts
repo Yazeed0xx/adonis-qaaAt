@@ -8,16 +8,9 @@
 */
 
 import router from '@adonisjs/core/services/router'
-import openapi from '@foadonis/openapi/services/main'
 import { controllers } from '#generated/controllers'
-import {
-  authThrottle,
-  bookingCreationThrottle,
-  resendVerificationThrottle,
-} from '#start/limiter'
+import { authThrottle, bookingCreationThrottle, resendVerificationThrottle } from '#start/limiter'
 import { middleware } from './kernel.js'
-
-openapi.registerRoutes()
 
 router.get('/', async () => {
   return {
@@ -28,10 +21,36 @@ router.get('/', async () => {
 // Public Hall Routes (no auth required)
 router
   .group(() => {
-    router.get('/', [controllers.PublicHall, 'index'])
-    router.get('/cities', [controllers.PublicHall, 'cities'])
-    router.get('/:id', [controllers.PublicHall, 'show'])
-    router.get('/:id/availability', [controllers.PublicHall, 'availability'])
+    router.get('/', [controllers.PublicHall, 'index']).openapi({
+      summary: 'Browse public halls',
+      operationId: 'listPublicHalls',
+      tags: ['Public halls'],
+      security: [],
+    })
+    router.get('/cities', [controllers.PublicHall, 'cities']).openapi({
+      summary: 'List public hall cities',
+      operationId: 'listPublicHallCities',
+      tags: ['Public halls'],
+      security: [],
+    })
+    router.get('/:id', [controllers.PublicHall, 'show']).openapi({
+      summary: 'Get public hall details',
+      operationId: 'getPublicHall',
+      tags: ['Public halls'],
+      security: [],
+      responses: { 200: { description: 'Hall details' }, 404: { description: 'Hall not found' } },
+    })
+    router.get('/:id/availability', [controllers.PublicHall, 'availability']).openapi({
+      summary: 'Get hall availability',
+      operationId: 'getHallAvailability',
+      tags: ['Public halls'],
+      security: [],
+      responses: {
+        200: { description: 'Available time slots' },
+        400: { description: 'Invalid date' },
+        404: { description: 'Hall not found' },
+      },
+    })
   })
   .prefix('/api/halls')
 
@@ -68,12 +87,23 @@ router
       .use([middleware.auth(), middleware.userType()])
 
     // User booking routes (auth + verified email required)
-    router.get('/bookings', [controllers.UserBooking, 'index']).use(middleware.auth())
+    router
+      .get('/bookings', [controllers.UserBooking, 'index'])
+      .use([middleware.auth(), middleware.userType()])
     router
       .post('/bookings', [controllers.UserBooking, 'store'])
-      .use([middleware.auth(), middleware.verifiedEmail(), bookingCreationThrottle])
-    router.get('/bookings/:id', [controllers.UserBooking, 'show']).use(middleware.auth())
-    router.post('/bookings/:id/cancel', [controllers.UserBooking, 'cancel']).use(middleware.auth())
+      .use([
+        middleware.auth(),
+        middleware.userType(),
+        middleware.verifiedEmail(),
+        bookingCreationThrottle,
+      ])
+    router
+      .get('/bookings/:id', [controllers.UserBooking, 'show'])
+      .use([middleware.auth(), middleware.userType()])
+    router
+      .post('/bookings/:id/cancel', [controllers.UserBooking, 'cancel'])
+      .use([middleware.auth(), middleware.userType()])
   })
   .prefix('/api/users')
 
@@ -125,11 +155,55 @@ router
 // Company Hall Management Routes (requires auth + approved company)
 router
   .group(() => {
-    router.get('/', [controllers.Hall, 'index'])
-    router.get('/:id', [controllers.Hall, 'show'])
-    router.post('/', [controllers.Hall, 'store']).use([middleware.approvedCompany()])
-    router.put('/:id', [controllers.Hall, 'update']).use([middleware.approvedCompany()])
-    router.delete('/:id', [controllers.Hall, 'destroy']).use([middleware.approvedCompany()])
+    router.get('/', [controllers.Hall, 'index']).openapi({
+      summary: 'List company halls',
+      operationId: 'listCompanyHalls',
+      tags: ['Company halls'],
+      security: [{ bearer: [] }],
+    })
+    router.get('/:id', [controllers.Hall, 'show']).openapi({
+      summary: 'Get company hall details',
+      operationId: 'getCompanyHall',
+      tags: ['Company halls'],
+      security: [{ bearer: [] }],
+    })
+    router
+      .post('/', [controllers.Hall, 'store'])
+      .use([middleware.approvedCompany()])
+      .openapi({
+        summary: 'Create a hall',
+        operationId: 'createCompanyHall',
+        tags: ['Company halls'],
+        security: [{ bearer: [] }],
+        responses: {
+          201: { description: 'Hall created' },
+          422: { description: 'Validation failed' },
+        },
+      })
+    router
+      .put('/:id', [controllers.Hall, 'update'])
+      .use([middleware.approvedCompany()])
+      .openapi({
+        summary: 'Update a hall',
+        operationId: 'updateCompanyHall',
+        tags: ['Company halls'],
+        security: [{ bearer: [] }],
+        responses: {
+          200: { description: 'Hall updated' },
+          404: { description: 'Hall not found' },
+          422: { description: 'Validation failed' },
+        },
+      })
+    router
+      .delete('/:id', [controllers.Hall, 'destroy'])
+      .use([middleware.approvedCompany()])
+      .openapi({
+        summary: 'Delete a hall',
+        operationId: 'deleteCompanyHall',
+        tags: ['Company halls'],
+        security: [{ bearer: [] }],
+        responses: { 200: { description: 'Hall deleted' }, 404: { description: 'Hall not found' } },
+      })
   })
   .prefix('/api/companies/halls')
   .use([middleware.auth(), middleware.company()])
@@ -179,3 +253,4 @@ router
 
 // Health Check Routes
 router.get('/health', [controllers.HealthChecks, 'handle'])
+router.get('/health/live', [controllers.HealthChecks, 'live'])

@@ -5,9 +5,6 @@ type ParamValue = string | number | bigint | boolean
 export type ScannedRoutes = {
   ALL: {
     'drive.fs.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
-    'openapi.html': { paramsTuple?: []; params?: {} }
-    'openapi.json': { paramsTuple?: []; params?: {} }
-    'openapi.yaml': { paramsTuple?: []; params?: {} }
     'public_hall.index': { paramsTuple?: []; params?: {} }
     'public_hall.cities': { paramsTuple?: []; params?: {} }
     'public_hall.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -66,12 +63,10 @@ export type ScannedRoutes = {
     'admin.get_bookings': { paramsTuple?: []; params?: {} }
     'admin.delete_booking': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'health_checks': { paramsTuple?: []; params?: {} }
+    'health_checks.live': { paramsTuple?: []; params?: {} }
   }
   GET: {
     'drive.fs.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
-    'openapi.html': { paramsTuple?: []; params?: {} }
-    'openapi.json': { paramsTuple?: []; params?: {} }
-    'openapi.yaml': { paramsTuple?: []; params?: {} }
     'public_hall.index': { paramsTuple?: []; params?: {} }
     'public_hall.cities': { paramsTuple?: []; params?: {} }
     'public_hall.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -99,12 +94,10 @@ export type ScannedRoutes = {
     'admin.get_halls': { paramsTuple?: []; params?: {} }
     'admin.get_bookings': { paramsTuple?: []; params?: {} }
     'health_checks': { paramsTuple?: []; params?: {} }
+    'health_checks.live': { paramsTuple?: []; params?: {} }
   }
   HEAD: {
     'drive.fs.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
-    'openapi.html': { paramsTuple?: []; params?: {} }
-    'openapi.json': { paramsTuple?: []; params?: {} }
-    'openapi.yaml': { paramsTuple?: []; params?: {} }
     'public_hall.index': { paramsTuple?: []; params?: {} }
     'public_hall.cities': { paramsTuple?: []; params?: {} }
     'public_hall.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -132,6 +125,7 @@ export type ScannedRoutes = {
     'admin.get_halls': { paramsTuple?: []; params?: {} }
     'admin.get_bookings': { paramsTuple?: []; params?: {} }
     'health_checks': { paramsTuple?: []; params?: {} }
+    'health_checks.live': { paramsTuple?: []; params?: {} }
   }
   POST: {
     'user_auth.register': { paramsTuple?: []; params?: {} }

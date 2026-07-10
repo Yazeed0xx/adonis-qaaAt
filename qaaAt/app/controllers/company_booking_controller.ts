@@ -32,7 +32,12 @@ export default class CompanyBookingController {
     const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
     const status = request.input('status')
 
-    const bookings = await bookingManagementService.getCompanyBookings(company.id, page, limit, status)
+    const bookings = await bookingManagementService.getCompanyBookings(
+      company.id,
+      page,
+      limit,
+      status
+    )
 
     return serialize(BookingTransformer.paginate(bookings.all(), bookings.getMeta()))
   }
@@ -49,7 +54,11 @@ export default class CompanyBookingController {
     const page = Math.max(1, Number(request.input('page', 1)) || 1)
     const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
 
-    const bookings = await bookingManagementService.getPendingCompanyBookings(company.id, page, limit)
+    const bookings = await bookingManagementService.getPendingCompanyBookings(
+      company.id,
+      page,
+      limit
+    )
 
     return serialize(BookingTransformer.paginate(bookings.all(), bookings.getMeta()))
   }
@@ -92,10 +101,11 @@ export default class CompanyBookingController {
 
     const company = await this.getCompany(user.id)
 
-    const booking = await bookingManagementService.acceptBooking(params.id, company.id)
+    const booking = await bookingManagementService.acceptBooking(params.id, company.id, user.id)
 
     return response.ok({
-      message: 'Booking accepted successfully. The customer will be notified to proceed with payment.',
+      message:
+        'Booking accepted successfully. The customer will be notified to proceed with payment.',
       data: await serialize.withoutWrapping(BookingTransformer.transform(booking)),
     })
   }
@@ -111,7 +121,12 @@ export default class CompanyBookingController {
 
     const company = await this.getCompany(user.id)
 
-    const booking = await bookingManagementService.rejectBooking(params.id, company.id, payload.reason)
+    const booking = await bookingManagementService.rejectBooking(
+      params.id,
+      company.id,
+      user.id,
+      payload.reason
+    )
 
     return response.ok({
       message: 'Booking rejected. The customer will be notified.',

@@ -1,8 +1,15 @@
 import env from '#start/env'
 import { defineConfig, stores } from '@adonisjs/limiter'
+import app from '@adonisjs/core/services/app'
+
+const defaultStore = env.get('LIMITER_STORE', app.inProduction ? 'database' : 'memory')
+
+if (app.inProduction && defaultStore !== 'database') {
+  throw new Error('LIMITER_STORE must be database in production')
+}
 
 const limiterConfig = defineConfig({
-  default: env.get('LIMITER_STORE', 'memory'),
+  default: defaultStore,
 
   stores: {
     database: stores.database({

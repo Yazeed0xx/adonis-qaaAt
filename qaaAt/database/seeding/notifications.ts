@@ -41,8 +41,7 @@ export async function seedNotifications(context: DemoScenarioContext) {
       userId: ahmed.id,
       type: 'booking_expired',
       title: 'Booking Expired',
-      message:
-        'Your booking request for "Pearl Hall" has expired as the company did not respond.',
+      message: 'Your booking request for "Pearl Hall" has expired as the company did not respond.',
       data: { hallName: 'Pearl Hall' },
       readAt: null,
     },
@@ -77,8 +76,7 @@ export async function seedNotifications(context: DemoScenarioContext) {
       userId: quick.userId,
       type: 'company_rejected',
       title: 'Company Rejected',
-      message:
-        'Your company registration was rejected. Reason: Incomplete business documentation.',
+      message: 'Your company registration was rejected. Reason: Incomplete business documentation.',
       data: { reason: 'Incomplete business documentation' },
       readAt: null,
     },

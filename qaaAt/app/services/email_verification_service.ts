@@ -5,6 +5,7 @@ import InvalidInputException from '#exceptions/invalid_input_exception'
 import InvalidStateException from '#exceptions/invalid_state_exception'
 import SendMailJob from '#jobs/send_mail_job'
 import User from '#models/user'
+import { escapeHtml } from '#lib/escape_html'
 
 export class EmailVerificationService {
   private static OTP_LENGTH = 6
@@ -81,7 +82,10 @@ export class EmailVerificationService {
       }
 
       if (user.emailVerificationExpiresAt && user.emailVerificationExpiresAt < DateTime.now()) {
-        throw new InvalidInputException('Verification code has expired', 'EXPIRED_VERIFICATION_CODE')
+        throw new InvalidInputException(
+          'Verification code has expired',
+          'EXPIRED_VERIFICATION_CODE'
+        )
       }
 
       user.useTransaction(trx)
@@ -126,6 +130,7 @@ export class EmailVerificationService {
    * Generate email HTML content
    */
   private getEmailHtml(user: User, code: string): string {
+    const safeUserName = user.userName ? escapeHtml(user.userName) : ''
     return `
 <!DOCTYPE html>
 <html>
@@ -143,7 +148,7 @@ export class EmailVerificationService {
   <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px;">
     <h2 style="color: #333; margin-top: 0;">Welcome to QaaAt!</h2>
 
-    <p>Hi${user.userName ? ` ${user.userName}` : ''},</p>
+    <p>Hi${safeUserName ? ` ${safeUserName}` : ''},</p>
 
     <p>Thank you for registering with QaaAt. Use the verification code below to confirm your email address:</p>
 

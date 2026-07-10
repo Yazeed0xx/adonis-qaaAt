@@ -8,7 +8,11 @@ export const HallFactory = factory
       name: `${faker.word.adjective()} ${faker.word.noun()} Hall`,
       description: faker.lorem.paragraph(),
       capacity: faker.number.int({ min: 80, max: 600 }),
-      location: faker.helpers.arrayElement(['Al Olaya District', 'Al Hamra District', 'Corniche Road']),
+      location: faker.helpers.arrayElement([
+        'Al Olaya District',
+        'Al Hamra District',
+        'Corniche Road',
+      ]),
       amenities: {
         parking: true,
         wifi: true,

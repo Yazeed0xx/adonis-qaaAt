@@ -56,14 +56,18 @@ interface BookingWithServicesInput {
 }
 
 export async function createBookingWithServices(input: BookingWithServicesInput) {
-  const booking = await BookingFactory.apply(...input.states).merge(input.bookingData).create()
+  const booking = await BookingFactory.apply(...input.states)
+    .merge(input.bookingData)
+    .create()
 
   if (input.serviceRecords?.length) {
-    await booking.related('services').attach(
-      Object.fromEntries(
-        input.serviceRecords.map((service) => [service.id, { price_at_booking: service.price }])
+    await booking
+      .related('services')
+      .attach(
+        Object.fromEntries(
+          input.serviceRecords.map((service) => [service.id, { price_at_booking: service.price }])
+        )
       )
-    )
   }
 
   return booking

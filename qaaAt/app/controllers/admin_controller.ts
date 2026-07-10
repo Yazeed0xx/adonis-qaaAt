@@ -10,6 +10,19 @@ import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import adminAuditService from '#services/admin_audit_service'
 import SendNotificationJob from '#jobs/send_notification_job'
+import logger from '@adonisjs/core/services/logger'
+import type { QueuedNotificationData } from '#services/notification_service'
+
+async function dispatchPostCommitNotification(payload: QueuedNotificationData): Promise<void> {
+  try {
+    await SendNotificationJob.dispatch(payload)
+  } catch (error) {
+    logger.error(
+      { err: error, userId: payload.userId, type: payload.type },
+      'Failed to dispatch post-commit notification'
+    )
+  }
+}
 import BookingTransformer from '#transformers/booking_transformer'
 import CompanyTransformer from '#transformers/company_transformer'
 import HallTransformer from '#transformers/hall_transformer'
@@ -30,7 +43,9 @@ export default class AdminController {
       .orderBy('createdAt', 'desc')
       .paginate(page, limit)
 
-    return serialize(UserTransformer.paginate(users.all(), users.getMeta()).useVariant('forAdminView'))
+    return serialize(
+      UserTransformer.paginate(users.all(), users.getMeta()).useVariant('forAdminView')
+    )
   }
 
   /**
@@ -65,7 +80,9 @@ export default class AdminController {
       .orderBy('createdAt', 'desc')
       .paginate(page, limit)
 
-    return serialize(HallTransformer.paginate(halls.all(), halls.getMeta()).useVariant('forAdminView'))
+    return serialize(
+      HallTransformer.paginate(halls.all(), halls.getMeta()).useVariant('forAdminView')
+    )
   }
 
   /**
@@ -382,25 +399,31 @@ export default class AdminController {
       throw new InvalidStateException('Company is already approved', 'COMPANY_ALREADY_APPROVED')
     }
 
-    company.status = 'approved'
-    company.approvedAt = DateTime.now()
-    company.approvedBy = admin.id
-    company.rejectionReason = null
-    company.rejectedAt = null
-    await company.save()
+    await company.load('companyProfile')
+    await db.transaction(async (trx) => {
+      company.useTransaction(trx)
+      company.status = 'approved'
+      company.approvedAt = DateTime.now()
+      company.approvedBy = admin.id
+      company.rejectionReason = null
+      company.rejectedAt = null
+      await company.save()
 
-    await adminAuditService.record({
-      adminUserId: admin.id,
-      action: 'company.approve',
-      targetType: 'company',
-      targetId: company.id,
-      metadata: { userId: company.userId },
+      await adminAuditService.record(
+        {
+          adminUserId: admin.id,
+          action: 'company.approve',
+          targetType: 'company',
+          targetId: company.id,
+          metadata: { userId: company.userId },
+        },
+        trx
+      )
     })
 
     // Notify the company owner
-    await company.load('companyProfile')
     const companyName = company.companyProfile?.companyName || 'Your company'
-    await SendNotificationJob.dispatch({
+    await dispatchPostCommitNotification({
       userId: company.userId,
       type: 'company_approved',
       title: 'Company Approved',
@@ -441,26 +464,32 @@ export default class AdminController {
       throw new InvalidStateException('Company is already rejected', 'COMPANY_ALREADY_REJECTED')
     }
 
-    company.status = 'rejected'
-    company.rejectionReason = reason.trim()
-    company.rejectedAt = DateTime.now()
-    company.approvedAt = null
-    company.approvedBy = null
-    await company.save()
+    await company.load('companyProfile')
+    await db.transaction(async (trx) => {
+      company.useTransaction(trx)
+      company.status = 'rejected'
+      company.rejectionReason = reason.trim()
+      company.rejectedAt = DateTime.now()
+      company.approvedAt = null
+      company.approvedBy = null
+      await company.save()
 
-    await adminAuditService.record({
-      adminUserId: admin.id,
-      action: 'company.reject',
-      targetType: 'company',
-      targetId: company.id,
-      reason: reason.trim(),
-      metadata: { userId: company.userId },
+      await adminAuditService.record(
+        {
+          adminUserId: admin.id,
+          action: 'company.reject',
+          targetType: 'company',
+          targetId: company.id,
+          reason: reason.trim(),
+          metadata: { userId: company.userId },
+        },
+        trx
+      )
     })
 
     // Notify the company owner
-    await company.load('companyProfile')
     const companyName = company.companyProfile?.companyName || 'Your company'
-    await SendNotificationJob.dispatch({
+    await dispatchPostCommitNotification({
       userId: company.userId,
       type: 'company_rejected',
       title: 'Company Registration Rejected',
@@ -505,17 +534,25 @@ export default class AdminController {
       )
     }
 
-    company.status = 'suspended'
-    company.rejectionReason = reason.trim()
-    await company.save()
+    await db.transaction(async (trx) => {
+      company.useTransaction(trx)
+      company.status = 'suspended'
+      company.rejectionReason = reason.trim()
+      await company.save()
 
-    await adminAuditService.record({
-      adminUserId: admin.id,
-      action: 'company.suspend',
-      targetType: 'company',
-      targetId: company.id,
-      reason: reason.trim(),
-      metadata: { userId: company.userId },
+      await trx.from('auth_access_tokens').where('tokenable_id', company.userId).delete()
+
+      await adminAuditService.record(
+        {
+          adminUserId: admin.id,
+          action: 'company.suspend',
+          targetType: 'company',
+          targetId: company.id,
+          reason: reason.trim(),
+          metadata: { userId: company.userId },
+        },
+        trx
+      )
     })
 
     return response.ok({
@@ -543,16 +580,22 @@ export default class AdminController {
       )
     }
 
-    company.status = 'approved'
-    company.rejectionReason = null
-    await company.save()
+    await db.transaction(async (trx) => {
+      company.useTransaction(trx)
+      company.status = 'approved'
+      company.rejectionReason = null
+      await company.save()
 
-    await adminAuditService.record({
-      adminUserId: admin.id,
-      action: 'company.reactivate',
-      targetType: 'company',
-      targetId: company.id,
-      metadata: { userId: company.userId },
+      await adminAuditService.record(
+        {
+          adminUserId: admin.id,
+          action: 'company.reactivate',
+          targetType: 'company',
+          targetId: company.id,
+          metadata: { userId: company.userId },
+        },
+        trx
+      )
     })
 
     return response.ok({

@@ -1,4 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
+import type { QueryClientContract } from '@adonisjs/lucid/types/database'
 
 interface AdminAuditEntry {
   adminUserId: number
@@ -10,8 +11,12 @@ interface AdminAuditEntry {
 }
 
 export class AdminAuditService {
-  async record(entry: AdminAuditEntry) {
-    await db.table('admin_audit_logs').insert({
+  async record(entry: AdminAuditEntry, client?: QueryClientContract) {
+    const query = client
+      ? client.insertQuery().table('admin_audit_logs')
+      : db.insertQuery().table('admin_audit_logs')
+
+    await query.insert({
       admin_user_id: entry.adminUserId,
       action: entry.action,
       target_type: entry.targetType,

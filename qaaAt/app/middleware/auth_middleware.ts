@@ -20,6 +20,14 @@ export default class AuthMiddleware {
     } = {}
   ) {
     await ctx.auth.authenticateUsing(options.guards, { loginRoute: this.redirectTo })
+
+    if (ctx.auth.user?.deletedAt) {
+      return ctx.response.unauthorized({
+        message: 'This account is no longer active.',
+        code: 'ACCOUNT_INACTIVE',
+      })
+    }
+
     return next()
   }
 }

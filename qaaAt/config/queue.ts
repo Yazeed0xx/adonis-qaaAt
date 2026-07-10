@@ -1,8 +1,15 @@
 import env from '#start/env'
 import { defineConfig, drivers, exponentialBackoff } from '@adonisjs/queue'
+import app from '@adonisjs/core/services/app'
+
+const defaultDriver = env.get('QUEUE_DRIVER', app.inProduction ? 'database' : 'sync')
+
+if (app.inProduction && defaultDriver !== 'database') {
+  throw new Error('QUEUE_DRIVER must be database in production')
+}
 
 export default defineConfig({
-  default: env.get('QUEUE_DRIVER', 'sync'),
+  default: defaultDriver,
 
   adapters: {
     sync: drivers.sync(),

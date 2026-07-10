@@ -15,7 +15,8 @@ export async function seedCompanies(context: DemoScenarioContext) {
     userName: 'Royal Events',
     email: 'royal@example.com',
     companyName: 'Royal Events Co.',
-    description: 'Premium wedding and event venues in Riyadh. We specialize in luxury celebrations.',
+    description:
+      'Premium wedding and event venues in Riyadh. We specialize in luxury celebrations.',
     logo: 'https://picsum.photos/seed/royal/200/200',
     banner: 'https://picsum.photos/seed/royalbanner/1200/400',
     website: 'https://royalevents.sa',

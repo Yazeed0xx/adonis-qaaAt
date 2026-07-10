@@ -28,7 +28,11 @@ export default class MainSeeder extends BaseSeeder {
     console.log('ADMIN: admin@qaat.app / admin123')
     console.log('USERS: mohammed@example.com, sara@example.com, ahmed@example.com / password123')
     console.log('UNVERIFIED USER: fatima@example.com / password123')
-    console.log('COMPANIES: royal@example.com, golden@example.com, star@example.com, quick@example.com / password123')
-    console.log('Generated demo data with factories for halls, services, bookings, and notifications')
+    console.log(
+      'COMPANIES: royal@example.com, golden@example.com, star@example.com, quick@example.com / password123'
+    )
+    console.log(
+      'Generated demo data with factories for halls, services, bookings, and notifications'
+    )
   }
 }

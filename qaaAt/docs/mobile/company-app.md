@@ -1,225 +1,238 @@
-# Company App API Handoff
+# QaaAt Company App Integration Guide
 
-This document is for the frontend team or agent responsible for the company-facing app.
+This is the source-of-truth handoff for the company-facing mobile app. It covers multipart registration, approval states, hall management, booking decisions, and notifications as implemented on **2026-07-10**.
 
-It reflects the backend contract implemented in the codebase as of `2026-05-20`, with emphasis on approval-state handling, multipart registration, and the current response envelopes.
+Read [README.md](./README.md) first for shared authentication, pagination, error normalization, rate limits, and backend setup.
 
-## Scope
+## Product flow
 
-The company app owns:
+1. Register with legal/business details and a scanned commercial-registration PDF.
+2. Store the returned token and route by `data.company.status`; a new company starts as `pending`.
+3. Pending or rejected companies can restore account state, read their halls, and read notifications, but cannot mutate halls or access booking management.
+4. Approved companies can create and manage halls, receive booking requests, and accept or reject pending requests.
+5. Admin suspension revokes existing access tokens and blocks future login.
 
-- company registration and login
-- approval-state awareness
-- hall management
-- booking management for owned halls
-- company notifications
+## Endpoint map
 
-Base URL:
+| Method | Path | Auth/state | Purpose |
+|---|---|---|---|
+| POST | `/api/companies/register` | Public multipart | Create pending company |
+| POST | `/api/companies/login` | Public | Sign in unless suspended |
+| GET | `/api/companies/me` | Company token | Restore company and approval state |
+| POST | `/api/companies/logout` | Bearer | Revoke current token |
+| GET | `/api/companies/halls` | Company token | List own halls |
+| GET | `/api/companies/halls/:id` | Company token | Read own hall |
+| POST | `/api/companies/halls` | Approved company | Create hall |
+| PUT | `/api/companies/halls/:id` | Approved company | Update own hall |
+| DELETE | `/api/companies/halls/:id` | Approved company | Soft-delete own hall |
+| GET | `/api/companies/bookings` | Approved company | List bookings for own halls |
+| GET | `/api/companies/bookings/pending` | Approved company | List actionable pending bookings |
+| GET | `/api/companies/bookings/:id` | Approved company | Read owned booking |
+| POST | `/api/companies/bookings/:id/accept` | Approved company | Accept pending booking |
+| POST | `/api/companies/bookings/:id/reject` | Approved company | Reject pending booking |
+| GET | `/api/companies/notifications` | Company token | List notifications |
+| GET | `/api/companies/notifications/unread-count` | Company token | Get unread count |
+| POST | `/api/companies/notifications/:id/read` | Company token | Mark one read |
+| POST | `/api/companies/notifications/read-all` | Company token | Mark all read |
 
-- local: `http://localhost:3333`
-- API root: `http://localhost:3333/api`
+Hall reads intentionally do not require approval; hall writes do. All booking-management actions require approval. Notifications require a company account but not approval.
 
-Auth header for protected routes:
+## Approval and session states
 
-```http
-Authorization: Bearer <token>
+```ts
+type CompanyStatus = 'pending' | 'approved' | 'rejected' | 'suspended'
 ```
 
-## Response Contract Summary
+| Status | Login | `/me`, hall reads, notifications | Hall writes and bookings |
+|---|---|---|---|
+| `pending` | Allowed | Allowed | `403 COMPANY_PENDING_APPROVAL` |
+| `approved` | Allowed | Allowed | Allowed |
+| `rejected` | Allowed | Allowed | `403 COMPANY_REJECTED` with a flat `reason` field |
+| `suspended` | `401 INVALID_CREDENTIALS` | Existing tokens are revoked when admin suspends | Blocked |
 
-Current success patterns:
+Always use `company.status`, not the login message, as the state source of truth. Refresh `/api/companies/me` when the app resumes and after the user receives an approval/rejection notification.
 
-1. Mutation with payload
+Approval middleware errors use the flat shape, for example:
 
 ```json
 {
-  "message": "Some success message",
-  "data": {}
+  "message": "Your company is pending admin approval. You cannot perform this action yet.",
+  "code": "COMPANY_PENDING_APPROVAL"
 }
 ```
 
-2. Mutation without payload
+## Data types
 
-```json
-{
-  "message": "Some success message"
+Company auth endpoints serialize the Lucid company model directly, while hall and booking endpoints use narrower transformers. Do not use one global `Company` type for both shapes.
+
+```ts
+type CompanyAuthRecord = {
+  id: number
+  taxId: string | null
+  registrationNumber: string | null
+  registrationNumberPdf: string | null
+  businessLicense: string | null
+  contactPerson: string | null
+  businessAddress: string | null
+  city: string
+  userId: number
+  createdAt: string
+  updatedAt: string | null
+  deletedAt: string | null
+  status: CompanyStatus
+  approvedAt: string | null
+  approvedBy: number | null
+  rejectionReason: string | null
+  rejectedAt: string | null
+  companyProfile: {
+    id: number
+    userId: number
+    companyName: string
+    description: string | null
+    logo: string | null
+    banner: string | null
+    website: string | null
+    socialLinks: Record<string, unknown> | string | null
+    createdAt: string
+    updatedAt: string | null
+    deletedAt: string | null
+  } | null
 }
-```
 
-3. Single resource or resource detail
-
-```json
-{
-  "data": {}
+type Hall = {
+  id: number
+  name: string
+  description: string | null
+  capacity: number
+  location: string
+  amenities: Record<string, unknown> | null
+  images: string[] | null
+  address: string
+  city: string
+  services: string[] | null
+  isAvailable: boolean
+  createdAt: string
+  updatedAt: string | null
+  pricing: number
+  company?: unknown
 }
-```
 
-4. Paginated list
+type BookingStatus =
+  | 'pending'
+  | 'accepted'
+  | 'confirmed'
+  | 'rejected'
+  | 'cancelled'
+  | 'expired'
+  | 'completed'
 
-```json
-{
-  "data": [],
-  "meta": {}
-}
-```
-
-## Error Contract Summary
-
-Errors use a top-level `error` object.
-
-Validation example:
-
-```json
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Request validation failed",
-    "details": [
-      {
-        "field": "registrationNumberPdf",
-        "message": "The registrationNumberPdf field must be a file",
-        "rule": "file"
-      }
-    ]
+type Booking = {
+  id: number
+  bookingDate: string
+  startTime: string
+  endTime: string
+  status: BookingStatus
+  specialRequests: string | null
+  rejectionReason: string | null
+  companyRespondedAt: string | null
+  expiresAt: string | null
+  paymentStatus: 'unpaid' | 'paid' | 'refunded'
+  paymentDueDate: string | null
+  createdAt: string
+  updatedAt: string | null
+  totalPrice: number
+  isExpired: boolean
+  hall?: Hall
+  user?: {
+    id: number
+    userName: string | null
+    email: string
+    userType: string
+    createdAt: string
+    updatedAt: string | null
+    isEmailVerified: boolean
+    userProfile?: {
+      id: number
+      firstName: string | null
+      lastName: string | null
+      phone: string | null
+      address: string | null
+      avatar: string | null
+    }
   }
+  services?: Array<{
+    id: number
+    name: string
+    description: string | null
+    isActive: boolean
+    createdAt: string
+    updatedAt: string | null
+    price: number
+  }>
+}
+
+type Notification = {
+  id: number
+  type: string
+  title: string
+  message: string
+  data: Record<string, unknown> | null
+  readAt: string | null
+  createdAt: string
+  isRead: boolean
 }
 ```
 
-Domain/auth example:
+Relations are conditional. In particular, company-owned hall endpoints do not preload `company`, so it is normally omitted. Booking list and mutation endpoints preload different depths of `user`, `hall`, and `services`.
 
-```json
-{
-  "error": {
-    "code": "UNAUTHORIZED",
-    "message": "Unauthorized access"
-  }
-}
-```
+## Authentication
 
-Do not depend on legacy shapes such as `errors: [...]`.
+### Register company
 
-## Key Migration Notes
+`POST /api/companies/register` must be `multipart/form-data`.
 
-These are the places most likely to break an older company frontend integration:
+Required fields:
 
-1. Auth responses now place payloads under `data`.
-2. Company registration must be sent as `multipart/form-data`.
-3. Error parsing must use `error.code` and `error.message`.
-4. Protected company business flows can fail with approval-state errors even when login succeeds.
-5. Hall and booking list/detail endpoints return transformed resources, but company auth returns the raw `company` model payload from Lucid.
-
-## Approval State Rules
-
-The company lifecycle currently includes:
-
-- `pending`
-- `approved`
-- `rejected`
-- `suspended`
-
-Important frontend rule:
-
-- always branch on `data.company.status`
-- never rely only on the success message text
-
-Only `approved` companies can:
-
-- create/update/delete halls
-- view and manage booking requests
-
-Example protected-route failures:
-
-Pending:
-
-```json
-{
-  "error": {
-    "code": "COMPANY_PENDING_APPROVAL",
-    "message": "Your company is pending admin approval. You cannot perform this action yet."
-  }
-}
-```
-
-Rejected:
-
-```json
-{
-  "error": {
-    "code": "COMPANY_REJECTED",
-    "message": "Your company registration was rejected. Please contact support for more information."
-  }
-}
-```
-
-Suspended:
-
-```json
-{
-  "error": {
-    "code": "COMPANY_SUSPENDED",
-    "message": "Your company account has been suspended. Please contact support."
-  }
-}
-```
-
-## Endpoint Reference
-
-### POST `/api/companies/register`
-
-Creates a company account and returns a token immediately, but the company starts in `pending` status.
-
-Content type:
-
-- `multipart/form-data`
-
-Required form-data fields:
-
-- `email`
-- `password`
+- `email`: unique valid email
+- `password`: at least eight characters
 - `companyName`
 - `registrationNumber`
-- `registrationNumberPdf` as a PDF file
+- `registrationNumberPdf`: PDF, maximum 10 MB
 - `businessAddress`
 - `city`
 
-Optional fields:
+Optional string fields: `taxId`, `businessLicense`, `contactPerson`, `description`, `logo`, `banner`, and `website`. `socialLinks` is accepted as an untyped optional value.
 
-- `taxId`
-- `businessLicense`
-- `contactPerson`
-- `description`
-- `logo`
-- `banner`
-- `website`
-- `socialLinks`
+Expo/React Native example:
 
-React Native / Expo notes:
-
-- do not set the `Content-Type` header manually
-- let the client build the multipart boundary
-- `registrationNumberPdf` must include `uri`, `name`, and `type`
-
-Recommended `socialLinks` behavior:
-
-- send as a serialized JSON string when using multipart clients
-
-Example:
-
-```js
-const formData = new FormData()
-formData.append('email', 'company@example.com')
-formData.append('password', 'password123')
-formData.append('companyName', 'Royal Events Co.')
-formData.append('registrationNumber', 'CR-1234567890')
-formData.append('businessAddress', '123 King Fahd Road')
-formData.append('city', 'Riyadh')
-formData.append('registrationNumberPdf', {
-  uri: selectedFile.uri,
-  name: 'cr-document.pdf',
+```ts
+const body = new FormData()
+body.append('email', 'company@example.com')
+body.append('password', 'password123')
+body.append('companyName', 'Royal Events Co.')
+body.append('registrationNumber', 'CR-1234567890')
+body.append('businessAddress', '123 King Fahd Road')
+body.append('city', 'Riyadh')
+body.append('registrationNumberPdf', {
+  uri: selectedPdf.uri,
+  name: selectedPdf.name ?? 'registration.pdf',
   type: 'application/pdf',
+} as any)
+
+await fetch(`${API_URL}/api/companies/register`, {
+  method: 'POST',
+  headers: { Accept: 'application/json' },
+  body,
 })
-formData.append('socialLinks', JSON.stringify({ instagram: '@royalevents' }))
 ```
+
+Do not manually set the multipart `Content-Type` header.
+
+The backend verifies the declared MIME type, `%PDF-` signature, `%%EOF` marker, actual size, and malware scan before storing the file privately. Relevant failures include `PDF_SIZE_INVALID`, `PDF_MIME_INVALID`, `PDF_SIGNATURE_INVALID`, `PDF_STRUCTURE_INVALID`, `PDF_MALWARE_DETECTED`, and `PDF_MALWARE_SCAN_UNAVAILABLE` (`503`). A scanner outage fails registration closed.
+
+`registrationNumberPdf` is stored on the private disk and is not exposed through a download route.
+
+Current `socialLinks` caveat: multipart text fields arrive as strings, and the backend does not parse a JSON string before saving it. Omit this field unless string-valued behavior is acceptable, or add backend parsing before relying on an object shape. `logo` and `banner` are string fields, not file uploads.
 
 Success `201`:
 
@@ -227,238 +240,68 @@ Success `201`:
 {
   "message": "Company registered successfully. Your account is pending admin approval.",
   "data": {
-    "user": {
-      "id": 2,
-      "email": "company@example.com",
-      "userType": "company"
-    },
+    "user": { "id": 2, "email": "company@example.com", "userType": "company" },
     "company": {
       "id": 1,
       "companyName": "Royal Events Co.",
       "city": "Riyadh",
       "status": "pending"
     },
-    "token": {
-      "type": "bearer",
-      "token": "..."
-    }
+    "token": { "type": "bearer", "token": "..." }
   }
 }
 ```
 
-Frontend notes:
+The registration company object is intentionally compact and differs from login and `/me`.
 
-- token path is `data.token.token`
-- registration response uses a compact company object
-- this response does not include the full company profile
+### Login
 
-### POST `/api/companies/login`
-
-Request body:
+`POST /api/companies/login`
 
 ```json
-{
-  "email": "company@example.com",
-  "password": "password123"
-}
+{ "email": "company@example.com", "password": "password123" }
 ```
 
-Success `200`:
+Success `200` returns `{ message, data: { user, company, token } }`, where `company` is the expanded `CompanyAuthRecord`. Pending and rejected companies can log in; suspended, deleted, wrong-type, and bad-credential accounts receive `401 INVALID_CREDENTIALS`.
 
-```json
-{
-  "message": "Login successful. Your company is pending admin approval.",
-  "data": {
-    "user": {
-      "id": 2,
-      "email": "company@example.com",
-      "userType": "company"
-    },
-    "company": {
-      "id": 1,
-      "taxId": "300123456789",
-      "registrationNumber": "CR-1234567890",
-      "registrationNumberPdf": "cr_documents/uuid.pdf",
-      "businessLicense": null,
-      "contactPerson": "Ahmed Al-Salem",
-      "businessAddress": "123 King Fahd Road",
-      "city": "Riyadh",
-      "userId": 2,
-      "createdAt": "2026-05-20T10:00:00.000+00:00",
-      "updatedAt": "2026-05-20T10:00:00.000+00:00",
-      "deletedAt": null,
-      "status": "pending",
-      "approvedAt": null,
-      "approvedBy": null,
-      "rejectionReason": null,
-      "rejectedAt": null,
-      "companyProfile": {
-        "id": 1,
-        "companyName": "Royal Events Co.",
-        "description": "Premium event organizers",
-        "logo": null,
-        "banner": null,
-        "website": null,
-        "socialLinks": {
-          "instagram": "@royalevents"
-        }
-      }
-    },
-    "token": {
-      "type": "bearer",
-      "token": "..."
-    }
-  }
-}
-```
+Possible successful messages are `Login successful`, the pending variant, and the rejected variant. There is no successful suspended variant in the current controller.
 
-Frontend notes:
+### Restore session
 
-- login success message changes based on approval status
-- the real status source of truth is `data.company.status`
-- this endpoint returns a broader raw company object than transformed hall/booking resources do
-
-Possible success messages:
-
-- `Login successful`
-- `Login successful. Your company is pending admin approval.`
-- `Login successful. Your company registration was rejected.`
-- `Login successful. Your company account is suspended.`
-
-### GET `/api/companies/me`
-
-Protected.
-
-Success `200`:
+`GET /api/companies/me` returns:
 
 ```json
 {
   "data": {
-    "user": {
-      "id": 2,
-      "email": "company@example.com",
-      "userType": "company"
-    },
-    "company": {
-      "id": 1,
-      "taxId": "300123456789",
-      "registrationNumber": "CR-1234567890",
-      "registrationNumberPdf": "cr_documents/uuid.pdf",
-      "businessLicense": null,
-      "contactPerson": "Ahmed Al-Salem",
-      "businessAddress": "123 King Fahd Road",
-      "city": "Riyadh",
-      "userId": 2,
-      "createdAt": "2026-05-20T10:00:00.000+00:00",
-      "updatedAt": "2026-05-20T10:00:00.000+00:00",
-      "deletedAt": null,
-      "status": "approved",
-      "approvedAt": "2026-05-20T12:00:00.000+00:00",
-      "approvedBy": 1,
-      "rejectionReason": null,
-      "rejectedAt": null,
-      "companyProfile": {
-        "id": 1,
-        "companyName": "Royal Events Co.",
-        "description": "Premium event organizers",
-        "logo": null,
-        "banner": null,
-        "website": null,
-        "socialLinks": {
-          "instagram": "@royalevents"
-        }
-      }
-    }
+    "user": { "id": 2, "email": "company@example.com", "userType": "company" },
+    "company": {}
   }
 }
 ```
 
-Frontend notes:
+The actual `company` is the expanded auth record including `companyProfile`. Use this endpoint to restore status and profile after reading the stored token.
 
-- use this endpoint to refresh current approval state after login
-- because `company` is returned from the model, expect admin/ops fields to be present here
+### Logout
 
-### POST `/api/companies/logout`
+`POST /api/companies/logout` revokes only the current token and returns `{ "message": "Logged out successfully" }`.
 
-Protected.
+## Hall management
 
-Success `200`:
+`pricing` is the hourly hall rate. Hall `services` is a free-form string array for descriptive labels; it is separate from the priced service records used by bookings.
 
-```json
-{
-  "message": "Logged out successfully"
-}
-```
+### List halls
 
-## Hall Management APIs
+`GET /api/companies/halls?page=1&limit=20`
 
-All hall management routes require:
+Returns `{ data: Hall[], meta }`, newest first, and excludes soft-deleted halls. This endpoint is available to pending and rejected companies. Returned halls normally omit `company`.
 
-- authenticated company user
-- approved company
+### Hall details
 
-### Hall Resource Shape
+`GET /api/companies/halls/:id` returns `{ data: Hall }` only for a hall owned by the authenticated company. The service preloads bookings internally, but the hall transformer does not expose them. Use the booking endpoints instead.
 
-Hall endpoints use the transformer-based hall resource:
+### Create hall
 
-```json
-{
-  "id": 1,
-  "name": "Royal Grand Hall",
-  "description": "Large luxury event hall",
-  "capacity": 500,
-  "location": "Al Olaya District",
-  "amenities": {
-    "parking": true,
-    "wifi": true
-  },
-  "images": ["https://example.com/hall.jpg"],
-  "address": "123 King Fahd Road",
-  "city": "Riyadh",
-  "services": ["coffee", "parking"],
-  "isAvailable": true,
-  "createdAt": "2026-05-20T10:00:00.000+00:00",
-  "updatedAt": "2026-05-20T10:00:00.000+00:00",
-  "pricing": 5000,
-  "company": {
-    "id": 1,
-    "city": "Riyadh",
-    "status": "approved",
-    "createdAt": "2026-05-20T10:00:00.000+00:00",
-    "updatedAt": "2026-05-20T10:00:00.000+00:00",
-    "companyProfile": {
-      "id": 1,
-      "companyName": "Royal Events Co.",
-      "description": "Premium event organizers",
-      "logo": null,
-      "banner": null,
-      "website": null,
-      "socialLinks": null
-    }
-  }
-}
-```
-
-### GET `/api/companies/halls`
-
-Optional query params:
-
-- `page`
-- `limit`
-
-Success `200`:
-
-- shape is `{ data: Hall[], meta: PaginationMeta }`
-
-### GET `/api/companies/halls/:id`
-
-Success `200`:
-
-- shape is `{ data: Hall }`
-
-### POST `/api/companies/halls`
-
-Request body:
+`POST /api/companies/halls`
 
 ```json
 {
@@ -466,12 +309,9 @@ Request body:
   "description": "Large luxury event hall",
   "capacity": 500,
   "location": "Al Olaya District",
-  "amenities": {
-    "parking": true,
-    "wifi": true
-  },
+  "amenities": { "parking": true, "wifi": true },
   "pricing": 5000,
-  "images": ["https://example.com/hall.jpg"],
+  "images": ["https://cdn.example.com/hall.jpg"],
   "address": "123 King Fahd Road",
   "city": "Riyadh",
   "services": ["coffee", "parking"],
@@ -479,311 +319,100 @@ Request body:
 }
 ```
 
-Rules:
+Required: `name`, `capacity >= 1`, `location`, `pricing >= 0`, `address`, and `city`. Optional: `description`, arbitrary `amenities`, `images` string array, `services` string array, and `isAvailable` (defaults to true).
 
-- `name`: required
-- `capacity`: required, minimum 1
-- `location`: required
-- `pricing`: required, minimum 0
-- `address`: required
-- `city`: required
-- other fields optional
+Success `201` is `{ message: "Hall created successfully", data: Hall }`.
 
-Success `201`:
+### Update hall
 
-```json
-{
-  "message": "Hall created successfully",
-  "data": {
-    "id": 1,
-    "name": "Royal Grand Hall",
-    "pricing": 5000
-  }
-}
-```
+`PUT /api/companies/halls/:id` accepts the same fields, all optional, and returns `{ message, data: Hall }`. Sending an empty object is currently valid and performs a no-op save.
 
-Frontend notes:
+### Delete hall
 
-- the actual returned object is the full hall resource, not only the fields shown above
-- `pricing` is a number in the response
+`DELETE /api/companies/halls/:id` soft-deletes the owned hall and returns `{ "message": "Hall deleted successfully" }`. There is no restore endpoint.
 
-### PUT `/api/companies/halls/:id`
+Create/update/delete require `approved` status. The API accepts image URLs/strings but provides no image upload route.
 
-Partial update is supported.
+## Booking management
 
-Success `200`:
+All endpoints in this section require an approved company and only expose bookings whose halls belong to that company.
 
-```json
-{
-  "message": "Hall updated successfully",
-  "data": {
-    "id": 1,
-    "name": "Royal Grand Hall"
-  }
-}
-```
+### List all bookings
 
-### DELETE `/api/companies/halls/:id`
+`GET /api/companies/bookings?page=1&limit=20&status=pending`
 
-Success `200`:
+Returns `{ data: Booking[], meta }`, newest first. Each row preloads `hall`, `user`, and `services`; the user profile is not preloaded in this list, so `user.userProfile` is normally omitted. The optional `status` filter is passed directly to the database; send a documented booking status.
 
-```json
-{
-  "message": "Hall deleted successfully"
-}
-```
+### List actionable pending bookings
 
-## Booking Management APIs
+`GET /api/companies/bookings/pending?page=1&limit=20`
 
-All booking management routes require:
+Returns only `pending` bookings whose `expiresAt` is still in the future. Results are oldest first so the most urgent request appears first. Relations have the same depth as the all-bookings list.
 
-- authenticated company user
-- approved company
+### Booking details
 
-### Booking Resource Shape
+`GET /api/companies/bookings/:id` returns `{ data: Booking }`. It includes `hall`, `services`, and `user.userProfile`. Unknown IDs and bookings owned by another company both return `404 BOOKING_NOT_FOUND`.
 
-Booking endpoints use the transformer-based booking resource:
+### Accept booking
 
-```json
-{
-  "id": 10,
-  "bookingDate": "2026-05-20",
-  "startTime": "18:00",
-  "endTime": "22:00",
-  "status": "pending",
-  "specialRequests": "Please add extra chairs",
-  "rejectionReason": null,
-  "companyRespondedAt": null,
-  "expiresAt": "2026-05-27T18:00:00.000+00:00",
-  "paymentStatus": "unpaid",
-  "paymentDueDate": null,
-  "createdAt": "2026-05-20T10:00:00.000+00:00",
-  "updatedAt": "2026-05-20T10:00:00.000+00:00",
-  "totalPrice": 25000,
-  "isExpired": false,
-  "hall": {
-    "id": 1,
-    "name": "Royal Grand Hall",
-    "pricing": 5000
-  },
-  "user": {
-    "id": 5,
-    "userName": "Mohammed Ahmed",
-    "email": "mohammed@example.com",
-    "userType": "user",
-    "createdAt": "2026-05-20T10:00:00.000+00:00",
-    "updatedAt": "2026-05-20T10:00:00.000+00:00",
-    "isEmailVerified": true,
-    "userProfile": {
-      "id": 7,
-      "firstName": "Mohammed",
-      "lastName": "Ahmed",
-      "phone": "+966501234567",
-      "address": "Riyadh",
-      "avatar": null
-    }
-  },
-  "services": [
-    {
-      "id": 1,
-      "name": "Coffee",
-      "description": "Coffee service",
-      "isActive": true,
-      "createdAt": "2026-05-20T10:00:00.000+00:00",
-      "updatedAt": "2026-05-20T10:00:00.000+00:00",
-      "price": 500
-    }
-  ]
-}
-```
+`POST /api/companies/bookings/:id/accept`
 
-Frontend note:
-
-- nested `user` in booking responses uses transformed fields like `isEmailVerified` and `userProfile`
-- this differs from `/api/users/me`, which returns `emailVerified` and `profile`
-
-### GET `/api/companies/bookings`
-
-Optional query params:
-
-- `page`
-- `limit`
-- `status`
-
-Success `200`:
-
-- shape is `{ data: Booking[], meta: PaginationMeta }`
-
-### GET `/api/companies/bookings/pending`
-
-Optional query params:
-
-- `page`
-- `limit`
-
-Success `200`:
-
-- shape is `{ data: Booking[], meta: PaginationMeta }`
-
-### GET `/api/companies/bookings/:id`
-
-Success `200`:
-
-- shape is `{ data: Booking }`
-
-### POST `/api/companies/bookings/:id/accept`
+Only `pending → accepted` is allowed. Acceptance sets `companyRespondedAt`, sets a payment deadline three days later, records an audit event, and notifies the customer in-app and by queued email.
 
 Success `200`:
 
 ```json
 {
   "message": "Booking accepted successfully. The customer will be notified to proceed with payment.",
-  "data": {
-    "id": 10,
-    "status": "accepted",
-    "paymentStatus": "unpaid"
-  }
+  "data": { "id": 10, "status": "accepted", "paymentStatus": "unpaid" }
 }
 ```
 
-### POST `/api/companies/bookings/:id/reject`
+The real `data` includes the transformer fields and the relations loaded by this action, but does not preload `services` or the user's profile. Treat both as optional and refresh the detail endpoint if needed.
 
-Request body:
+### Reject booking
+
+`POST /api/companies/bookings/:id/reject`
 
 ```json
-{
-  "reason": "The hall is unavailable on this date"
-}
+{ "reason": "The hall is unavailable on this date" }
 ```
 
-Rules:
+The reason is required and must be 10–500 characters. Only `pending → rejected` is allowed. Rejection sets `companyRespondedAt` and `rejectionReason`, records an audit event, and notifies the customer.
 
-- `reason` is required
-- min length 10
-- max length 500
+Success is `{ message: "Booking rejected. The customer will be notified.", data: Booking }`. As with accept, services and the user profile may be omitted.
 
-Success `200`:
+Decision failures include:
 
-```json
-{
-  "message": "Booking rejected. The customer will be notified.",
-  "data": {
-    "id": 10,
-    "status": "rejected",
-    "rejectionReason": "The hall is unavailable on this date"
-  }
-}
-```
+| Status | Code | Meaning |
+|---:|---|---|
+| 404 | `BOOKING_NOT_FOUND` | ID is absent/not owned |
+| 403 | `FORBIDDEN_ACTION` | Defense-in-depth ownership failure |
+| 409 | `BOOKING_EXPIRED` | Seven-day response window elapsed |
+| 409 | `BOOKING_INVALID_TRANSITION` | Booking is no longer pending |
 
-## Company Notification APIs
+Pending bookings are converted to `expired` by an hourly scheduled job. There are no company endpoints to confirm payment or mark a booking completed.
 
-All notification routes require an authenticated company user.
+## Notifications
 
-### GET `/api/companies/notifications`
+### List
 
-Optional query params:
+`GET /api/companies/notifications?page=1&limit=20&unread_only=true`
 
-- `page`
-- `limit`
-- `unread_only`
+Returns `{ data: Notification[], meta }`, newest first. Company flows currently generate `new_booking_request`, `company_approved`, and `company_rejected`; render unknown types generically.
 
-Success `200`:
+### Count and read state
 
-- shape is `{ data: Notification[], meta: PaginationMeta }`
+- `GET /api/companies/notifications/unread-count` → `{ "data": { "unreadCount": 2 } }`
+- `POST /api/companies/notifications/:id/read` → `{ message, data: Notification }`
+- `POST /api/companies/notifications/read-all` → `{ message, data: { markedCount: number } }`
 
-Notification item shape:
+Notification ownership is enforced; unknown or another account's ID returns `404 NOTIFICATION_NOT_FOUND`.
 
-```json
-{
-  "id": 1,
-  "type": "booking_created",
-  "title": "New booking request",
-  "message": "A customer submitted a booking request.",
-  "data": {
-    "bookingId": 10
-  },
-  "readAt": null,
-  "createdAt": "2026-05-20T10:00:00.000+00:00",
-  "isRead": false
-}
-```
+## Recommended client behavior
 
-### GET `/api/companies/notifications/unread-count`
-
-Success `200`:
-
-```json
-{
-  "data": {
-    "unreadCount": 2
-  }
-}
-```
-
-### POST `/api/companies/notifications/:id/read`
-
-Success `200`:
-
-```json
-{
-  "message": "Notification marked as read",
-  "data": {
-    "id": 1,
-    "isRead": true
-  }
-}
-```
-
-### POST `/api/companies/notifications/read-all`
-
-Success `200`:
-
-```json
-{
-  "message": "All notifications marked as read",
-  "data": {
-    "markedCount": 2
-  }
-}
-```
-
-## Recommended Frontend Normalization
-
-The company app should normalize responses using this order:
-
-1. if `response.error` exists, handle it as failure
-2. otherwise use `response.data` as the payload when present
-3. use `response.meta` for pagination
-4. use `response.message` for toasts and workflow banners
-
-Suggested shape:
-
-```ts
-type ApiSuccess<T> =
-  | { data: T; message?: string; meta?: Record<string, unknown> }
-  | { message: string }
-
-type ApiFailure = {
-  error: {
-    code: string
-    message: string
-    details?: Array<{
-      field?: string
-      message: string
-      rule?: string
-    }>
-  }
-}
-```
-
-## Final Notes For The Company App Agent
-
-When reorganizing API calls, treat these rules as the practical contract:
-
-1. auth payloads live under `data`
-2. approval state lives under `data.company.status`
-3. hall and booking screens should read `data` and `meta`
-4. notification unread filter must be sent as `unread_only`
-5. registration must remain multipart
-
-If the frontend currently assumes one uniform `company` shape across auth, hall, and booking endpoints, it should be refactored to handle endpoint-specific resource types.
+- Model registration, auth company, and transformer company payloads as different types.
+- Route by `company.status` and refresh `/me`; do not parse status from message text.
+- Preserve read-only hall access on pending/rejected screens, but hide hall mutations and all booking management until approval.
+- Treat nested booking relations as optional and refresh details after accept/reject when a complete object is required.
+- Do not expose company-profile editing, service CRUD, registration-PDF download, payment actions, or media upload until backend endpoints are added.

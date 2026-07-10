@@ -9,6 +9,7 @@ import { companyLoginValidator } from '#validators/company_login_validator'
 import db from '@adonisjs/lucid/services/db'
 import { randomUUID } from 'node:crypto'
 import drive from '@adonisjs/drive/services/main'
+import pdfSecurityService from '#services/pdf_security_service'
 
 export default class CompanyAuthController {
   /**
@@ -19,8 +20,9 @@ export default class CompanyAuthController {
 
     // Upload CR PDF
     const pdfFile = payload.registrationNumberPdf
-    const key = `cr_documents/${randomUUID()}.${pdfFile.extname}`
-    await pdfFile.moveToDisk(key, 'fs')
+    await pdfSecurityService.validateAndScan(pdfFile)
+    const key = `cr_documents/${randomUUID()}.pdf`
+    await pdfFile.moveToDisk(key, 'private')
 
     // Use transaction to ensure atomicity
     const trx = await db.transaction()
@@ -70,7 +72,7 @@ export default class CompanyAuthController {
       await trx.rollback()
       // Clean up orphaned file on disk
       try {
-        await drive.use('fs').delete(key)
+        await drive.use('private').delete(key)
       } catch {
         // File cleanup failed — not critical
       }
@@ -126,6 +128,10 @@ export default class CompanyAuthController {
     await user.load('company', (query) => {
       query.preload('companyProfile')
     })
+
+    if (!user.company || user.company.status === 'suspended') {
+      throw new InvalidCredentialsException()
+    }
 
     // Generate access token
     const token = await User.accessTokens.create(user)

@@ -2,6 +2,12 @@ import env from '#start/env'
 import app from '@adonisjs/core/services/app'
 import { defineConfig, services } from '@adonisjs/drive'
 
+const privateStoragePath = env.get('PRIVATE_STORAGE_PATH')
+
+if (app.inProduction && !privateStoragePath) {
+  throw new Error('PRIVATE_STORAGE_PATH must reference persistent storage in production')
+}
+
 const driveConfig = defineConfig({
   default: env.get('DRIVE_DISK'),
 
@@ -15,6 +21,11 @@ const driveConfig = defineConfig({
       serveFiles: true,
       routeBasePath: '/uploads',
       visibility: 'public',
+    }),
+    private: services.fs({
+      location: privateStoragePath || app.makePath('storage/private'),
+      serveFiles: false,
+      visibility: 'private',
     }),
   },
 })

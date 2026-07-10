@@ -1,12 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { ApiOperation, ApiQuery, ApiResponse, ApiSchema } from '@foadonis/openapi/decorators'
 import { createHallValidator, updateHallValidator } from '#validators/hall_validator'
-import {
-  HallDeleteResponseSchema,
-  HallMutationResponseSchema,
-  HallPaginatedResponseSchema,
-  HallResourceResponseSchema,
-} from '#schemas/hall_schema'
 import { HallService } from '#services/hall_service'
 import HallTransformer from '#transformers/hall_transformer'
 
@@ -14,10 +7,6 @@ export default class HallController {
   /**
    * Get all halls for the authenticated company
    */
-  @ApiOperation({ summary: 'List company halls' })
-  @ApiQuery({ name: 'page', type: Number, required: false })
-  @ApiQuery({ name: 'limit', type: Number, required: false })
-  @ApiResponse({ type: HallPaginatedResponseSchema })
   async index({ auth, request, serialize }: HttpContext) {
     const user = auth.getUserOrFail()
     const hallService = new HallService()
@@ -32,8 +21,6 @@ export default class HallController {
   /**
    * Get a single hall by ID
    */
-  @ApiOperation({ summary: 'Get company hall details' })
-  @ApiResponse({ type: HallResourceResponseSchema })
   async show({ auth, params, serialize }: HttpContext) {
     const user = auth.getUserOrFail()
     const hallService = new HallService()
@@ -46,9 +33,6 @@ export default class HallController {
   /**
    * Create a new hall
    */
-  @ApiOperation({ summary: 'Create a hall' })
-  @ApiSchema(createHallValidator)
-  @ApiResponse({ type: HallMutationResponseSchema })
   async store({ auth, request, response, serialize }: HttpContext) {
     const user = auth.getUserOrFail()
     const hallService = new HallService()
@@ -65,9 +49,6 @@ export default class HallController {
   /**
    * Update a hall
    */
-  @ApiOperation({ summary: 'Update a hall' })
-  @ApiSchema(updateHallValidator)
-  @ApiResponse({ type: HallMutationResponseSchema })
   async update({ auth, params, request, response, serialize }: HttpContext) {
     const user = auth.getUserOrFail()
     const hallService = new HallService()
@@ -84,8 +65,6 @@ export default class HallController {
   /**
    * Delete a hall
    */
-  @ApiOperation({ summary: 'Delete a hall' })
-  @ApiResponse({ type: HallDeleteResponseSchema })
   async destroy({ auth, params, response }: HttpContext) {
     const user = auth.getUserOrFail()
     const hallService = new HallService()

@@ -32,5 +32,7 @@ export default class User extends compose(UserSchema, AuthFinder) {
   @hasMany(() => Notification)
   declare notifications: HasMany<typeof Notification>
 
-  static accessTokens = DbAccessTokensProvider.forModel(User)
+  static accessTokens = DbAccessTokensProvider.forModel(User, {
+    expiresIn: '30 days',
+  })
 }

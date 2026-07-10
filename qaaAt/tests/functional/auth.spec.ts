@@ -34,11 +34,13 @@ test.group('Auth flows', (group) => {
   })
 
   test('user login returns standardized success envelope', async ({ client }) => {
-    await UserFactory.apply('user', 'verified').merge({
-      userName: 'Sara Ali',
-      email: 'sara@example.com',
-      password: 'password123',
-    }).create()
+    await UserFactory.apply('user', 'verified')
+      .merge({
+        userName: 'Sara Ali',
+        email: 'sara@example.com',
+        password: 'password123',
+      })
+      .create()
 
     const response = await client.post('/api/users/login').json({
       email: 'sara@example.com',
@@ -141,11 +143,13 @@ test.group('Auth flows', (group) => {
   })
 
   test('company login returns standardized success envelope', async ({ client }) => {
-    const user = await UserFactory.apply('company', 'verified').merge({
-      userName: 'Royal Events',
-      email: 'royal@example.com',
-      password: 'password123',
-    }).create()
+    const user = await UserFactory.apply('company', 'verified')
+      .merge({
+        userName: 'Royal Events',
+        email: 'royal@example.com',
+        password: 'password123',
+      })
+      .create()
 
     const company = await Company.create({
       userId: user.id,
@@ -183,11 +187,13 @@ test.group('Auth flows', (group) => {
   })
 
   test('admin login returns standardized success envelope', async ({ client }) => {
-    await UserFactory.apply('admin', 'verified').merge({
-      userName: 'Admin',
-      email: 'admin@example.com',
-      password: 'password123',
-    }).create()
+    await UserFactory.apply('admin', 'verified')
+      .merge({
+        userName: 'Admin',
+        email: 'admin@example.com',
+        password: 'password123',
+      })
+      .create()
 
     const response = await client.post('/api/admin/login').json({
       email: 'admin@example.com',

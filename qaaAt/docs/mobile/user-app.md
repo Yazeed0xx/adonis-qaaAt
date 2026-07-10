@@ -1,135 +1,162 @@
-# User App API Handoff
+# QaaAt User App Integration Guide
 
-This document is for the frontend team or agent responsible for the user-facing app.
+This is the source-of-truth handoff for the customer-facing mobile app. It covers registration, OTP verification, public hall discovery, availability, bookings, and notifications as implemented on **2026-07-10**.
 
-It describes the current backend contract implemented in the codebase as of `2026-05-20`, with extra attention to response envelopes and fields that commonly break clients after a backend response-shape change.
+Read [README.md](./README.md) first for shared authentication, pagination, error normalization, rate limits, and backend setup.
 
-## Scope
+## Product flow
 
-The user app owns:
+1. Register and store `data.token.token` securely.
+2. Ask for the six-digit email OTP and verify it. Browsing works before verification, but booking creation does not.
+3. Browse approved companies' available halls and inspect a hall's two-hour availability slots.
+4. Submit a booking request. The company has seven days to accept or reject it.
+5. Show booking status and notifications. An accepted booking receives a three-day payment deadline, but payment itself is not implemented by this API.
 
-- user registration and login
-- email verification flow
-- public hall browsing
-- hall availability checks
-- booking creation and booking history
-- user notifications
+## Endpoint map
 
-Base URL:
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| POST | `/api/users/register` | Public | Create customer account |
+| POST | `/api/users/login` | Public | Sign in |
+| GET | `/api/users/me` | Bearer | Restore account/profile |
+| POST | `/api/users/logout` | Bearer | Revoke current token |
+| POST | `/api/users/verify-email` | Public | Verify six-digit OTP |
+| POST | `/api/users/resend-verification` | Public | Request another OTP |
+| GET | `/api/halls` | Public | Search available halls |
+| GET | `/api/halls/cities` | Public | List cities with available halls |
+| GET | `/api/halls/:id` | Public | Read hall details |
+| GET | `/api/halls/:id/availability` | Public | Read availability for a date |
+| GET | `/api/users/bookings` | User token | List own bookings |
+| POST | `/api/users/bookings` | Verified user token | Create booking request |
+| GET | `/api/users/bookings/:id` | User token | Read own booking |
+| POST | `/api/users/bookings/:id/cancel` | User token | Cancel own eligible booking |
+| GET | `/api/users/notifications` | User token | List notifications |
+| GET | `/api/users/notifications/unread-count` | User token | Get unread count |
+| POST | `/api/users/notifications/:id/read` | User token | Mark one read |
+| POST | `/api/users/notifications/read-all` | User token | Mark all read |
 
-- local: `http://localhost:3333`
-- API root: `http://localhost:3333/api`
+## Data types
 
-Auth header for protected routes:
-
-```http
-Authorization: Bearer <token>
-```
-
-## Response Contract Summary
-
-The app should not assume every successful endpoint returns the same top-level shape.
-
-Current success patterns:
-
-1. Mutation with payload
-
-```json
-{
-  "message": "Some success message",
-  "data": {}
+```ts
+type AuthUser = {
+  id: number
+  userName: string | null
+  email: string
+  userType: 'user'
+  emailVerified: boolean
 }
-```
 
-2. Mutation without payload
-
-```json
-{
-  "message": "Some success message"
+type UserProfile = {
+  id: number
+  firstName: string | null
+  lastName: string | null
+  phone: string | null
+  address: string | null
+  avatar: string | null
 }
-```
 
-3. Single resource or resource detail
-
-```json
-{
-  "data": {}
+type AuthUserProfile = UserProfile & {
+  userId: number
+  createdAt: string
+  updatedAt: string | null
+  deletedAt: string | null
 }
-```
 
-4. Paginated list
-
-```json
-{
-  "data": [],
-  "meta": {}
-}
-```
-
-## Error Contract Summary
-
-Validation, auth, and domain errors use a top-level `error` object.
-
-Validation error:
-
-```json
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Request validation failed",
-    "details": [
-      {
-        "field": "email",
-        "message": "The email field must be a valid email address",
-        "rule": "email"
-      }
-    ]
+type CompanySummary = {
+  id: number
+  city: string
+  status: string
+  createdAt: string
+  updatedAt: string | null
+  companyProfile?: {
+    id: number
+    companyName: string
+    description: string | null
+    logo: string | null
+    banner: string | null
+    website: string | null
+    socialLinks: Record<string, unknown> | null
   }
 }
-```
 
-Domain/auth error:
+type Hall = {
+  id: number
+  name: string
+  description: string | null
+  capacity: number
+  location: string
+  amenities: Record<string, unknown> | null
+  images: string[] | null
+  address: string
+  city: string
+  services: string[] | null
+  isAvailable: boolean
+  createdAt: string
+  updatedAt: string | null
+  pricing: number
+  company?: CompanySummary
+}
 
-```json
-{
-  "error": {
-    "code": "INVALID_CREDENTIALS",
-    "message": "Invalid credentials"
-  }
+type BookingStatus =
+  | 'pending'
+  | 'accepted'
+  | 'confirmed'
+  | 'rejected'
+  | 'cancelled'
+  | 'expired'
+  | 'completed'
+
+type PaymentStatus = 'unpaid' | 'paid' | 'refunded'
+
+type Service = {
+  id: number
+  name: string
+  description: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string | null
+  price: number
+}
+
+type Booking = {
+  id: number
+  bookingDate: string
+  startTime: string
+  endTime: string
+  status: BookingStatus
+  specialRequests: string | null
+  rejectionReason: string | null
+  companyRespondedAt: string | null
+  expiresAt: string | null
+  paymentStatus: PaymentStatus
+  paymentDueDate: string | null
+  createdAt: string
+  updatedAt: string | null
+  totalPrice: number
+  isExpired: boolean
+  hall?: Hall
+  services?: Service[]
+}
+
+type Notification = {
+  id: number
+  type: string
+  title: string
+  message: string
+  data: Record<string, unknown> | null
+  readAt: string | null
+  createdAt: string
+  isRead: boolean
 }
 ```
 
-Do not parse legacy shapes like:
+`Hall.services` is a string array stored on the hall and is not the same thing as the priced `Service[]` attached to a booking.
 
-- `errors: [...]`
-- `message` alone for failures
+## Authentication and verification
 
-For failures, the frontend should read:
+### Register
 
-- `error.code`
-- `error.message`
-- `error.details` when present
-
-## Key Migration Notes
-
-These are the most likely places an older frontend integration will fail:
-
-1. Auth responses now place the actual payload under `data`.
-2. Error responses use `error`, not `errors`.
-3. List endpoints return `{ data: [], meta: {} }`.
-4. Detail endpoints return `{ data: {...} }`.
-5. Booking and hall money fields are returned as numbers already normalized for the client:
-   - `pricing`
-   - `totalPrice`
-6. User auth uses `emailVerified`, while nested transformed user resources use `isEmailVerified`.
-
-## Endpoint Reference
-
-### POST `/api/users/register`
-
-Creates a user account and immediately returns an access token.
-
-Request body:
+`POST /api/users/register`
 
 ```json
 {
@@ -143,12 +170,7 @@ Request body:
 }
 ```
 
-Rules:
-
-- `userName`: required, min length 2
-- `email`: required, unique, valid email
-- `password`: required, min length 8
-- profile fields are optional
+`userName`, a unique valid `email`, and a password of at least eight characters are required. `userName` is trimmed and must contain at least two characters. The profile fields are optional; when all are omitted, no profile row is created.
 
 Success `201`:
 
@@ -163,69 +185,59 @@ Success `201`:
       "userType": "user",
       "emailVerified": false
     },
-    "token": {
-      "type": "bearer",
-      "token": "..."
-    }
+    "token": { "type": "bearer", "token": "..." }
   }
 }
 ```
 
-Frontend notes:
+Registration succeeds even if mail delivery fails. Keep a resend action available.
 
-- token path is `data.token.token`
-- user path is `data.user`
-- registration does not mean email is verified
-- the backend sends a 6-digit verification code by email
+### Verify email
 
-### POST `/api/users/login`
-
-Request body:
+`POST /api/users/verify-email`
 
 ```json
-{
-  "email": "mohammed@example.com",
-  "password": "password123"
-}
+{ "email": "mohammed@example.com", "code": "123456" }
 ```
 
-Success `200`:
+The code is exactly six digits and expires after 10 minutes. Success `200` returns:
 
 ```json
 {
-  "message": "Login successful",
+  "message": "Email verified successfully",
   "data": {
-    "user": {
-      "id": 1,
-      "userName": "Mohammed Ahmed",
-      "email": "mohammed@example.com",
-      "userType": "user",
-      "emailVerified": true
-    },
-    "token": {
-      "type": "bearer",
-      "token": "..."
-    }
+    "user": { "id": 1, "email": "mohammed@example.com", "emailVerified": true }
   }
 }
 ```
 
-Failure example:
+Relevant error codes are `INVALID_VERIFICATION_CODE`, `EXPIRED_VERIFICATION_CODE`, and `EMAIL_ALREADY_VERIFIED`.
+
+### Resend verification
+
+`POST /api/users/resend-verification`
 
 ```json
-{
-  "error": {
-    "code": "INVALID_CREDENTIALS",
-    "message": "Invalid credentials"
-  }
-}
+{ "email": "mohammed@example.com" }
 ```
 
-### GET `/api/users/me`
+The endpoint always returns the same `200` message for unknown, already verified, cooldown, and successfully resent cases to prevent account discovery. The internal resend cooldown is five minutes, in addition to the route rate limit.
 
-Protected.
+### Login
 
-Success `200`:
+`POST /api/users/login`
+
+```json
+{ "email": "mohammed@example.com", "password": "password123" }
+```
+
+Success `200` has the same `{ message, data: { user, token } }` structure as registration. An unverified customer may log in; use `data.user.emailVerified` to decide whether to show the OTP gate.
+
+Bad credentials, deleted users, and non-user account types return `401 INVALID_CREDENTIALS` in the standard error envelope.
+
+### Restore session
+
+`GET /api/users/me`
 
 ```json
 {
@@ -249,231 +261,80 @@ Success `200`:
 }
 ```
 
-Frontend notes:
+`profile` can be `null`. Because `/me` embeds the raw profile model, it also currently includes `userId`, `createdAt`, `updatedAt`, and `deletedAt`; model it as `AuthUserProfile`. Notice that auth endpoints use `emailVerified` and `profile`, while nested booking users elsewhere use the narrower transformer names `isEmailVerified` and `userProfile`.
 
-- `profile` may be `null`
-- this endpoint uses `profile`, not `userProfile`
+### Logout
 
-### POST `/api/users/logout`
+`POST /api/users/logout` revokes only the current token and returns `{ "message": "Logged out successfully" }`.
 
-Protected.
+## Hall discovery
 
-Success `200`:
+Only halls that are not deleted, are marked available, and belong to an approved company appear publicly.
 
-```json
-{
-  "message": "Logged out successfully"
-}
-```
+### Browse halls
 
-### POST `/api/users/verify-email`
+`GET /api/halls`
 
-This endpoint completes the OTP-based email verification flow.
+| Query | Type | Behavior |
+|---|---|---|
+| `page` | number | Defaults to 1 |
+| `limit` | number | Defaults to 20; maximum 100 |
+| `city` | string | Exact city match |
+| `min_capacity` | number | Capacity greater than or equal |
+| `max_price` | number | Hourly hall price less than or equal |
+| `search` | string | Case-insensitive name, description, or location search |
 
-Request body:
+Success is `{ data: Hall[], meta: PaginationMeta }`. Public hall results preload `company.companyProfile`.
 
-```json
-{
-  "email": "mohammed@example.com",
-  "code": "123456"
-}
-```
+### Hall details
 
-Rules:
+`GET /api/halls/:id` returns `{ data: Hall }`. A hidden/deleted hall or a hall from a non-approved company returns `404 HALL_NOT_FOUND`.
 
-- `email`: required, valid email
-- `code`: required, exactly 6 digits
+### Cities
 
-Success `200`:
+`GET /api/halls/cities`
 
 ```json
-{
-  "message": "Email verified successfully",
-  "data": {
-    "user": {
-      "id": 1,
-      "email": "mohammed@example.com",
-      "emailVerified": true
-    }
-  }
-}
+{ "data": { "cities": ["Jeddah", "Riyadh"] } }
 ```
 
-Failure example:
+The list is distinct and alphabetically ordered.
 
-```json
-{
-  "error": {
-    "code": "INVALID_VERIFICATION_CODE",
-    "message": "Invalid verification code"
-  }
-}
-```
+### Availability
 
-Failure example:
-
-```json
-{
-  "error": {
-    "code": "EXPIRED_VERIFICATION_CODE",
-    "message": "Verification code has expired"
-  }
-}
-```
-
-### POST `/api/users/resend-verification`
-
-Request body:
-
-```json
-{
-  "email": "mohammed@example.com"
-}
-```
-
-Success `200`:
-
-```json
-{
-  "message": "If an account with that email exists and is not verified, a verification code has been sent."
-}
-```
-
-Frontend note:
-
-- this endpoint intentionally does not reveal whether the email exists
-- use it for the OTP screen's "resend code" action
-
-## Public Hall APIs
-
-### GET `/api/halls`
-
-Public endpoint with optional query params:
-
-- `page`
-- `limit`
-- `city`
-- `min_capacity`
-- `max_price`
-- `search`
-
-Success `200`:
-
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "name": "Royal Grand Hall",
-      "description": "Large luxury event hall",
-      "capacity": 500,
-      "location": "Al Olaya District",
-      "amenities": {
-        "parking": true,
-        "wifi": true
-      },
-      "images": ["https://example.com/hall.jpg"],
-      "address": "123 King Fahd Road",
-      "city": "Riyadh",
-      "services": ["coffee", "parking"],
-      "isAvailable": true,
-      "createdAt": "2026-05-20T10:00:00.000+00:00",
-      "updatedAt": "2026-05-20T10:00:00.000+00:00",
-      "pricing": 5000,
-      "company": {
-        "id": 1,
-        "city": "Riyadh",
-        "status": "approved",
-        "createdAt": "2026-05-20T10:00:00.000+00:00",
-        "updatedAt": "2026-05-20T10:00:00.000+00:00",
-        "companyProfile": {
-          "id": 1,
-          "companyName": "Royal Events Co.",
-          "description": "Premium event organizers",
-          "logo": null,
-          "banner": null,
-          "website": null,
-          "socialLinks": null
-        }
-      }
-    }
-  ],
-  "meta": {
-    "total": 1,
-    "perPage": 20,
-    "currentPage": 1,
-    "lastPage": 1,
-    "firstPage": 1,
-    "firstPageUrl": "/?page=1",
-    "lastPageUrl": "/?page=1",
-    "nextPageUrl": null,
-    "previousPageUrl": null
-  }
-}
-```
-
-Frontend notes:
-
-- filter names are snake_case in the query string: `min_capacity`, `max_price`
-- response keys remain camelCase
-- `pricing` is a number
-
-### GET `/api/halls/:id`
-
-Success `200` returns `{ data: hall }` with the same hall resource shape as the list endpoint.
-
-### GET `/api/halls/:id/availability?date=YYYY-MM-DD`
-
-Success `200`:
+`GET /api/halls/:id/availability?date=2026-07-20`
 
 ```json
 {
   "data": {
     "hallId": 1,
     "hallName": "Royal Grand Hall",
-    "date": "2026-05-20",
+    "date": "2026-07-20",
     "slots": [
-      {
-        "startTime": "08:00",
-        "endTime": "09:00",
-        "isAvailable": true
-      }
+      { "startTime": "08:00", "endTime": "10:00", "isAvailable": true },
+      { "startTime": "10:00", "endTime": "12:00", "isAvailable": false },
+      { "startTime": "12:00", "endTime": "14:00", "isAvailable": true },
+      { "startTime": "14:00", "endTime": "16:00", "isAvailable": true },
+      { "startTime": "16:00", "endTime": "18:00", "isAvailable": true },
+      { "startTime": "18:00", "endTime": "20:00", "isAvailable": true },
+      { "startTime": "20:00", "endTime": "22:00", "isAvailable": true }
     ]
   }
 }
 ```
 
-Frontend notes:
+The date is required, must be valid ISO input, and cannot be in the past. The displayed availability grid is fixed to two-hour slots from 08:00 through 22:00. Booking creation accepts arbitrary `HH:mm` ranges and checks overlap against pending, accepted, and confirmed bookings, so the grid is guidance rather than the only legal set of times.
 
-- `date` is required
-- date must not be in the past
+## Bookings
 
-### GET `/api/halls/cities`
+### Create booking
 
-Success `200`:
-
-```json
-{
-  "data": {
-    "cities": ["Jeddah", "Riyadh"]
-  }
-}
-```
-
-## User Booking APIs
-
-All booking routes require a logged-in user.
-
-Creating a booking also requires a verified email address.
-
-### POST `/api/users/bookings`
-
-Request body:
+`POST /api/users/bookings`
 
 ```json
 {
   "hallId": 1,
-  "bookingDate": "2026-05-20",
+  "bookingDate": "2026-07-20",
   "startTime": "18:00",
   "endTime": "22:00",
   "serviceIds": [1, 2],
@@ -483,227 +344,74 @@ Request body:
 
 Rules:
 
-- `hallId`: positive number
-- `bookingDate`: `YYYY-MM-DD`
-- `startTime`: `HH:MM`
-- `endTime`: `HH:MM`
-- `serviceIds`: optional numeric array
-- `specialRequests`: optional, max 1000 chars
+- `hallId` must be a positive number.
+- `bookingDate` must match `YYYY-MM-DD` and cannot be in the past.
+- Times must match `HH:mm`, and `endTime` must compare later than `startTime`.
+- `specialRequests` is optional and limited to 1,000 characters.
+- Duplicate service IDs are deduplicated.
+- Every selected service must be active, not deleted, and owned by the hall's company.
+- The hall must still be public/available and the requested time must not overlap an active booking.
 
-Success `201`:
+Price calculation is `hall.pricing × durationInHours + each selected service price once`.
 
-```json
-{
-  "message": "Booking request submitted successfully. The company has 7 days to respond.",
-  "data": {
-    "id": 10,
-    "bookingDate": "2026-05-20",
-    "startTime": "18:00",
-    "endTime": "22:00",
-    "status": "pending",
-    "specialRequests": "Please add extra chairs",
-    "rejectionReason": null,
-    "companyRespondedAt": null,
-    "expiresAt": "2026-05-27T18:00:00.000+00:00",
-    "paymentStatus": "unpaid",
-    "paymentDueDate": null,
-    "createdAt": "2026-05-20T10:00:00.000+00:00",
-    "updatedAt": "2026-05-20T10:00:00.000+00:00",
-    "totalPrice": 25000,
-    "isExpired": false,
-    "hall": {
-      "id": 1,
-      "name": "Royal Grand Hall",
-      "pricing": 5000
-    },
-    "services": [
-      {
-        "id": 1,
-        "name": "Coffee",
-        "description": "Coffee service",
-        "isActive": true,
-        "createdAt": "2026-05-20T10:00:00.000+00:00",
-        "updatedAt": "2026-05-20T10:00:00.000+00:00",
-        "price": 500
-      }
-    ]
-  }
-}
-```
+Success `201` returns `{ message, data: Booking }`, with `hall` (including company/profile) and `services`; `user` is omitted. New bookings have `status: "pending"`, `paymentStatus: "unpaid"`, and an `expiresAt` seven days after creation.
 
-Frontend notes:
+Important: the current API has no endpoint from which the user app can discover valid priced service IDs. Do not derive `serviceIds` from `Hall.services`, because that field contains names/labels, not service records. Until a service-catalog endpoint is added, omit `serviceIds` or obtain them through a separately agreed source.
 
-- the payload is the booking object itself under `data`
-- `hall` is included
-- `services` is included
-- `user` is not included in this user-side create flow
+Common domain errors:
 
-### GET `/api/users/bookings`
+| Status | Code | Meaning |
+|---:|---|---|
+| 403 | `EMAIL_NOT_VERIFIED` | Flat middleware error; show OTP gate |
+| 404 | `HALL_NOT_FOUND` | Hall is absent or no longer publicly bookable |
+| 409 | `HALL_UNAVAILABLE` | Hall exists but is disabled |
+| 409 | `BOOKING_SLOT_UNAVAILABLE` | Requested range overlaps an active booking |
+| 409 | `BOOKING_SERVICE_UNAVAILABLE` | A selected service is invalid/inactive |
+| 422 | `BOOKING_DATE_INVALID` | Date is in the past |
+| 422 | `BOOKING_TIME_INVALID` | End time is not after start time |
 
-Optional query params:
+### List bookings
 
-- `page`
-- `limit`
-- `status`
+`GET /api/users/bookings?page=1&limit=20&status=pending`
 
-Success `200`:
+Returns `{ data: Booking[], meta }`, newest first. `status` is passed directly to the database; send one of the documented booking status values. List rows include `hall.company.companyProfile` and `services`, but omit `user`.
 
-- shape is `{ data: Booking[], meta: PaginationMeta }`
-- each booking item follows the booking resource shape above
+### Booking details
 
-### GET `/api/users/bookings/:id`
+`GET /api/users/bookings/:id` returns `{ data: Booking }` only when the booking belongs to the authenticated customer. It includes hall/company/profile and services. Unknown or someone else's ID returns `404 BOOKING_NOT_FOUND`.
 
-Success `200`:
+### Cancel booking
 
-- shape is `{ data: Booking }`
+`POST /api/users/bookings/:id/cancel`
 
-### POST `/api/users/bookings/:id/cancel`
+The implemented state machine permits `pending → cancelled` and `accepted → cancelled`. Other statuses return `409 BOOKING_INVALID_TRANSITION`. The response is `{ message, data: Booking }`; this mutation only preloads `hall`, so `services` and nested hall company details may be omitted. Refresh the detail endpoint if the screen needs the fully expanded record.
 
-Success `200`:
+There is currently no API action for the user to confirm, pay, refund, or complete a booking.
 
-```json
-{
-  "message": "Booking cancelled successfully",
-  "data": {
-    "id": 10,
-    "status": "cancelled"
-  }
-}
-```
+## Notifications
 
-## User Notification APIs
+All notification IDs are scoped to the authenticated account.
 
-All notification routes require a logged-in user.
+### List
 
-### GET `/api/users/notifications`
+`GET /api/users/notifications?page=1&limit=20&unread_only=true`
 
-Optional query params:
+Returns `{ data: Notification[], meta }`, newest first. `unread_only` is true only when sent as boolean `true` or string `"true"`.
 
-- `page`
-- `limit`
-- `unread_only`
+User-facing types currently generated by booking flows include `booking_accepted`, `booking_rejected`, and `booking_expired`. The model also allows other string types, so render unknown types with a generic notification layout.
 
-Success `200`:
+### Count and read state
 
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "type": "booking_accepted",
-      "title": "Booking accepted",
-      "message": "Your booking was accepted.",
-      "data": {
-        "bookingId": 10
-      },
-      "readAt": null,
-      "createdAt": "2026-05-20T10:00:00.000+00:00",
-      "isRead": false
-    }
-  ],
-  "meta": {
-    "total": 1,
-    "perPage": 20,
-    "currentPage": 1,
-    "lastPage": 1,
-    "firstPage": 1,
-    "firstPageUrl": "/?page=1",
-    "lastPageUrl": "/?page=1",
-    "nextPageUrl": null,
-    "previousPageUrl": null
-  }
-}
-```
+- `GET /api/users/notifications/unread-count` → `{ "data": { "unreadCount": 2 } }`
+- `POST /api/users/notifications/:id/read` → `{ message, data: Notification }`
+- `POST /api/users/notifications/read-all` → `{ message, data: { markedCount: number } }`
 
-Frontend notes:
+An unknown or another user's notification returns `404 NOTIFICATION_NOT_FOUND`.
 
-- query param is `unread_only`, not `unreadOnly`
-- each notification has both `readAt` and derived `isRead`
+## Recommended client behavior
 
-### GET `/api/users/notifications/unread-count`
-
-Success `200`:
-
-```json
-{
-  "data": {
-    "unreadCount": 2
-  }
-}
-```
-
-### POST `/api/users/notifications/:id/read`
-
-Success `200`:
-
-```json
-{
-  "message": "Notification marked as read",
-  "data": {
-    "id": 1,
-    "type": "booking_accepted",
-    "title": "Booking accepted",
-    "message": "Your booking was accepted.",
-    "data": {
-      "bookingId": 10
-    },
-    "readAt": "2026-05-20T11:00:00.000+00:00",
-    "createdAt": "2026-05-20T10:00:00.000+00:00",
-    "isRead": true
-  }
-}
-```
-
-### POST `/api/users/notifications/read-all`
-
-Success `200`:
-
-```json
-{
-  "message": "All notifications marked as read",
-  "data": {
-    "markedCount": 2
-  }
-}
-```
-
-## Recommended Frontend Normalization
-
-The frontend agent should normalize responses like this:
-
-1. If `response.error` exists, treat it as failure.
-2. If `response.data` exists, use it as the payload.
-3. If `response.meta` exists, treat it as pagination metadata for `response.data`.
-4. Read success notifications from `response.message` when needed for UI toasts.
-
-Example helper shape:
-
-```ts
-type ApiSuccess<T> =
-  | { data: T; message?: string; meta?: Record<string, unknown> }
-  | { message: string }
-
-type ApiFailure = {
-  error: {
-    code: string
-    message: string
-    details?: Array<{
-      field?: string
-      message: string
-      rule?: string
-    }>
-  }
-}
-```
-
-## Final Notes For The User App Agent
-
-When reorganizing API calls, assume these contracts are authoritative over older duplicate docs elsewhere in `docs/`.
-
-The safest update order is:
-
-1. fix global error parsing to use `error`
-2. fix auth parsing to read `data.user` and `data.token`
-3. fix list views to read `data` plus `meta`
-4. fix detail views to read `data`
-5. keep endpoint-specific query names exactly as implemented
+- Persist only the raw token, not the whole auth response; restore fresh account state with `/me`.
+- Keep OTP verification separate from authentication. A valid token does not imply a verified email.
+- Treat nested transformer relations as optional.
+- Disable duplicate booking submissions while the first request is in flight; the backend also serializes same-hall/day creation and rejects overlaps.
+- Do not present payment, profile editing, password reset, priced service selection, or push-notification settings until their backend endpoints exist.

@@ -23,18 +23,34 @@ export async function seedInventory(context: DemoScenarioContext) {
       ],
       address: '123 King Fahd Road',
       city: 'Riyadh',
-      amenities: { parking: true, wifi: true, catering: true, sound_system: true, stage: true, bridal_suite: true },
-      services: ['free valet parking', 'complimentary sweets & coffee', 'setup & cleanup', 'bridal suite access'],
+      amenities: {
+        parking: true,
+        wifi: true,
+        catering: true,
+        sound_system: true,
+        stage: true,
+        bridal_suite: true,
+      },
+      services: [
+        'free valet parking',
+        'complimentary sweets & coffee',
+        'setup & cleanup',
+        'bridal suite access',
+      ],
       isAvailable: true,
     },
     {
       companyId: royal.id,
       name: 'Royal Garden',
-      description: 'Beautiful outdoor venue with landscaped gardens. Ideal for intimate gatherings and garden parties.',
+      description:
+        'Beautiful outdoor venue with landscaped gardens. Ideal for intimate gatherings and garden parties.',
       capacity: 150,
       location: 'Al Olaya District',
       pricing: '2500',
-      images: ['https://picsum.photos/seed/hall2a/800/600', 'https://picsum.photos/seed/hall2b/800/600'],
+      images: [
+        'https://picsum.photos/seed/hall2a/800/600',
+        'https://picsum.photos/seed/hall2b/800/600',
+      ],
       address: '123 King Fahd Road',
       city: 'Riyadh',
       amenities: { parking: true, wifi: true, outdoor_area: true },
@@ -64,17 +80,26 @@ export async function seedInventory(context: DemoScenarioContext) {
       capacity: 400,
       location: 'Al Hamra District',
       pricing: '4500',
-      images: ['https://picsum.photos/seed/hall4a/800/600', 'https://picsum.photos/seed/hall4b/800/600'],
+      images: [
+        'https://picsum.photos/seed/hall4a/800/600',
+        'https://picsum.photos/seed/hall4b/800/600',
+      ],
       address: '456 Prince Sultan Street',
       city: 'Jeddah',
       amenities: { parking: true, wifi: true, catering: true, sound_system: true, sea_view: true },
-      services: ['free valet parking', 'complimentary dinner buffet', 'free sweets & Arabic coffee', 'setup & cleanup'],
+      services: [
+        'free valet parking',
+        'complimentary dinner buffet',
+        'free sweets & Arabic coffee',
+        'setup & cleanup',
+      ],
       isAvailable: true,
     },
     {
       companyId: golden.id,
       name: 'Pearl Hall',
-      description: 'Elegant medium-sized hall with modern amenities. Great for graduation parties and corporate events.',
+      description:
+        'Elegant medium-sized hall with modern amenities. Great for graduation parties and corporate events.',
       capacity: 250,
       location: 'Al Hamra District',
       pricing: '3500',
@@ -88,7 +113,8 @@ export async function seedInventory(context: DemoScenarioContext) {
     {
       companyId: golden.id,
       name: 'Sunset Terrace',
-      description: 'Rooftop venue with breathtaking sunset views over the Red Sea. Currently under renovation.',
+      description:
+        'Rooftop venue with breathtaking sunset views over the Red Sea. Currently under renovation.',
       capacity: 100,
       location: 'Al Hamra District',
       pricing: '2000',
@@ -102,14 +128,54 @@ export async function seedInventory(context: DemoScenarioContext) {
   ]).createMany(6)
 
   const services = await ServiceFactory.merge([
-    { companyId: royal.id, name: 'Premium Decoration', description: 'Luxury floral arrangements and themed decorations', price: '5000' },
-    { companyId: royal.id, name: 'Photography Package', description: 'Professional photography with 500+ edited photos', price: '4000' },
-    { companyId: royal.id, name: 'Video Coverage', description: 'Full HD video coverage with drone shots', price: '3500' },
-    { companyId: royal.id, name: 'Catering - Standard', description: 'Buffet for up to 200 guests', price: '8000' },
-    { companyId: royal.id, name: 'Catering - Premium', description: 'Gourmet buffet for up to 200 guests', price: '15000' },
-    { companyId: golden.id, name: 'Decoration Package', description: 'Beautiful floral and lighting arrangements', price: '4000' },
-    { companyId: golden.id, name: 'Photo & Video Bundle', description: 'Complete media coverage package', price: '6000' },
-    { companyId: golden.id, name: 'Live Music', description: 'Traditional Arabic music ensemble', price: '5000' },
+    {
+      companyId: royal.id,
+      name: 'Premium Decoration',
+      description: 'Luxury floral arrangements and themed decorations',
+      price: '5000',
+    },
+    {
+      companyId: royal.id,
+      name: 'Photography Package',
+      description: 'Professional photography with 500+ edited photos',
+      price: '4000',
+    },
+    {
+      companyId: royal.id,
+      name: 'Video Coverage',
+      description: 'Full HD video coverage with drone shots',
+      price: '3500',
+    },
+    {
+      companyId: royal.id,
+      name: 'Catering - Standard',
+      description: 'Buffet for up to 200 guests',
+      price: '8000',
+    },
+    {
+      companyId: royal.id,
+      name: 'Catering - Premium',
+      description: 'Gourmet buffet for up to 200 guests',
+      price: '15000',
+    },
+    {
+      companyId: golden.id,
+      name: 'Decoration Package',
+      description: 'Beautiful floral and lighting arrangements',
+      price: '4000',
+    },
+    {
+      companyId: golden.id,
+      name: 'Photo & Video Bundle',
+      description: 'Complete media coverage package',
+      price: '6000',
+    },
+    {
+      companyId: golden.id,
+      name: 'Live Music',
+      description: 'Traditional Arabic music ensemble',
+      price: '5000',
+    },
   ]).createMany(8)
 
   ;[
@@ -120,7 +186,6 @@ export async function seedInventory(context: DemoScenarioContext) {
     context.halls.pearlHall,
     context.halls.sunsetTerrace,
   ] = halls
-
   ;[
     context.services.royalDecoration,
     context.services.royalPhotography,

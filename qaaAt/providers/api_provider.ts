@@ -1,12 +1,8 @@
 import { HttpContext } from '@adonisjs/core/http'
 import type { SimplePaginatorMetaKeys } from '@adonisjs/lucid/types/querybuilder'
-import {
-  LUCID_PAGINATOR_METADATA_SCHEMA,
-  OpenAPISerializer,
-  type PaginationMetadataSchema,
-} from '@foadonis/openapi/transformers'
+import { BaseSerializer } from '@adonisjs/core/transformers'
 
-export class ApiSerializer extends OpenAPISerializer<{
+export class ApiSerializer extends BaseSerializer<{
   Wrap: 'data'
   PaginationMetaData: SimplePaginatorMetaKeys
 }> {
@@ -20,10 +16,6 @@ export class ApiSerializer extends OpenAPISerializer<{
     }
 
     return metaData
-  }
-
-  definePaginationMetaDataSchema(): PaginationMetadataSchema<SimplePaginatorMetaKeys> {
-    return LUCID_PAGINATOR_METADATA_SCHEMA
   }
 }
 

@@ -307,7 +307,10 @@ test.group('Hall Service', (group) => {
 
     const hallService = new HallService()
 
-    await assert.rejects(() => hallService.updateHall(99999, company.id, { name: 'Updated' }), 'Row not found')
+    await assert.rejects(
+      () => hallService.updateHall(99999, company.id, { name: 'Updated' }),
+      'Row not found'
+    )
   })
 
   test('deleteHall should delete hall successfully', async ({ assert }) => {

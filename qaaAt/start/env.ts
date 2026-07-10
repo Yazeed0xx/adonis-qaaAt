@@ -62,6 +62,16 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   /*
   |----------------------------------------------------------
+  | Malware scanning
+  |----------------------------------------------------------
+  */
+  MALWARE_SCANNER_COMMAND: Env.schema.string.optional(),
+
+  PRIVATE_STORAGE_PATH: Env.schema.string.optional(),
+  OPENAPI_ENABLED: Env.schema.boolean.optional(),
+
+  /*
+  |----------------------------------------------------------
   | Variables for configuring the drive package
   |----------------------------------------------------------
   */
