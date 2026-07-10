@@ -1,6 +1,8 @@
 # QaaAt Company App Integration Guide
 
-This is the source-of-truth handoff for the company-facing mobile app. It covers multipart registration, approval states, hall management, booking decisions, and notifications as implemented on **2026-07-10**.
+This is the source-of-truth handoff for the company-facing mobile app. It covers multipart registration, approval states, hall management, booking decisions, and notifications as implemented on **2026-07-11**.
+
+Development API references are available at `GET /docs` (Scalar) and `GET /openapi.json` (Outloud OpenAPI 3.1). The old `/api`, `/api.json`, and `/api.yaml` documentation endpoints no longer exist. Production documentation is disabled unless `OPENAPI_ENABLED=true`.
 
 Read [README.md](./README.md) first for shared authentication, pagination, error normalization, rate limits, and backend setup.
 
@@ -14,26 +16,26 @@ Read [README.md](./README.md) first for shared authentication, pagination, error
 
 ## Endpoint map
 
-| Method | Path | Auth/state | Purpose |
-|---|---|---|---|
-| POST | `/api/companies/register` | Public multipart | Create pending company |
-| POST | `/api/companies/login` | Public | Sign in unless suspended |
-| GET | `/api/companies/me` | Company token | Restore company and approval state |
-| POST | `/api/companies/logout` | Bearer | Revoke current token |
-| GET | `/api/companies/halls` | Company token | List own halls |
-| GET | `/api/companies/halls/:id` | Company token | Read own hall |
-| POST | `/api/companies/halls` | Approved company | Create hall |
-| PUT | `/api/companies/halls/:id` | Approved company | Update own hall |
-| DELETE | `/api/companies/halls/:id` | Approved company | Soft-delete own hall |
-| GET | `/api/companies/bookings` | Approved company | List bookings for own halls |
-| GET | `/api/companies/bookings/pending` | Approved company | List actionable pending bookings |
-| GET | `/api/companies/bookings/:id` | Approved company | Read owned booking |
-| POST | `/api/companies/bookings/:id/accept` | Approved company | Accept pending booking |
-| POST | `/api/companies/bookings/:id/reject` | Approved company | Reject pending booking |
-| GET | `/api/companies/notifications` | Company token | List notifications |
-| GET | `/api/companies/notifications/unread-count` | Company token | Get unread count |
-| POST | `/api/companies/notifications/:id/read` | Company token | Mark one read |
-| POST | `/api/companies/notifications/read-all` | Company token | Mark all read |
+| Method | Path                                        | Auth/state       | Purpose                            |
+| ------ | ------------------------------------------- | ---------------- | ---------------------------------- |
+| POST   | `/api/companies/register`                   | Public multipart | Create pending company             |
+| POST   | `/api/companies/login`                      | Public           | Sign in unless suspended           |
+| GET    | `/api/companies/me`                         | Company token    | Restore company and approval state |
+| POST   | `/api/companies/logout`                     | Bearer           | Revoke current token               |
+| GET    | `/api/companies/halls`                      | Company token    | List own halls                     |
+| GET    | `/api/companies/halls/:id`                  | Company token    | Read own hall                      |
+| POST   | `/api/companies/halls`                      | Approved company | Create hall                        |
+| PUT    | `/api/companies/halls/:id`                  | Approved company | Update own hall                    |
+| DELETE | `/api/companies/halls/:id`                  | Approved company | Soft-delete own hall               |
+| GET    | `/api/companies/bookings`                   | Approved company | List bookings for own halls        |
+| GET    | `/api/companies/bookings/pending`           | Approved company | List actionable pending bookings   |
+| GET    | `/api/companies/bookings/:id`               | Approved company | Read owned booking                 |
+| POST   | `/api/companies/bookings/:id/accept`        | Approved company | Accept pending booking             |
+| POST   | `/api/companies/bookings/:id/reject`        | Approved company | Reject pending booking             |
+| GET    | `/api/companies/notifications`              | Company token    | List notifications                 |
+| GET    | `/api/companies/notifications/unread-count` | Company token    | Get unread count                   |
+| POST   | `/api/companies/notifications/:id/read`     | Company token    | Mark one read                      |
+| POST   | `/api/companies/notifications/read-all`     | Company token    | Mark all read                      |
 
 Hall reads intentionally do not require approval; hall writes do. All booking-management actions require approval. Notifications require a company account but not approval.
 
@@ -43,12 +45,12 @@ Hall reads intentionally do not require approval; hall writes do. All booking-ma
 type CompanyStatus = 'pending' | 'approved' | 'rejected' | 'suspended'
 ```
 
-| Status | Login | `/me`, hall reads, notifications | Hall writes and bookings |
-|---|---|---|---|
-| `pending` | Allowed | Allowed | `403 COMPANY_PENDING_APPROVAL` |
-| `approved` | Allowed | Allowed | Allowed |
-| `rejected` | Allowed | Allowed | `403 COMPANY_REJECTED` with a flat `reason` field |
-| `suspended` | `401 INVALID_CREDENTIALS` | Existing tokens are revoked when admin suspends | Blocked |
+| Status      | Login                     | `/me`, hall reads, notifications                | Hall writes and bookings                          |
+| ----------- | ------------------------- | ----------------------------------------------- | ------------------------------------------------- |
+| `pending`   | Allowed                   | Allowed                                         | `403 COMPANY_PENDING_APPROVAL`                    |
+| `approved`  | Allowed                   | Allowed                                         | Allowed                                           |
+| `rejected`  | Allowed                   | Allowed                                         | `403 COMPANY_REJECTED` with a flat `reason` field |
+| `suspended` | `401 INVALID_CREDENTIALS` | Existing tokens are revoked when admin suspends | Blocked                                           |
 
 Always use `company.status`, not the login message, as the state source of truth. Refresh `/api/companies/me` when the app resumes and after the user receives an approval/rejection notification.
 
@@ -357,7 +359,7 @@ Returns only `pending` bookings whose `expiresAt` is still in the future. Result
 
 `POST /api/companies/bookings/:id/accept`
 
-Only `pending → accepted` is allowed. Acceptance sets `companyRespondedAt`, sets a payment deadline three days later, records an audit event, and notifies the customer in-app and by queued email.
+Only `pending → accepted` is allowed. Acceptance sets `companyRespondedAt`, sets a payment deadline three days later, and atomically records both the audit event and notification intent. A background outbox worker then creates the in-app notification and queues its email. The booking response does not wait for notification delivery.
 
 Success `200`:
 
@@ -378,18 +380,18 @@ The real `data` includes the transformer fields and the relations loaded by this
 { "reason": "The hall is unavailable on this date" }
 ```
 
-The reason is required and must be 10–500 characters. Only `pending → rejected` is allowed. Rejection sets `companyRespondedAt` and `rejectionReason`, records an audit event, and notifies the customer.
+The reason is required and must be 10–500 characters. Only `pending → rejected` is allowed. Rejection sets `companyRespondedAt` and `rejectionReason`, and atomically records the audit event and notification intent. Delivery is asynchronous through the retrying outbox worker.
 
 Success is `{ message: "Booking rejected. The customer will be notified.", data: Booking }`. As with accept, services and the user profile may be omitted.
 
 Decision failures include:
 
-| Status | Code | Meaning |
-|---:|---|---|
-| 404 | `BOOKING_NOT_FOUND` | ID is absent/not owned |
-| 403 | `FORBIDDEN_ACTION` | Defense-in-depth ownership failure |
-| 409 | `BOOKING_EXPIRED` | Seven-day response window elapsed |
-| 409 | `BOOKING_INVALID_TRANSITION` | Booking is no longer pending |
+| Status | Code                         | Meaning                            |
+| -----: | ---------------------------- | ---------------------------------- |
+|    404 | `BOOKING_NOT_FOUND`          | ID is absent/not owned             |
+|    403 | `FORBIDDEN_ACTION`           | Defense-in-depth ownership failure |
+|    409 | `BOOKING_EXPIRED`            | Seven-day response window elapsed  |
+|    409 | `BOOKING_INVALID_TRANSITION` | Booking is no longer pending       |
 
 Pending bookings are converted to `expired` by an hourly scheduled job. There are no company endpoints to confirm payment or mark a booking completed.
 
@@ -400,6 +402,8 @@ Pending bookings are converted to `expired` by an hourly scheduled job. There ar
 `GET /api/companies/notifications?page=1&limit=20&unread_only=true`
 
 Returns `{ data: Notification[], meta }`, newest first. Company flows currently generate `new_booking_request`, `company_approved`, and `company_rejected`; render unknown types generically.
+
+Notifications are eventually consistent. Booking and company-status transactions persist their notification intent atomically, while a worker processes the outbox every minute with retry delays and idempotent in-app delivery. Poll the unread count and refresh on app resume; do not require a notification to appear immediately after a successful mutation response.
 
 ### Count and read state
 

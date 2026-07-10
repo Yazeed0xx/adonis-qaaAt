@@ -1,6 +1,8 @@
 # QaaAt User App Integration Guide
 
-This is the source-of-truth handoff for the customer-facing mobile app. It covers registration, OTP verification, public hall discovery, availability, bookings, and notifications as implemented on **2026-07-10**.
+This is the source-of-truth handoff for the customer-facing mobile app. It covers registration, OTP verification, public hall discovery, availability, bookings, and notifications as implemented on **2026-07-11**.
+
+Development API references are available at `GET /docs` (Scalar) and `GET /openapi.json` (Outloud OpenAPI 3.1). The old `/api`, `/api.json`, and `/api.yaml` documentation endpoints no longer exist. Production documentation is disabled unless `OPENAPI_ENABLED=true`.
 
 Read [README.md](./README.md) first for shared authentication, pagination, error normalization, rate limits, and backend setup.
 
@@ -14,26 +16,26 @@ Read [README.md](./README.md) first for shared authentication, pagination, error
 
 ## Endpoint map
 
-| Method | Path | Auth | Purpose |
-|---|---|---|---|
-| POST | `/api/users/register` | Public | Create customer account |
-| POST | `/api/users/login` | Public | Sign in |
-| GET | `/api/users/me` | Bearer | Restore account/profile |
-| POST | `/api/users/logout` | Bearer | Revoke current token |
-| POST | `/api/users/verify-email` | Public | Verify six-digit OTP |
-| POST | `/api/users/resend-verification` | Public | Request another OTP |
-| GET | `/api/halls` | Public | Search available halls |
-| GET | `/api/halls/cities` | Public | List cities with available halls |
-| GET | `/api/halls/:id` | Public | Read hall details |
-| GET | `/api/halls/:id/availability` | Public | Read availability for a date |
-| GET | `/api/users/bookings` | User token | List own bookings |
-| POST | `/api/users/bookings` | Verified user token | Create booking request |
-| GET | `/api/users/bookings/:id` | User token | Read own booking |
-| POST | `/api/users/bookings/:id/cancel` | User token | Cancel own eligible booking |
-| GET | `/api/users/notifications` | User token | List notifications |
-| GET | `/api/users/notifications/unread-count` | User token | Get unread count |
-| POST | `/api/users/notifications/:id/read` | User token | Mark one read |
-| POST | `/api/users/notifications/read-all` | User token | Mark all read |
+| Method | Path                                    | Auth                | Purpose                          |
+| ------ | --------------------------------------- | ------------------- | -------------------------------- |
+| POST   | `/api/users/register`                   | Public              | Create customer account          |
+| POST   | `/api/users/login`                      | Public              | Sign in                          |
+| GET    | `/api/users/me`                         | Bearer              | Restore account/profile          |
+| POST   | `/api/users/logout`                     | Bearer              | Revoke current token             |
+| POST   | `/api/users/verify-email`               | Public              | Verify six-digit OTP             |
+| POST   | `/api/users/resend-verification`        | Public              | Request another OTP              |
+| GET    | `/api/halls`                            | Public              | Search available halls           |
+| GET    | `/api/halls/cities`                     | Public              | List cities with available halls |
+| GET    | `/api/halls/:id`                        | Public              | Read hall details                |
+| GET    | `/api/halls/:id/availability`           | Public              | Read availability for a date     |
+| GET    | `/api/users/bookings`                   | User token          | List own bookings                |
+| POST   | `/api/users/bookings`                   | Verified user token | Create booking request           |
+| GET    | `/api/users/bookings/:id`               | User token          | Read own booking                 |
+| POST   | `/api/users/bookings/:id/cancel`        | User token          | Cancel own eligible booking      |
+| GET    | `/api/users/notifications`              | User token          | List notifications               |
+| GET    | `/api/users/notifications/unread-count` | User token          | Get unread count                 |
+| POST   | `/api/users/notifications/:id/read`     | User token          | Mark one read                    |
+| POST   | `/api/users/notifications/read-all`     | User token          | Mark all read                    |
 
 ## Data types
 
@@ -269,20 +271,20 @@ Bad credentials, deleted users, and non-user account types return `401 INVALID_C
 
 ## Hall discovery
 
-Only halls that are not deleted, are marked available, and belong to an approved company appear publicly.
+Only halls that are not deleted, are marked available, and belong to an approved, non-deleted company with a non-deleted owner appear publicly. Banned, deleted, suspended, pending, and rejected companies cannot expose bookable halls. A hall can disappear between discovery and booking; treat `404 HALL_NOT_FOUND` as a stale listing and refresh discovery.
 
 ### Browse halls
 
 `GET /api/halls`
 
-| Query | Type | Behavior |
-|---|---|---|
-| `page` | number | Defaults to 1 |
-| `limit` | number | Defaults to 20; maximum 100 |
-| `city` | string | Exact city match |
-| `min_capacity` | number | Capacity greater than or equal |
-| `max_price` | number | Hourly hall price less than or equal |
-| `search` | string | Case-insensitive name, description, or location search |
+| Query          | Type   | Behavior                                               |
+| -------------- | ------ | ------------------------------------------------------ |
+| `page`         | number | Defaults to 1                                          |
+| `limit`        | number | Defaults to 20; maximum 100                            |
+| `city`         | string | Exact city match                                       |
+| `min_capacity` | number | Capacity greater than or equal                         |
+| `max_price`    | number | Hourly hall price less than or equal                   |
+| `search`       | string | Case-insensitive name, description, or location search |
 
 Success is `{ data: Hall[], meta: PaginationMeta }`. Public hall results preload `company.companyProfile`.
 
@@ -323,7 +325,7 @@ The list is distinct and alphabetically ordered.
 }
 ```
 
-The date is required, must be valid ISO input, and cannot be in the past. The displayed availability grid is fixed to two-hour slots from 08:00 through 22:00. Booking creation accepts arbitrary `HH:mm` ranges and checks overlap against pending, accepted, and confirmed bookings, so the grid is guidance rather than the only legal set of times.
+The date is required, must be a real `YYYY-MM-DD` calendar date, and cannot be in the past. The displayed availability grid is fixed to two-hour slots from 08:00 through 22:00. Booking creation accepts arbitrary valid 24-hour `HH:mm` ranges and checks overlap against pending, accepted, and confirmed bookings, so the grid is guidance rather than the only legal set of times.
 
 ## Bookings
 
@@ -345,8 +347,8 @@ The date is required, must be valid ISO input, and cannot be in the past. The di
 Rules:
 
 - `hallId` must be a positive number.
-- `bookingDate` must match `YYYY-MM-DD` and cannot be in the past.
-- Times must match `HH:mm`, and `endTime` must compare later than `startTime`.
+- `bookingDate` must be a real calendar date in exact `YYYY-MM-DD` form and cannot be in the past. Values such as `2026-02-30` return `422 VALIDATION_ERROR`.
+- Times must be valid 24-hour values from `00:00` through `23:59` in exact `HH:mm` form, and `endTime` must compare later than `startTime`. Values such as `25:00` or `10:75` return `422 VALIDATION_ERROR`.
 - `specialRequests` is optional and limited to 1,000 characters.
 - Duplicate service IDs are deduplicated.
 - Every selected service must be active, not deleted, and owned by the hall's company.
@@ -354,21 +356,21 @@ Rules:
 
 Price calculation is `hall.pricing × durationInHours + each selected service price once`.
 
-Success `201` returns `{ message, data: Booking }`, with `hall` (including company/profile) and `services`; `user` is omitted. New bookings have `status: "pending"`, `paymentStatus: "unpaid"`, and an `expiresAt` seven days after creation.
+Success `201` returns `{ message, data: Booking }`, with `hall` (including company/profile) and `services`; `user` is omitted. New bookings have `status: "pending"`, `paymentStatus: "unpaid"`, and an `expiresAt` seven days after creation. The booking and company-notification intent commit atomically, but notification delivery is asynchronous and does not delay this response.
 
 Important: the current API has no endpoint from which the user app can discover valid priced service IDs. Do not derive `serviceIds` from `Hall.services`, because that field contains names/labels, not service records. Until a service-catalog endpoint is added, omit `serviceIds` or obtain them through a separately agreed source.
 
 Common domain errors:
 
-| Status | Code | Meaning |
-|---:|---|---|
-| 403 | `EMAIL_NOT_VERIFIED` | Flat middleware error; show OTP gate |
-| 404 | `HALL_NOT_FOUND` | Hall is absent or no longer publicly bookable |
-| 409 | `HALL_UNAVAILABLE` | Hall exists but is disabled |
-| 409 | `BOOKING_SLOT_UNAVAILABLE` | Requested range overlaps an active booking |
-| 409 | `BOOKING_SERVICE_UNAVAILABLE` | A selected service is invalid/inactive |
-| 422 | `BOOKING_DATE_INVALID` | Date is in the past |
-| 422 | `BOOKING_TIME_INVALID` | End time is not after start time |
+| Status | Code                          | Meaning                                       |
+| -----: | ----------------------------- | --------------------------------------------- |
+|    403 | `EMAIL_NOT_VERIFIED`          | Flat middleware error; show OTP gate          |
+|    404 | `HALL_NOT_FOUND`              | Hall is absent or no longer publicly bookable |
+|    409 | `HALL_UNAVAILABLE`            | Hall exists but is disabled                   |
+|    409 | `BOOKING_SLOT_UNAVAILABLE`    | Requested range overlaps an active booking    |
+|    409 | `BOOKING_SERVICE_UNAVAILABLE` | A selected service is invalid/inactive        |
+|    422 | `BOOKING_DATE_INVALID`        | Date is in the past                           |
+|    422 | `BOOKING_TIME_INVALID`        | End time is not after start time              |
 
 ### List bookings
 
@@ -399,6 +401,8 @@ All notification IDs are scoped to the authenticated account.
 Returns `{ data: Notification[], meta }`, newest first. `unread_only` is true only when sent as boolean `true` or string `"true"`.
 
 User-facing types currently generated by booking flows include `booking_accepted`, `booking_rejected`, and `booking_expired`. The model also allows other string types, so render unknown types with a generic notification layout.
+
+Notifications are eventually consistent. Booking transactions write notification intents to a transactional outbox, and a worker processes them every minute with retry delays and idempotent in-app creation. Poll the unread count, refresh on app resume, and do not assume a notification will be visible immediately after another booking action completes.
 
 ### Count and read state
 
