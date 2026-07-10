@@ -5,13 +5,14 @@ import { seedBookings } from '#database/seeding/bookings'
 import { seedCompanies } from '#database/seeding/companies'
 import { seedInventory } from '#database/seeding/inventory'
 import { seedNotifications } from '#database/seeding/notifications'
+import { seedHeavyData } from '#database/seeding/heavy_data'
 import { createScenarioContext } from '#database/seeding/scenario_context'
 
 export default class MainSeeder extends BaseSeeder {
   async run() {
     console.log('Clearing existing data...')
     await db.rawQuery(
-      'TRUNCATE TABLE notifications, booking_services, bookings, services, halls, company_profiles, companies, user_profiles, auth_access_tokens, users RESTART IDENTITY CASCADE'
+      'TRUNCATE TABLE notification_outbox, notifications, booking_audit_logs, admin_audit_logs, booking_services, bookings, services, halls, company_profiles, companies, user_profiles, auth_access_tokens, rate_limits, queue_jobs, queue_schedules, users RESTART IDENTITY CASCADE'
     )
 
     console.log('Seeding database with factory-driven test data...')
@@ -24,6 +25,9 @@ export default class MainSeeder extends BaseSeeder {
     await seedBookings(context)
     await seedNotifications(context)
 
+    console.log('Seeding high-volume data for mobile app load testing...')
+    const heavyCounts = await seedHeavyData(context)
+
     console.log('\n========== SEEDING COMPLETE ==========')
     console.log('ADMIN: admin@qaat.app / admin123')
     console.log('USERS: mohammed@example.com, sara@example.com, ahmed@example.com / password123')
@@ -34,5 +38,11 @@ export default class MainSeeder extends BaseSeeder {
     console.log(
       'Generated demo data with factories for halls, services, bookings, and notifications'
     )
+    console.log(
+      `HEAVY DATA: ${heavyCounts.users} users, ${heavyCounts.companies} companies, ${heavyCounts.halls} halls, ${heavyCounts.services} services, ${heavyCounts.bookings} bookings, ${heavyCounts.notifications} notifications`
+    )
+    console.log('LOAD TEST LOGIN: heavy.user001@qaat.test / password123')
+    console.log('LOAD TEST COMPANY: heavy.company001@qaat.test / password123')
+    console.log('Set SEED_SCALE (0.1-10) to make the generated dataset smaller or larger.')
   }
 }

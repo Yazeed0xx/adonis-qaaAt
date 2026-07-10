@@ -340,12 +340,40 @@ export class HallSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class NotificationOutboxSchema extends BaseModel {
+  static $columns = [
+    'attempts',
+    'availableAt',
+    'createdAt',
+    'id',
+    'lastError',
+    'payload',
+    'processedAt',
+  ] as const
+  $columns = NotificationOutboxSchema.$columns
+  @column()
+  declare attempts: number
+  @column.dateTime()
+  declare availableAt: DateTime
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare lastError: string | null
+  @column()
+  declare payload: any
+  @column.dateTime()
+  declare processedAt: DateTime | null
+}
+
 export class NotificationSchema extends BaseModel {
   static $columns = [
     'createdAt',
     'data',
     'id',
     'message',
+    'outboxId',
     'readAt',
     'title',
     'type',
@@ -360,6 +388,8 @@ export class NotificationSchema extends BaseModel {
   declare id: bigint | number
   @column()
   declare message: string
+  @column()
+  declare outboxId: bigint | number | null
   @column.dateTime()
   declare readAt: DateTime | null
   @column()
