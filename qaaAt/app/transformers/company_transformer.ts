@@ -16,10 +16,6 @@ export default class CompanyTransformer extends BaseTransformer<Company> {
   }
 
   forAdminView() {
-    const user = this.whenLoaded(this.resource.user)
-    const halls = this.whenLoaded(this.resource.halls)
-    const services = this.whenLoaded(this.resource.services)
-
     return {
       ...this.toObject(),
       taxId: this.resource.taxId,
@@ -34,11 +30,15 @@ export default class CompanyTransformer extends BaseTransformer<Company> {
       rejectionReason: this.resource.rejectionReason,
       rejectedAt: this.resource.rejectedAt,
       deletedAt: this.resource.deletedAt,
-      user: user ? UserTransformer.transform(user)!.useVariant('forAdminView') : undefined,
-      halls: halls ? HallTransformer.transform(halls)!.useVariant('forAdminView') : undefined,
-      services: services
-        ? ServiceTransformer.transform(services)!.useVariant('forAdminView')
-        : undefined,
+      user: UserTransformer.transform(this.whenLoaded(this.resource.user))?.useVariant(
+        'forAdminView'
+      ),
+      halls: HallTransformer.transform(this.whenLoaded(this.resource.halls))?.useVariant(
+        'forAdminView'
+      ),
+      services: ServiceTransformer.transform(this.whenLoaded(this.resource.services))?.useVariant(
+        'forAdminView'
+      ),
     }
   }
 }

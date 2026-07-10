@@ -32,20 +32,20 @@ export default class BookingTransformer extends BaseTransformer<Booking> {
   }
 
   forAdminView() {
-    const hall = this.whenLoaded(this.resource.hall)
-    const user = this.whenLoaded(this.resource.user)
-    const services = this.whenLoaded(this.resource.services)
-
     return {
       ...this.toObject(),
       deletedAt: this.resource.deletedAt,
       userId: this.resource.userId,
       hallId: this.resource.hallId,
-      hall: hall ? HallTransformer.transform(hall)!.useVariant('forAdminView') : undefined,
-      user: user ? UserTransformer.transform(user)!.useVariant('forAdminView') : undefined,
-      services: services
-        ? ServiceTransformer.transform(services)!.useVariant('forAdminView')
-        : undefined,
+      hall: HallTransformer.transform(this.whenLoaded(this.resource.hall))?.useVariant(
+        'forAdminView'
+      ),
+      user: UserTransformer.transform(this.whenLoaded(this.resource.user))?.useVariant(
+        'forAdminView'
+      ),
+      services: ServiceTransformer.transform(this.whenLoaded(this.resource.services))?.useVariant(
+        'forAdminView'
+      ),
     }
   }
 }
