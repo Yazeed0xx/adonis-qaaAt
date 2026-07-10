@@ -9,20 +9,7 @@ import Booking from '#models/booking'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import adminAuditService from '#services/admin_audit_service'
-import SendNotificationJob from '#jobs/send_notification_job'
-import logger from '@adonisjs/core/services/logger'
-import type { QueuedNotificationData } from '#services/notification_service'
-
-async function dispatchPostCommitNotification(payload: QueuedNotificationData): Promise<void> {
-  try {
-    await SendNotificationJob.dispatch(payload)
-  } catch (error) {
-    logger.error(
-      { err: error, userId: payload.userId, type: payload.type },
-      'Failed to dispatch post-commit notification'
-    )
-  }
-}
+import notificationOutboxService from '#services/notification_outbox_service'
 import BookingTransformer from '#transformers/booking_transformer'
 import CompanyTransformer from '#transformers/company_transformer'
 import HallTransformer from '#transformers/hall_transformer'
@@ -400,6 +387,7 @@ export default class AdminController {
     }
 
     await company.load('companyProfile')
+    const companyName = company.companyProfile?.companyName || 'Your company'
     await db.transaction(async (trx) => {
       company.useTransaction(trx)
       company.status = 'approved'
@@ -419,17 +407,17 @@ export default class AdminController {
         },
         trx
       )
-    })
-
-    // Notify the company owner
-    const companyName = company.companyProfile?.companyName || 'Your company'
-    await dispatchPostCommitNotification({
-      userId: company.userId,
-      type: 'company_approved',
-      title: 'Company Approved',
-      message: `Congratulations! Your company "${companyName}" has been approved. You can now create halls and start receiving bookings.`,
-      sendEmail: true,
-      emailSubject: 'Your Company Has Been Approved - QaaAt',
+      await notificationOutboxService.enqueue(
+        {
+          userId: company.userId,
+          type: 'company_approved',
+          title: 'Company Approved',
+          message: `Congratulations! Your company "${companyName}" has been approved. You can now create halls and start receiving bookings.`,
+          sendEmail: true,
+          emailSubject: 'Your Company Has Been Approved - QaaAt',
+        },
+        trx
+      )
     })
 
     return response.ok({
@@ -465,6 +453,7 @@ export default class AdminController {
     }
 
     await company.load('companyProfile')
+    const companyName = company.companyProfile?.companyName || 'Your company'
     await db.transaction(async (trx) => {
       company.useTransaction(trx)
       company.status = 'rejected'
@@ -485,18 +474,18 @@ export default class AdminController {
         },
         trx
       )
-    })
-
-    // Notify the company owner
-    const companyName = company.companyProfile?.companyName || 'Your company'
-    await dispatchPostCommitNotification({
-      userId: company.userId,
-      type: 'company_rejected',
-      title: 'Company Registration Rejected',
-      message: `Your company "${companyName}" registration was rejected. Reason: ${reason.trim()}`,
-      data: { reason: reason.trim() },
-      sendEmail: true,
-      emailSubject: 'Company Registration Update - QaaAt',
+      await notificationOutboxService.enqueue(
+        {
+          userId: company.userId,
+          type: 'company_rejected',
+          title: 'Company Registration Rejected',
+          message: `Your company "${companyName}" registration was rejected. Reason: ${reason.trim()}`,
+          data: { reason: reason.trim() },
+          sendEmail: true,
+          emailSubject: 'Company Registration Update - QaaAt',
+        },
+        trx
+      )
     })
 
     return response.ok({

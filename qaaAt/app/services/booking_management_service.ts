@@ -3,7 +3,6 @@ import db from '@adonisjs/lucid/services/db'
 import Booking from '#models/booking'
 import Hall from '#models/hall'
 import Service from '#models/service'
-import SendNotificationJob from '#jobs/send_notification_job'
 import BookingConflictException from '#exceptions/booking_conflict_exception'
 import BookingNotFoundException from '#exceptions/booking_not_found_exception'
 import ForbiddenActionException from '#exceptions/forbidden_action_exception'
@@ -14,8 +13,7 @@ import { fromDatabaseAmount, sumDatabaseAmounts, toDatabaseAmount } from '#lib/m
 import bookingStatusService from '#services/booking_status_service'
 import bookingAuditService from '#services/booking_audit_service'
 import type { QueryClientContract } from '@adonisjs/lucid/types/database'
-import logger from '@adonisjs/core/services/logger'
-import type { QueuedNotificationData } from '#services/notification_service'
+import notificationOutboxService from '#services/notification_outbox_service'
 
 interface CreateBookingData {
   hallId: number
@@ -35,17 +33,6 @@ interface TimeSlot {
 export class BookingManagementService {
   private static EXPIRY_DAYS = 7
 
-  private async dispatchNotification(payload: QueuedNotificationData): Promise<void> {
-    try {
-      await SendNotificationJob.dispatch(payload)
-    } catch (error) {
-      logger.error(
-        { err: error, userId: payload.userId, type: payload.type },
-        'Failed to dispatch post-commit notification'
-      )
-    }
-  }
-
   /**
    * Create a new booking request
    */
@@ -64,7 +51,7 @@ export class BookingManagementService {
       throw new InvalidInputException('End time must be after start time', 'BOOKING_TIME_INVALID')
     }
 
-    const { booking, hall } = await db.transaction(async (trx) => {
+    const { booking } = await db.transaction(async (trx) => {
       const slotLockKey = `${data.hallId}:${data.bookingDate.toFormat('yyyy-MM-dd')}`
       await trx.rawQuery('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [slotLockKey])
 
@@ -152,26 +139,28 @@ export class BookingManagementService {
         await createdBooking.related('services').attach(pivotData)
       }
 
+      if (availableHall.company?.user) {
+        await notificationOutboxService.enqueue(
+          {
+            userId: availableHall.company.user.id,
+            type: 'new_booking_request',
+            title: 'New Booking Request',
+            message: `You have a new booking request from A customer for "${availableHall.name}" on ${data.bookingDate.toFormat('yyyy-MM-dd')}. Please review and respond within 7 days.`,
+            data: {
+              bookingId: createdBooking.id,
+              hallName: availableHall.name,
+              bookingDate: data.bookingDate.toFormat('yyyy-MM-dd'),
+              userName: 'A customer',
+            },
+            sendEmail: true,
+            emailSubject: 'New Booking Request - QaaAt',
+          },
+          trx
+        )
+      }
+
       return { booking: createdBooking, hall: availableHall }
     })
-
-    // Notify company of new booking request
-    if (hall.company?.user) {
-      await this.dispatchNotification({
-        userId: hall.company.user.id,
-        type: 'new_booking_request',
-        title: 'New Booking Request',
-        message: `You have a new booking request from A customer for "${hall.name}" on ${data.bookingDate.toFormat('yyyy-MM-dd')}. Please review and respond within 7 days.`,
-        data: {
-          bookingId: booking.id,
-          hallName: hall.name,
-          bookingDate: data.bookingDate.toFormat('yyyy-MM-dd'),
-          userName: 'A customer',
-        },
-        sendEmail: true,
-        emailSubject: 'New Booking Request - QaaAt',
-      })
-    }
 
     return booking
   }
@@ -302,22 +291,24 @@ export class BookingManagementService {
         trx
       )
 
-      return lockedBooking
-    })
+      await notificationOutboxService.enqueue(
+        {
+          userId: lockedBooking.userId,
+          type: 'booking_accepted',
+          title: 'Booking Confirmed',
+          message: `Great news! Your booking for "${lockedBooking.hall.name}" on ${lockedBooking.bookingDate.toFormat('yyyy-MM-dd')} has been accepted. Please proceed with payment to secure your reservation.`,
+          data: {
+            bookingId: lockedBooking.id,
+            hallName: lockedBooking.hall.name,
+            bookingDate: lockedBooking.bookingDate.toFormat('yyyy-MM-dd'),
+          },
+          sendEmail: true,
+          emailSubject: 'Booking Confirmed - QaaAt',
+        },
+        trx
+      )
 
-    // Notify user
-    await this.dispatchNotification({
-      userId: booking.userId,
-      type: 'booking_accepted',
-      title: 'Booking Confirmed',
-      message: `Great news! Your booking for "${booking.hall.name}" on ${booking.bookingDate.toFormat('yyyy-MM-dd')} has been accepted. Please proceed with payment to secure your reservation.`,
-      data: {
-        bookingId: booking.id,
-        hallName: booking.hall.name,
-        bookingDate: booking.bookingDate.toFormat('yyyy-MM-dd'),
-      },
-      sendEmail: true,
-      emailSubject: 'Booking Confirmed - QaaAt',
+      return lockedBooking
     })
 
     return booking
@@ -376,23 +367,25 @@ export class BookingManagementService {
         trx
       )
 
-      return lockedBooking
-    })
+      await notificationOutboxService.enqueue(
+        {
+          userId: lockedBooking.userId,
+          type: 'booking_rejected',
+          title: 'Booking Rejected',
+          message: `Unfortunately, your booking for "${lockedBooking.hall.name}" on ${lockedBooking.bookingDate.toFormat('yyyy-MM-dd')} was rejected. Reason: ${reason}`,
+          data: {
+            bookingId: lockedBooking.id,
+            hallName: lockedBooking.hall.name,
+            bookingDate: lockedBooking.bookingDate.toFormat('yyyy-MM-dd'),
+            reason,
+          },
+          sendEmail: true,
+          emailSubject: 'Booking Update - QaaAt',
+        },
+        trx
+      )
 
-    // Notify user
-    await this.dispatchNotification({
-      userId: booking.userId,
-      type: 'booking_rejected',
-      title: 'Booking Rejected',
-      message: `Unfortunately, your booking for "${booking.hall.name}" on ${booking.bookingDate.toFormat('yyyy-MM-dd')} was rejected. Reason: ${reason}`,
-      data: {
-        bookingId: booking.id,
-        hallName: booking.hall.name,
-        bookingDate: booking.bookingDate.toFormat('yyyy-MM-dd'),
-        reason,
-      },
-      sendEmail: true,
-      emailSubject: 'Booking Update - QaaAt',
+      return lockedBooking
     })
 
     return booking
@@ -518,27 +511,29 @@ export class BookingManagementService {
         lockedBooking.useTransaction(trx)
         lockedBooking.status = 'expired'
         await lockedBooking.save()
+
+        await notificationOutboxService.enqueue(
+          {
+            userId: lockedBooking.userId,
+            type: 'booking_expired',
+            title: 'Booking Request Expired',
+            message: `Your booking request for "${lockedBooking.hall.name}" on ${lockedBooking.bookingDate.toFormat('yyyy-MM-dd')} has expired as the company did not respond within 7 days. Please try booking again or choose a different hall.`,
+            data: {
+              bookingId: lockedBooking.id,
+              hallName: lockedBooking.hall.name,
+              bookingDate: lockedBooking.bookingDate.toFormat('yyyy-MM-dd'),
+            },
+            sendEmail: true,
+            emailSubject: 'Booking Request Expired - QaaAt',
+          },
+          trx
+        )
         return lockedBooking
       })
 
       if (!booking) {
         continue
       }
-
-      // Notify user
-      await this.dispatchNotification({
-        userId: booking.userId,
-        type: 'booking_expired',
-        title: 'Booking Request Expired',
-        message: `Your booking request for "${booking.hall.name}" on ${booking.bookingDate.toFormat('yyyy-MM-dd')} has expired as the company did not respond within 7 days. Please try booking again or choose a different hall.`,
-        data: {
-          bookingId: booking.id,
-          hallName: booking.hall.name,
-          bookingDate: booking.bookingDate.toFormat('yyyy-MM-dd'),
-        },
-        sendEmail: true,
-        emailSubject: 'Booking Request Expired - QaaAt',
-      })
 
       count++
     }

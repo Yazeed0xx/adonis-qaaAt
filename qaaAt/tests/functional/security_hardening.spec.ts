@@ -10,6 +10,7 @@ import { HallFactory } from '#database/factories/hall_factory'
 import { ServiceFactory } from '#database/factories/service_factory'
 import { BookingFactory } from '#database/factories/booking_factory'
 import bookingManagementService from '#services/booking_management_service'
+import notificationOutboxService from '#services/notification_outbox_service'
 
 async function createCompany(status: 'approved' | 'suspended' = 'approved') {
   const owner = await UserFactory.apply('company', 'verified').create()
@@ -138,6 +139,30 @@ test.group('P1 backend security hardening', (group) => {
         'code' in error &&
         error.code === 'BOOKING_SERVICE_UNAVAILABLE'
     )
+  })
+
+  test('commits and delivers booking notifications through an idempotent outbox', async () => {
+    const { hall, owner } = await createCompany('approved')
+    const customer = await UserFactory.apply('user', 'verified').create()
+
+    await bookingManagementService.createBooking(customer.id, {
+      hallId: hall.id,
+      bookingDate: DateTime.now().plus({ days: 3 }).startOf('day'),
+      startTime: '10:00',
+      endTime: '12:00',
+    })
+
+    const outbox = await db.from('notification_outbox').firstOrFail()
+    assert.equal(outbox.processed_at, null)
+
+    assert.equal(await notificationOutboxService.processPending(), 1)
+    assert.equal(await notificationOutboxService.processPending(), 0)
+
+    const notifications = await db
+      .from('notifications')
+      .where('user_id', owner.id)
+      .where('outbox_id', outbox.id)
+    assert.equal(notifications.length, 1)
   })
 
   test('booking creation returns 422 for impossible dates and times', async ({ client }) => {

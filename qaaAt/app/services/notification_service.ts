@@ -4,6 +4,7 @@ import Notification from '#models/notification'
 import User from '#models/user'
 import env from '#start/env'
 import { escapeHtml } from '#lib/escape_html'
+import db from '@adonisjs/lucid/services/db'
 
 export type NotificationType =
   | 'email_verified'
@@ -16,7 +17,7 @@ export type NotificationType =
   | 'booking_expired'
   | 'new_booking_request'
 
-interface NotificationData {
+export interface NotificationData {
   userId: number
   type: NotificationType
   title: string
@@ -24,6 +25,7 @@ interface NotificationData {
   data?: Record<string, any>
   sendEmail?: boolean
   emailSubject?: string
+  outboxId?: string
 }
 
 export type QueuedNotificationData = NotificationData
@@ -33,16 +35,38 @@ export class NotificationService {
    * Create an in-app notification
    */
   async notify(options: NotificationData): Promise<Notification> {
-    const notification = await Notification.create({
-      userId: options.userId,
-      type: options.type,
-      title: options.title,
-      message: options.message,
-      data: options.data || null,
-    })
+    let notification: Notification
+    let shouldSendEmail = true
+    if (options.outboxId) {
+      const inserted = await db
+        .table('notifications')
+        .insert({
+          user_id: options.userId,
+          type: options.type,
+          title: options.title,
+          message: options.message,
+          data: options.data || null,
+          outbox_id: options.outboxId,
+          created_at: DateTime.now().toSQL(),
+        })
+        .onConflict('outbox_id')
+        .ignore()
+        .returning('id')
+      shouldSendEmail = inserted.length > 0
+      const row = await db.from('notifications').where('outbox_id', options.outboxId).firstOrFail()
+      notification = await Notification.findOrFail(row.id)
+    } else {
+      notification = await Notification.create({
+        userId: options.userId,
+        type: options.type,
+        title: options.title,
+        message: options.message,
+        data: options.data || null,
+      })
+    }
 
     // Send email if requested (non-blocking — don't fail notification if mail fails)
-    if (options.sendEmail) {
+    if (options.sendEmail && shouldSendEmail) {
       try {
         const user = await User.find(options.userId)
         if (user) {
