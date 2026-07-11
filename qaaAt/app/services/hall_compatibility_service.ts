@@ -147,6 +147,27 @@ export class HallCompatibilityService {
         metadata: { legacyHallId: hall.id },
         created_at: DateTime.now().toSQL(),
       })
+      await trx.table('space_availability_policies').insert({
+        company_id: hall.companyId,
+        space_id: space.id,
+        mode: 'hourly',
+        slot_increment_minutes: 120,
+        minimum_duration_minutes: 120,
+        maximum_duration_minutes: 720,
+        maximum_advance_days: 365,
+        source: 'legacy_migrated',
+        created_at: DateTime.now().toSQL(),
+      })
+      await trx.table('space_operating_hours').insert(
+        Array.from({ length: 7 }, (_, weekday) => ({
+          company_id: hall.companyId,
+          space_id: space!.id,
+          weekday,
+          opens_at_local: '08:00',
+          closes_at_local: '22:00',
+          created_at: DateTime.now().toSQL(),
+        }))
+      )
     } else {
       const venue = await Venue.query({ client: trx })
         .where('id', space.venueId)

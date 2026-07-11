@@ -38,6 +38,7 @@ export interface VenueInput {
   parkingNotes?: Localized
   latitude?: number
   longitude?: number
+  timezone?: string
 }
 export interface SpaceInput {
   venueId: number
@@ -97,6 +98,7 @@ export class SpaceCatalogService {
 
   async createVenue(companyId: number, input: VenueInput) {
     this.assertLocalized(input.name)
+    this.assertTimezone(input.timezone ?? 'Asia/Riyadh')
     return Venue.create({
       companyId,
       nameAr: input.name.ar ?? null,
@@ -117,6 +119,7 @@ export class SpaceCatalogService {
       latitude: input.latitude?.toString() ?? null,
       longitude: input.longitude?.toString() ?? null,
       verificationStatus: 'unverified',
+      timezone: input.timezone ?? 'Asia/Riyadh',
     })
   }
 
@@ -137,6 +140,39 @@ export class SpaceCatalogService {
         409
       )
     if (input.name) this.assertLocalized(input.name)
+    if (input.timezone && input.timezone !== venue.timezone) {
+      this.assertTimezone(input.timezone)
+      const futureRecords = await db
+        .from('spaces')
+        .where('venue_id', venue.id)
+        .where((query) => {
+          query
+            .whereExists((subquery) =>
+              subquery
+                .from('space_operating_hours')
+                .whereRaw('space_operating_hours.space_id = spaces.id')
+            )
+            .orWhereExists((subquery) =>
+              subquery
+                .from('external_reservations')
+                .whereRaw('external_reservations.space_id = spaces.id')
+                .where('ends_at', '>', DateTime.now().toSQL())
+            )
+            .orWhereExists((subquery) =>
+              subquery
+                .from('space_inventory_blocks')
+                .whereRaw('space_inventory_blocks.space_id = spaces.id')
+                .where('blocked_until_at', '>', DateTime.now().toSQL())
+            )
+        })
+        .first()
+      if (futureRecords)
+        throw new SpaceException(
+          'Timezone cannot change while future calendar records exist',
+          'VENUE_TIMEZONE_MIGRATION_REQUIRED',
+          409
+        )
+    }
     venue.merge({
       nameAr: input.name?.ar ?? venue.nameAr,
       nameEn: input.name?.en ?? venue.nameEn,
@@ -152,6 +188,7 @@ export class SpaceCatalogService {
       parkingNotesEn: input.parkingNotes?.en ?? venue.parkingNotesEn,
       latitude: input.latitude?.toString() ?? venue.latitude,
       longitude: input.longitude?.toString() ?? venue.longitude,
+      timezone: input.timezone ?? venue.timezone,
     })
     await venue.save()
     return venue
@@ -382,6 +419,13 @@ export class SpaceCatalogService {
         'LOCALIZED_VALUE_REQUIRED',
         422
       )
+  }
+  private assertTimezone(timezone: string) {
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format()
+    } catch {
+      throw new SpaceException('Unsupported IANA timezone', 'VENUE_TIMEZONE_INVALID', 422)
+    }
   }
   private assertCategoryDetails(category: string, input: Partial<SpaceInput>) {
     if (input.eventDetails && !eventCategories.has(category))

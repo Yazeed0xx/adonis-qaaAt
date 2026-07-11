@@ -1,8 +1,6 @@
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
-import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
-import { MigrationRunner } from '@adonisjs/lucid/migration'
 import type User from '#models/user'
 import CompanyMembership from '#models/company_membership'
 import Hall from '#models/hall'
@@ -12,6 +10,8 @@ import { CompanyFactory } from '#database/factories/company_factory'
 import { HallFactory } from '#database/factories/hall_factory'
 import { BookingFactory } from '#database/factories/booking_factory'
 import BackfillMigration from '#database/migrations/1770000000011_seed_catalogs_and_backfill_halls'
+import StructureMigration from '#database/migrations/1770000000010_create_venues_spaces_and_catalogs'
+import AvailabilityMigration from '#database/migrations/1770000000020_create_availability_and_inventory'
 import { HallService } from '#services/hall_service'
 
 async function seedCatalogsAndBackfill() {
@@ -464,13 +464,9 @@ test.group('Sprint 2 venues, spaces, moderation, and Hall compatibility', (group
     let structuralTablesDropped = false
     let restoreError: Error | null = null
     try {
-      const rollback = new MigrationRunner(db, app, {
-        direction: 'down',
-        step: 2,
-        disableLocks: true,
-      })
-      await rollback.run()
-      if (rollback.error) throw rollback.error
+      await new AvailabilityMigration(db.connection(), import.meta.url).execDown()
+      await new BackfillMigration(db.connection(), import.meta.url).execDown()
+      await new StructureMigration(db.connection(), import.meta.url).execDown()
       structuralTablesDropped = true
       assert.isNull(
         await db
@@ -484,12 +480,13 @@ test.group('Sprint 2 venues, spaces, moderation, and Hall compatibility', (group
       assert.equal(preservedBooking.hall_id, hall.id)
     } finally {
       if (structuralTablesDropped) {
-        const migrate = new MigrationRunner(db, app, {
-          direction: 'up',
-          disableLocks: true,
-        })
-        await migrate.run()
-        restoreError = migrate.error
+        try {
+          await new StructureMigration(db.connection(), import.meta.url).execUp()
+          await new BackfillMigration(db.connection(), import.meta.url).execUp()
+          await new AvailabilityMigration(db.connection(), import.meta.url).execUp()
+        } catch (error) {
+          restoreError = error as Error
+        }
       }
     }
     if (restoreError) throw restoreError

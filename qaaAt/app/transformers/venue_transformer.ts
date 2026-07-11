@@ -25,6 +25,7 @@ export default class VenueTransformer extends BaseTransformer<Venue> {
       latitude: this.resource.latitude === null ? null : Number(this.resource.latitude),
       longitude: this.resource.longitude === null ? null : Number(this.resource.longitude),
       verificationStatus: this.resource.verificationStatus,
+      timezone: this.resource.timezone,
       createdAt: this.resource.createdAt,
       updatedAt: this.resource.updatedAt,
     }

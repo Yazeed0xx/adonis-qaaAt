@@ -46,6 +46,7 @@ export const createVenueValidator = vine.create({
   parkingNotes: localizedText.optional(),
   latitude: vine.number().min(-90).max(90).optional(),
   longitude: vine.number().min(-180).max(180).optional(),
+  timezone: vine.string().trim().maxLength(100).optional(),
 })
 
 export const updateVenueValidator = vine.create({
@@ -60,6 +61,7 @@ export const updateVenueValidator = vine.create({
   parkingNotes: localizedText.optional(),
   latitude: vine.number().min(-90).max(90).optional(),
   longitude: vine.number().min(-180).max(180).optional(),
+  timezone: vine.string().trim().maxLength(100).optional(),
 })
 
 export const createSpaceValidator = vine.create({

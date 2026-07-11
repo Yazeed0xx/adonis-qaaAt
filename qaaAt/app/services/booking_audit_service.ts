@@ -1,10 +1,14 @@
 import db from '@adonisjs/lucid/services/db'
 import type { QueryClientContract } from '@adonisjs/lucid/types/database'
 
-export type BookingAuditAction = 'booking.accept' | 'booking.reject'
+export type BookingAuditAction =
+  | 'booking.accept'
+  | 'booking.reject'
+  | 'booking.payment_expired'
+  | 'booking.cancel'
 
 interface BookingAuditEntry {
-  actorUserId: number
+  actorUserId: number | null
   bookingId: number
   companyId: number
   action: BookingAuditAction

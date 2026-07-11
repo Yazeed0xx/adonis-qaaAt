@@ -47,6 +47,8 @@ Media upload is not exposed in Sprint 2. Existing Hall image references appear a
 
 ## Product flow
 
+Sprint 3 calendar configuration uses weekly rules and date exceptions; a `closed` exception only changes offered schedule and is not an inventory record. External confirmed reservations, external holds, maintenance, operational closures, and internal events are separate auditable blocks. Calendar reads require `calendar.view`; writes require `calendar.manage`. External reservation deletion means cancellation/release, never hard deletion. Company calendar ranges are limited to 93 days and 100 rows per page.
+
 1. Register with legal/business details and a scanned commercial-registration PDF.
 2. Store the returned token and route by `data.company.status`; a new company starts as `pending`.
 3. Pending or rejected companies can restore account state, read their halls, and read notifications, but cannot mutate halls or access booking management.

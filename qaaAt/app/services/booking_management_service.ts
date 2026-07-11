@@ -12,8 +12,9 @@ import HallNotFoundException from '#exceptions/hall_not_found_exception'
 import { fromDatabaseAmount, sumDatabaseAmounts, toDatabaseAmount } from '#lib/money'
 import bookingStatusService from '#services/booking_status_service'
 import bookingAuditService from '#services/booking_audit_service'
-import type { QueryClientContract } from '@adonisjs/lucid/types/database'
 import notificationOutboxService from '#services/notification_outbox_service'
+import inventoryService from '#services/inventory_service'
+import availabilityService from '#services/availability_service'
 
 interface CreateBookingData {
   hallId: number
@@ -52,9 +53,6 @@ export class BookingManagementService {
     }
 
     const { booking } = await db.transaction(async (trx) => {
-      const slotLockKey = `${data.hallId}:${data.bookingDate.toFormat('yyyy-MM-dd')}`
-      await trx.rawQuery('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [slotLockKey])
-
       const availableHall = await Hall.query({ client: trx })
         .where('id', data.hallId)
         .whereNull('deletedAt')
@@ -75,21 +73,13 @@ export class BookingManagementService {
         throw new BookingConflictException('Hall is not available for booking', 'HALL_UNAVAILABLE')
       }
 
-      const isAvailable = await this.checkTimeSlotAvailable(
-        data.hallId,
-        data.bookingDate,
-        data.startTime,
-        data.endTime,
-        undefined,
-        trx
-      )
-
-      if (!isAvailable) {
-        throw new BookingConflictException(
-          'The selected time slot is not available',
-          'BOOKING_SLOT_UNAVAILABLE'
-        )
-      }
+      await inventoryService.assertBookingRequestFitsPolicy(trx, {
+        hallId: data.hallId,
+        companyId: availableHall.companyId,
+        bookingDate: data.bookingDate,
+        startTime: data.startTime,
+        endTime: data.endTime,
+      })
 
       const serviceIds = [...new Set(data.serviceIds ?? [])]
       const services = serviceIds.length
@@ -166,62 +156,10 @@ export class BookingManagementService {
   }
 
   /**
-   * Check if a time slot is available for a hall
-   */
-  async checkTimeSlotAvailable(
-    hallId: number,
-    bookingDate: DateTime,
-    startTime: string,
-    endTime: string,
-    excludeBookingId?: number,
-    client?: QueryClientContract
-  ): Promise<boolean> {
-    const query = (client ? Booking.query({ client }) : Booking.query())
-      .where('hallId', hallId)
-      .where('bookingDate', bookingDate.toFormat('yyyy-MM-dd'))
-      .whereNull('deletedAt')
-      .whereIn('status', ['pending', 'accepted', 'confirmed']) // Only check non-cancelled bookings
-      .where((builder) => {
-        // Check for overlapping time slots
-        builder.where((q) => {
-          q.where('startTime', '<', endTime).where('endTime', '>', startTime)
-        })
-      })
-
-    if (excludeBookingId) {
-      query.whereNot('id', excludeBookingId)
-    }
-
-    const conflictingBookings = await query.first()
-
-    return !conflictingBookings
-  }
-
-  /**
    * Get available time slots for a hall on a specific date
    */
   async getAvailability(hallId: number, date: DateTime): Promise<TimeSlot[]> {
-    // Define available hours (e.g., 8 AM to 10 PM)
-    const startHour = 8
-    const endHour = 22
-    const slotDurationHours = 2
-
-    const slots: TimeSlot[] = []
-
-    for (let hour = startHour; hour < endHour; hour += slotDurationHours) {
-      const startTime = `${hour.toString().padStart(2, '0')}:00`
-      const endTime = `${(hour + slotDurationHours).toString().padStart(2, '0')}:00`
-
-      const isAvailable = await this.checkTimeSlotAvailable(hallId, date, startTime, endTime)
-
-      slots.push({
-        startTime,
-        endTime,
-        isAvailable,
-      })
-    }
-
-    return slots
+    return availabilityService.legacyHallAvailability(hallId, date)
   }
 
   /**
@@ -272,10 +210,12 @@ export class BookingManagementService {
         throw new InvalidStateException('Cannot accept expired booking', 'BOOKING_EXPIRED')
       }
 
+      const paymentDueDate = DateTime.now().plus({ days: 3 })
+      await inventoryService.createBookingHold(trx, lockedBooking, companyId, paymentDueDate)
       lockedBooking.useTransaction(trx)
       lockedBooking.status = 'accepted'
       lockedBooking.companyRespondedAt = DateTime.now()
-      lockedBooking.paymentDueDate = DateTime.now().plus({ days: 3 })
+      lockedBooking.paymentDueDate = paymentDueDate
       await lockedBooking.save()
 
       await bookingAuditService.record(
@@ -410,6 +350,9 @@ export class BookingManagementService {
 
       bookingStatusService.assertTransition(booking.status, 'cancelled')
 
+      if (booking.status === 'accepted')
+        await inventoryService.releaseBookingHold(trx, booking.id, 'booking_cancelled', 'cancelled')
+
       booking.useTransaction(trx)
       booking.status = 'cancelled'
       await booking.save()
@@ -538,6 +481,82 @@ export class BookingManagementService {
       count++
     }
 
+    return count + (await this.expirePaymentHolds())
+  }
+
+  async expirePaymentHolds(): Promise<number> {
+    const candidates = await db
+      .from('booking_holds')
+      .where('status', 'active')
+      .where('expires_at', '<=', DateTime.now().toSQL())
+      .limit(100)
+    let count = 0
+    for (const candidate of candidates) {
+      const expired = await db.transaction(async (trx) => {
+        const hold = await trx
+          .from('booking_holds')
+          .where('id', candidate.id)
+          .where('status', 'active')
+          .where('expires_at', '<=', DateTime.now().toSQL())
+          .forUpdate()
+          .skipLocked()
+          .first()
+        if (!hold) return false
+        const booking = await Booking.query({ client: trx })
+          .where('id', hold.booking_id)
+          .preload('hall', (query) => query.preload('company'))
+          .forUpdate()
+          .firstOrFail()
+        await inventoryService.releaseBookingHold(
+          trx,
+          booking.id,
+          'payment_hold_expired',
+          'expired'
+        )
+        if (booking.status === 'accepted') {
+          bookingStatusService.assertTransition(booking.status, 'payment_expired')
+          booking.useTransaction(trx)
+          booking.status = 'payment_expired'
+          await booking.save()
+          await bookingAuditService.record(
+            {
+              actorUserId: null,
+              bookingId: booking.id,
+              companyId: hold.company_id,
+              action: 'booking.payment_expired',
+              previousStatus: 'accepted',
+              nextStatus: 'payment_expired',
+            },
+            trx
+          )
+          await notificationOutboxService.enqueue(
+            {
+              userId: booking.userId,
+              type: 'booking_expired',
+              title: 'Payment window expired',
+              message:
+                'Your approved booking expired before payment and the inventory was released.',
+              data: { bookingId: booking.id },
+            },
+            trx
+          )
+          const providerUserId = booking.hall.company?.userId
+          if (providerUserId)
+            await notificationOutboxService.enqueue(
+              {
+                userId: providerUserId,
+                type: 'booking_expired',
+                title: 'Booking payment window expired',
+                message: 'An accepted booking expired before payment and inventory was released.',
+                data: { bookingId: booking.id },
+              },
+              trx
+            )
+        }
+        return true
+      })
+      if (expired) count++
+    }
     return count
   }
 }

@@ -24,6 +24,8 @@ Do not create bookings from the new Space preview yet. `bookings.hall_id`, legac
 
 ## Product flow
 
+Sprint 3 keeps `GET /api/halls/:id/availability` and its response envelope, but availability now comes from the mapped Space schedule and inventory ledger. Pending/unapproved requests no longer block slots; confirmed bookings, active holds, and operational blocks do. New public Space availability accepts explicit-offset `from`/`to` instants and is limited to 31 days.
+
 1. Register and store `data.token.token` securely.
 2. Ask for the six-digit email OTP and verify it. Browsing works before verification, but booking creation does not.
 3. Browse approved companies' available halls and inspect a hall's two-hour availability slots.

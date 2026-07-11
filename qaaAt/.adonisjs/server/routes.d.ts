@@ -62,6 +62,21 @@ export type ScannedRoutes = {
     'spaces.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'spaces.submit': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'spaces.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.index': { paramsTuple?: []; params?: {} }
+    'company_calendar.show_policy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.policy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.list_sessions': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.create_session': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.update_session': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'sessionId': ParamValue} }
+    'company_calendar.destroy_session': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'sessionId': ParamValue} }
+    'company_calendar.list_exceptions': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.exception': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.update_exception': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'exceptionId': ParamValue} }
+    'company_calendar.destroy_exception': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'exceptionId': ParamValue} }
+    'company_calendar.external': { paramsTuple?: []; params?: {} }
+    'company_calendar.update_external': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.destroy_external': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'public_availability.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'space_catalog.index': { paramsTuple?: []; params?: {} }
     'public_spaces.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_auth.login': { paramsTuple?: []; params?: {} }
@@ -121,6 +136,11 @@ export type ScannedRoutes = {
     'venues.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'spaces.index': { paramsTuple?: []; params?: {} }
     'spaces.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.index': { paramsTuple?: []; params?: {} }
+    'company_calendar.show_policy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.list_sessions': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.list_exceptions': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'public_availability.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'space_catalog.index': { paramsTuple?: []; params?: {} }
     'public_spaces.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_auth.me': { paramsTuple?: []; params?: {} }
@@ -164,6 +184,11 @@ export type ScannedRoutes = {
     'venues.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'spaces.index': { paramsTuple?: []; params?: {} }
     'spaces.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.index': { paramsTuple?: []; params?: {} }
+    'company_calendar.show_policy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.list_sessions': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.list_exceptions': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'public_availability.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'space_catalog.index': { paramsTuple?: []; params?: {} }
     'public_spaces.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_auth.me': { paramsTuple?: []; params?: {} }
@@ -207,6 +232,9 @@ export type ScannedRoutes = {
     'venues.store': { paramsTuple?: []; params?: {} }
     'spaces.store': { paramsTuple?: []; params?: {} }
     'spaces.submit': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.create_session': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.exception': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.external': { paramsTuple?: []; params?: {} }
     'admin_auth.login': { paramsTuple?: []; params?: {} }
     'admin_auth.logout': { paramsTuple?: []; params?: {} }
     'admin.ban_user': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -229,6 +257,9 @@ export type ScannedRoutes = {
     'push_installations.destroy': { paramsTuple: [ParamValue]; params: {'installationId': ParamValue} }
     'hall.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'spaces.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.destroy_session': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'sessionId': ParamValue} }
+    'company_calendar.destroy_exception': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'exceptionId': ParamValue} }
+    'company_calendar.destroy_external': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.delete_hall': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.delete_booking': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
@@ -236,9 +267,13 @@ export type ScannedRoutes = {
     'company_members.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'venues.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'spaces.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.update_external': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PUT: {
     'hall.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.policy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_calendar.update_session': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'sessionId': ParamValue} }
+    'company_calendar.update_exception': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'exceptionId': ParamValue} }
   }
 }
 declare module '@adonisjs/core/types/http' {

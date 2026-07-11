@@ -6,16 +6,29 @@ import assert from 'node:assert/strict'
 import User from '#models/user'
 import { UserFactory } from '#database/factories/user_factory'
 import { CompanyFactory } from '#database/factories/company_factory'
-import { HallFactory } from '#database/factories/hall_factory'
 import { ServiceFactory } from '#database/factories/service_factory'
 import { BookingFactory } from '#database/factories/booking_factory'
 import bookingManagementService from '#services/booking_management_service'
 import notificationOutboxService from '#services/notification_outbox_service'
+import { HallService } from '#services/hall_service'
+import BackfillMigration from '#database/migrations/1770000000011_seed_catalogs_and_backfill_halls'
 
 async function createCompany(status: 'approved' | 'suspended' = 'approved') {
+  await new BackfillMigration(db.connection(), import.meta.url).up()
   const owner = await UserFactory.apply('company', 'verified').create()
   const company = await CompanyFactory.apply(status).merge({ userId: owner.id }).create()
-  const hall = await HallFactory.merge({ companyId: company.id, isAvailable: true }).create()
+  const hall = await new HallService().createHall(company.id, {
+    name: 'Security Hall',
+    capacity: 100,
+    location: 'Riyadh',
+    pricing: 1000,
+    address: 'Road',
+    city: 'Riyadh',
+    amenities: {},
+    images: [],
+    services: [],
+    isAvailable: true,
+  })
 
   return { owner, company, hall }
 }
@@ -222,7 +235,7 @@ test.group('P1 backend security hardening', (group) => {
     }
   })
 
-  test('serializes concurrent requests so only one overlapping booking is created', async () => {
+  test('allows overlapping pending requests because they do not block inventory', async () => {
     const { hall } = await createCompany('approved')
     const firstCustomer = await UserFactory.apply('user', 'verified').create()
     const secondCustomer = await UserFactory.apply('user', 'verified').create()
@@ -239,14 +252,14 @@ test.group('P1 backend security hardening', (group) => {
       bookingManagementService.createBooking(secondCustomer.id, bookingData),
     ])
 
-    assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1)
-    assert.equal(results.filter((result) => result.status === 'rejected').length, 1)
+    assert.equal(results.filter((result) => result.status === 'fulfilled').length, 2)
+    assert.equal(results.filter((result) => result.status === 'rejected').length, 0)
 
     const storedBookings = await db
       .from('bookings')
       .where('hall_id', hall.id)
       .where('booking_date', bookingDate.toFormat('yyyy-MM-dd'))
-    assert.equal(storedBookings.length, 1)
+    assert.equal(storedBookings.length, 2)
   })
 
   test('enforces booking ownership and records accept/reject audit events', async () => {

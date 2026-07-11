@@ -446,6 +446,135 @@ router
   .prefix('/api/companies/spaces')
   .use([middleware.auth(), middleware.company()])
 
+router
+  .group(() => {
+    router.get('/', [controllers.CompanyCalendar, 'index']).openapi({
+      summary: 'Read company calendar feed',
+      tags: ['Calendar'],
+      security: [{ bearer: [] }],
+    })
+    router.get('/spaces/:id/policy', [controllers.CompanyCalendar, 'showPolicy']).openapi({
+      summary: 'Read a Space availability policy',
+      tags: ['Calendar'],
+      security: [{ bearer: [] }],
+    })
+    router
+      .put('/spaces/:id/policy', [controllers.CompanyCalendar, 'policy'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Replace a Space availability policy',
+        tags: ['Calendar'],
+        security: [{ bearer: [] }],
+      })
+    router.get('/spaces/:id/sessions', [controllers.CompanyCalendar, 'listSessions']).openapi({
+      summary: 'List named Space sessions',
+      tags: ['Calendar'],
+      security: [{ bearer: [] }],
+    })
+    router
+      .post('/spaces/:id/sessions', [controllers.CompanyCalendar, 'createSession'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Create a named Space session',
+        tags: ['Calendar'],
+        security: [{ bearer: [] }],
+        responses: {
+          201: { description: 'Created' },
+          422: { description: 'Invalid or overlapping session' },
+        },
+      })
+    router
+      .put('/spaces/:id/sessions/:sessionId', [controllers.CompanyCalendar, 'updateSession'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Update a named Space session',
+        tags: ['Calendar'],
+        security: [{ bearer: [] }],
+      })
+    router
+      .delete('/spaces/:id/sessions/:sessionId', [controllers.CompanyCalendar, 'destroySession'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Delete a named Space session',
+        tags: ['Calendar'],
+        security: [{ bearer: [] }],
+        responses: { 204: { description: 'Deleted' } },
+      })
+    router.get('/spaces/:id/exceptions', [controllers.CompanyCalendar, 'listExceptions']).openapi({
+      summary: 'List Space schedule exceptions',
+      tags: ['Calendar'],
+      security: [{ bearer: [] }],
+    })
+    router
+      .post('/spaces/:id/exceptions', [controllers.CompanyCalendar, 'exception'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Create a schedule-only date exception',
+        description:
+          'Schedule exceptions alter offered candidates and do not create inventory blocks.',
+        tags: ['Calendar'],
+        security: [{ bearer: [] }],
+      })
+    router
+      .put('/spaces/:id/exceptions/:exceptionId', [controllers.CompanyCalendar, 'updateException'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Update a Space schedule exception',
+        tags: ['Calendar'],
+        security: [{ bearer: [] }],
+      })
+    router
+      .delete('/spaces/:id/exceptions/:exceptionId', [
+        controllers.CompanyCalendar,
+        'destroyException',
+      ])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Delete a Space schedule exception',
+        tags: ['Calendar'],
+        security: [{ bearer: [] }],
+        responses: { 204: { description: 'Deleted' } },
+      })
+    router
+      .post('/external-reservations', [controllers.CompanyCalendar, 'external'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Create an operational inventory block',
+        tags: ['Calendar'],
+        security: [{ bearer: [] }],
+        responses: { 201: { description: 'Created' }, 409: { description: 'Inventory overlap' } },
+      })
+    router
+      .patch('/external-reservations/:id', [controllers.CompanyCalendar, 'updateExternal'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Update an external reservation and block atomically',
+        tags: ['Calendar'],
+        security: [{ bearer: [] }],
+        responses: { 200: { description: 'Updated' }, 409: { description: 'Inventory overlap' } },
+      })
+    router
+      .delete('/external-reservations/:id', [controllers.CompanyCalendar, 'destroyExternal'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Cancel and release an external reservation',
+        tags: ['Calendar'],
+        security: [{ bearer: [] }],
+      })
+  })
+  .prefix('/api/companies/calendar')
+  .use([middleware.auth(), middleware.company()])
+
+router.get('/api/spaces/:id/availability', [controllers.PublicAvailability, 'show']).openapi({
+  summary: 'Get bounded public Space availability',
+  tags: ['Availability'],
+  security: [],
+  responses: {
+    200: { description: 'Availability' },
+    422: { description: 'Invalid or excessive range' },
+  },
+})
+
 router.get('/api/space-catalog', [controllers.SpaceCatalog, 'index']).openapi({
   summary: 'List controlled space categories and amenities',
   operationId: 'getSpaceCatalog',

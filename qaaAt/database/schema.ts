@@ -76,13 +76,42 @@ export class AuthAccessTokenSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class AvailabilityExceptionSchema extends BaseModel {
+  static $columns = ['companyId', 'createdAt', 'createdByUserId', 'endsAtLocal', 'endsNextDay', 'id', 'kind', 'localDate', 'reason', 'spaceId', 'startsAtLocal', 'updatedAt'] as const
+  $columns = AvailabilityExceptionSchema.$columns
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: number | null
+  @column()
+  declare endsAtLocal: string | null
+  @column()
+  declare endsNextDay: boolean
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare kind: string
+  @column.date()
+  declare localDate: DateTime
+  @column()
+  declare reason: string | null
+  @column()
+  declare spaceId: number
+  @column()
+  declare startsAtLocal: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class BookingAuditLogSchema extends BaseModel {
   static $columns = ['action', 'actorUserId', 'bookingId', 'companyId', 'createdAt', 'id', 'metadata', 'nextStatus', 'previousStatus', 'reason'] as const
   $columns = BookingAuditLogSchema.$columns
   @column()
   declare action: string
   @column()
-  declare actorUserId: number
+  declare actorUserId: number | null
   @column()
   declare bookingId: number
   @column()
@@ -99,6 +128,54 @@ export class BookingAuditLogSchema extends BaseModel {
   declare previousStatus: string
   @column()
   declare reason: string | null
+}
+
+export class BookingHoldSchema extends BaseModel {
+  static $columns = ['bookingId', 'companyId', 'createdAt', 'endsAt', 'expiresAt', 'id', 'purpose', 'releaseReason', 'releasedAt', 'spaceId', 'startsAt', 'status', 'updatedAt'] as const
+  $columns = BookingHoldSchema.$columns
+  @column()
+  declare bookingId: number
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare endsAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare purpose: string
+  @column()
+  declare releaseReason: string | null
+  @column.dateTime()
+  declare releasedAt: DateTime | null
+  @column()
+  declare spaceId: number
+  @column.dateTime()
+  declare startsAt: DateTime
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class BookingInventoryMigrationReportSchema extends BaseModel {
+  static $columns = ['acceptedElapsedDeadline', 'acceptedFutureDeadline', 'acceptedMissingDeadline', 'createdAt', 'id', 'statusCounts'] as const
+  $columns = BookingInventoryMigrationReportSchema.$columns
+  @column()
+  declare acceptedElapsedDeadline: number
+  @column()
+  declare acceptedFutureDeadline: number
+  @column()
+  declare acceptedMissingDeadline: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare statusCounts: any
 }
 
 export class BookingServiceSchema extends BaseModel {
@@ -319,6 +396,47 @@ export class CompanyProfileSchema extends BaseModel {
   declare userId: number
   @column()
   declare website: string | null
+}
+
+export class ExternalReservationSchema extends BaseModel {
+  static $columns = ['cancelledAt', 'cleanupBufferMinutes', 'companyId', 'createdAt', 'createdByUserId', 'endsAt', 'expiresAt', 'id', 'internalNote', 'originalEndLocal', 'originalStartLocal', 'originalTimezone', 'preparationBufferMinutes', 'spaceId', 'startsAt', 'status', 'type', 'updatedAt'] as const
+  $columns = ExternalReservationSchema.$columns
+  @column.dateTime()
+  declare cancelledAt: DateTime | null
+  @column()
+  declare cleanupBufferMinutes: number
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: number | null
+  @column.dateTime()
+  declare endsAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare internalNote: string | null
+  @column()
+  declare originalEndLocal: string
+  @column()
+  declare originalStartLocal: string
+  @column()
+  declare originalTimezone: string
+  @column()
+  declare preparationBufferMinutes: number
+  @column()
+  declare spaceId: number
+  @column.dateTime()
+  declare startsAt: DateTime
+  @column()
+  declare status: string
+  @column()
+  declare type: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
 }
 
 export class HallSchema extends BaseModel {
@@ -573,6 +691,72 @@ export class SpaceAmenitySchema extends BaseModel {
   declare spaceId: number
 }
 
+export class SpaceAvailabilityPolicySchema extends BaseModel {
+  static $columns = ['cleanupBufferMinutes', 'companyId', 'createdAt', 'id', 'isActive', 'maximumAdvanceDays', 'maximumDurationMinutes', 'minimumDurationMinutes', 'minimumNoticeMinutes', 'mode', 'preparationBufferMinutes', 'slotIncrementMinutes', 'source', 'spaceId', 'updatedAt'] as const
+  $columns = SpaceAvailabilityPolicySchema.$columns
+  @column()
+  declare cleanupBufferMinutes: number
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isActive: boolean
+  @column()
+  declare maximumAdvanceDays: number
+  @column()
+  declare maximumDurationMinutes: number
+  @column()
+  declare minimumDurationMinutes: number
+  @column()
+  declare minimumNoticeMinutes: number
+  @column()
+  declare mode: string
+  @column()
+  declare preparationBufferMinutes: number
+  @column()
+  declare slotIncrementMinutes: number
+  @column()
+  declare source: string
+  @column()
+  declare spaceId: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class SpaceAvailabilitySessionSchema extends BaseModel {
+  static $columns = ['code', 'companyId', 'createdAt', 'endsAtLocal', 'endsNextDay', 'id', 'isActive', 'nameAr', 'nameEn', 'spaceId', 'startsAtLocal', 'updatedAt', 'weekday'] as const
+  $columns = SpaceAvailabilitySessionSchema.$columns
+  @column()
+  declare code: string
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare endsAtLocal: string
+  @column()
+  declare endsNextDay: boolean
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isActive: boolean
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string | null
+  @column()
+  declare spaceId: number
+  @column()
+  declare startsAtLocal: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare weekday: number
+}
+
 export class SpaceCategorySchema extends BaseModel {
   static $columns = ['createdAt', 'id', 'isActive', 'nameAr', 'nameEn', 'slug', 'sortOrder', 'updatedAt'] as const
   $columns = SpaceCategorySchema.$columns
@@ -613,6 +797,62 @@ export class SpaceEventDetailSchema extends BaseModel {
   declare spaceId: number
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
+}
+
+export class SpaceInventoryBlockSchema extends BaseModel {
+  static $columns = ['blockedFromAt', 'blockedUntilAt', 'bookingHoldId', 'bookingId', 'companyId', 'createdAt', 'endsAt', 'externalReservationId', 'id', 'releaseReason', 'releasedAt', 'spaceId', 'startsAt', 'status', 'updatedAt'] as const
+  $columns = SpaceInventoryBlockSchema.$columns
+  @column.dateTime()
+  declare blockedFromAt: DateTime
+  @column.dateTime()
+  declare blockedUntilAt: DateTime
+  @column()
+  declare bookingHoldId: number | null
+  @column()
+  declare bookingId: number | null
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare endsAt: DateTime
+  @column()
+  declare externalReservationId: number | null
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare releaseReason: string | null
+  @column.dateTime()
+  declare releasedAt: DateTime | null
+  @column()
+  declare spaceId: number
+  @column.dateTime()
+  declare startsAt: DateTime
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class SpaceInventoryEventSchema extends BaseModel {
+  static $columns = ['action', 'actorUserId', 'companyId', 'createdAt', 'id', 'inventoryBlockId', 'metadata', 'spaceId'] as const
+  $columns = SpaceInventoryEventSchema.$columns
+  @column()
+  declare action: string
+  @column()
+  declare actorUserId: number | null
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare inventoryBlockId: bigint | number | null
+  @column()
+  declare metadata: any | null
+  @column()
+  declare spaceId: number
 }
 
 export class SpaceLargeFormatDetailSchema extends BaseModel {
@@ -707,6 +947,29 @@ export class SpaceModerationEventSchema extends BaseModel {
   declare reason: string | null
   @column()
   declare spaceId: number
+}
+
+export class SpaceOperatingHourSchema extends BaseModel {
+  static $columns = ['closesAtLocal', 'companyId', 'createdAt', 'endsNextDay', 'id', 'opensAtLocal', 'sortOrder', 'spaceId', 'weekday'] as const
+  $columns = SpaceOperatingHourSchema.$columns
+  @column()
+  declare closesAtLocal: string
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare endsNextDay: boolean
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare opensAtLocal: string
+  @column()
+  declare sortOrder: number
+  @column()
+  declare spaceId: number
+  @column()
+  declare weekday: number
 }
 
 export class SpaceSchema extends BaseModel {
@@ -819,7 +1082,7 @@ export class UserSchema extends BaseModel {
 }
 
 export class VenueSchema extends BaseModel {
-  static $columns = ['accessInstructionsAr', 'accessInstructionsEn', 'additionalNumber', 'buildingNumber', 'city', 'companyId', 'createdAt', 'deletedAt', 'district', 'id', 'latitude', 'legacyAddress', 'legacyLocation', 'legacyName', 'longitude', 'nameAr', 'nameEn', 'parkingNotesAr', 'parkingNotesEn', 'postalCode', 'street', 'updatedAt', 'verificationStatus'] as const
+  static $columns = ['accessInstructionsAr', 'accessInstructionsEn', 'additionalNumber', 'buildingNumber', 'city', 'companyId', 'createdAt', 'deletedAt', 'district', 'id', 'latitude', 'legacyAddress', 'legacyLocation', 'legacyName', 'longitude', 'nameAr', 'nameEn', 'parkingNotesAr', 'parkingNotesEn', 'postalCode', 'street', 'timezone', 'updatedAt', 'verificationStatus'] as const
   $columns = VenueSchema.$columns
   @column()
   declare accessInstructionsAr: string | null
@@ -863,6 +1126,8 @@ export class VenueSchema extends BaseModel {
   declare postalCode: string | null
   @column()
   declare street: string | null
+  @column()
+  declare timezone: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
   @column()
