@@ -996,6 +996,21 @@ router.get('/api/space-catalog', [controllers.SpaceCatalog, 'index']).openapi({
   tags: ['Spaces'],
   security: [],
 })
+router.get('/api/spaces', [controllers.PublicSpaces, 'index']).openapi({
+  summary: 'Discover published rentable Spaces',
+  description:
+    'Arabic-first public discovery with exact-name/prefix/substring/description relevance, canonical signed-64-bit minor-unit filter strings, AND amenities, page/limit pagination, and optional authoritative availability scanning bounded to 10 batches of 200 candidates.',
+  operationId: 'listPublicSpaces',
+  tags: ['Spaces'],
+  security: [],
+  responses: {
+    200: { description: 'Published Space summaries' },
+    422: {
+      description:
+        'Invalid filter/range, or SPACE_DISCOVERY_WORK_LIMIT when the bounded availability scan cannot resolve the requested page truthfully',
+    },
+  },
+})
 router.get('/api/spaces/:id', [controllers.PublicSpaces, 'show']).openapi({
   summary: 'Get a safely published space',
   operationId: 'getPublicSpace',

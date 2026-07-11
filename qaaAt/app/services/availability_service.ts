@@ -4,6 +4,13 @@ import InventoryException from '#exceptions/inventory_exception'
 import { localDateValue } from '#lib/calendar_time'
 
 type Range = { start: DateTime; end: DateTime }
+type AvailabilityData = {
+  policy: any
+  hours: any[]
+  exceptions: any[]
+  blocks: any[]
+  sessions: any[]
+}
 
 export class AvailabilityService {
   parseRange(from: string, to: string, maxDays: number) {
@@ -52,34 +59,42 @@ export class AvailabilityService {
   async calculate(
     space: any,
     range: Range,
-    options: { durationMinutes?: number; durationDays?: number } = {}
+    options: { durationMinutes?: number; durationDays?: number } = {},
+    loaded?: AvailabilityData
   ) {
-    const policy = await db
-      .from('space_availability_policies')
-      .where('space_id', space.id)
-      .where('is_active', true)
-      .first()
+    const policy =
+      loaded?.policy ??
+      (await db
+        .from('space_availability_policies')
+        .where('space_id', space.id)
+        .where('is_active', true)
+        .first())
     if (!policy) return { spaceId: space.id, timezone: space.timezone, mode: null, slots: [] }
     const localStart = range.start.setZone(space.timezone).startOf('day')
     const localEnd = range.end.setZone(space.timezone).endOf('day')
-    const [hours, exceptions, blocks, sessions] = await Promise.all([
-      db
-        .from('space_operating_hours')
-        .where('space_id', space.id)
-        .orderBy(['weekday', 'sort_order']),
-      db
-        .from('availability_exceptions')
-        .where('space_id', space.id)
-        .whereBetween('local_date', [localStart.toISODate()!, localEnd.toISODate()!]),
-      db
-        .from('space_inventory_blocks')
-        .where('space_id', space.id)
-        .where('status', 'active')
-        .where('blocked_from_at', '<', range.end.toSQL()!)
-        .where('blocked_until_at', '>', range.start.toSQL()!)
-        .orderBy('blocked_from_at'),
-      db.from('space_availability_sessions').where('space_id', space.id).where('is_active', true),
-    ])
+    const [hours, exceptions, blocks, sessions] = loaded
+      ? [loaded.hours, loaded.exceptions, loaded.blocks, loaded.sessions]
+      : await Promise.all([
+          db
+            .from('space_operating_hours')
+            .where('space_id', space.id)
+            .orderBy(['weekday', 'sort_order']),
+          db
+            .from('availability_exceptions')
+            .where('space_id', space.id)
+            .whereBetween('local_date', [localStart.toISODate()!, localEnd.toISODate()!]),
+          db
+            .from('space_inventory_blocks')
+            .where('space_id', space.id)
+            .where('status', 'active')
+            .where('blocked_from_at', '<', range.end.toSQL()!)
+            .where('blocked_until_at', '>', range.start.toSQL()!)
+            .orderBy('blocked_from_at'),
+          db
+            .from('space_availability_sessions')
+            .where('space_id', space.id)
+            .where('is_active', true),
+        ])
     const durationMinutes = options.durationMinutes ?? policy.minimum_duration_minutes
     if (
       durationMinutes < policy.minimum_duration_minutes ||
@@ -211,6 +226,68 @@ export class AvailabilityService {
         ),
       }))
     return { spaceId: space.id, timezone: space.timezone, mode: policy.mode, slots }
+  }
+
+  async publicAvailabilityBatch(spaces: any[], from: string, to: string, sessionCode?: string) {
+    const range = this.parseRange(from, to, 31)
+    const ids = spaces.map((space) => space.id)
+    const result = new Map<number, any>()
+    if (!ids.length) return result
+    const localDates = spaces.map((space) => ({
+      start: range.start.setZone(space.timezone).startOf('day').toISODate()!,
+      end: range.end.setZone(space.timezone).endOf('day').toISODate()!,
+    }))
+    const minimumDate = localDates.map((item) => item.start).sort()[0]
+    const maximumDate = localDates
+      .map((item) => item.end)
+      .sort()
+      .at(-1)!
+    const [policies, hours, exceptions, blocks, sessions] = await Promise.all([
+      db.from('space_availability_policies').whereIn('space_id', ids).where('is_active', true),
+      db
+        .from('space_operating_hours')
+        .whereIn('space_id', ids)
+        .orderBy(['space_id', 'weekday', 'sort_order']),
+      db
+        .from('availability_exceptions')
+        .whereIn('space_id', ids)
+        .whereBetween('local_date', [minimumDate, maximumDate]),
+      db
+        .from('space_inventory_blocks')
+        .whereIn('space_id', ids)
+        .where('status', 'active')
+        .where('blocked_from_at', '<', range.end.toSQL()!)
+        .where('blocked_until_at', '>', range.start.toSQL()!)
+        .orderBy('blocked_from_at'),
+      db
+        .from('space_availability_sessions')
+        .whereIn('space_id', ids)
+        .where('is_active', true)
+        .if(sessionCode !== undefined, (query) => query.where('code', sessionCode!)),
+    ])
+    for (const space of spaces) {
+      const policy = policies.find((item) => item.space_id === space.id)
+      if (!policy) {
+        result.set(space.id, { spaceId: space.id, timezone: space.timezone, mode: null, slots: [] })
+        continue
+      }
+      result.set(
+        space.id,
+        await this.calculate(
+          space,
+          range,
+          {},
+          {
+            policy,
+            hours: hours.filter((item) => item.space_id === space.id),
+            exceptions: exceptions.filter((item) => item.space_id === space.id),
+            blocks: blocks.filter((item) => item.space_id === space.id),
+            sessions: sessions.filter((item) => item.space_id === space.id),
+          }
+        )
+      )
+    }
+    return result
   }
 
   async legacyHallAvailability(hallId: number, date: DateTime) {

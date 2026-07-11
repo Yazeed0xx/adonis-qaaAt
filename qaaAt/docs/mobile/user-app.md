@@ -10,6 +10,12 @@ Read [README.md](./README.md) first for shared authentication, pagination, error
 
 Customer registration and login issue tokens with persisted `client:customer_app` context. Company-app and admin-app tokens are rejected from customer routes. A customer invited into a company keeps the same identity, password, and personal bookings, then signs into the company app separately for a company-scoped token.
 
+## Public Space discovery
+
+Use `GET /api/spaces` for incremental customer migration from Hall discovery. It returns published wedding halls and all other controlled Space categories, including Space-only records, without duplicating mapped Halls. `GET /api/halls` remains unchanged.
+
+The endpoint accepts `q`, `category`, `city`, minimum `capacity`, comma-separated controlled `amenities` (AND semantics), `bookingMode`, `pricingMode`, `minimumPriceMinor`, `maximumPriceMinor`, explicit-offset `from`/`to`, `sessionCode`, `sort`, `page`, and `limit` (maximum 50). Capacity, page, and limit are integers. Price filters are canonical non-negative integer strings up to `9223372036854775807`; never convert them through JavaScript `Number`. Results use Arabic, then English, then preserved legacy text. Relevance ranks exact name, name prefix, name substring, then description, and requires `q`. When `from`/`to` are supplied, only Spaces with a valid authoritative availability candidate are returned; pagination remains page-based and may return `SPACE_DISCOVERY_WORK_LIMIT` when the 10 × 200 candidate scan ceiling cannot establish a truthful page. See `docs/product/SPACE_DISCOVERY_IMPLEMENTATION_NOTES_EN.md` for the full contract and stable errors.
+
 ## Sprint 2 Space preview
 
 The current Hall discovery, Hall detail, availability, and booking APIs remain unchanged. Continue using them for production booking flows.
