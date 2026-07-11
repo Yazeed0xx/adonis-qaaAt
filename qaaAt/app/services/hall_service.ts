@@ -1,10 +1,9 @@
 import Hall from '#models/hall'
 import Company from '#models/company'
-import { DateTime } from 'luxon'
 import CompanyNotFoundException from '#exceptions/company_not_found_exception'
-import { toDatabaseAmount } from '#lib/money'
+import { HallCompatibilityService } from '#services/hall_compatibility_service'
 
-interface HallInput {
+export interface HallInput {
   name: string
   capacity: number
   location: string
@@ -19,6 +18,7 @@ interface HallInput {
 }
 
 export class HallService {
+  private compatibility = new HallCompatibilityService()
   /**
    * Get company by user ID
    */
@@ -59,46 +59,21 @@ export class HallService {
    * Create a new hall
    */
   async createHall(companyId: number, data: HallInput) {
-    return Hall.create({
-      ...data,
-      pricing: toDatabaseAmount(data.pricing),
-      companyId,
-      isAvailable: data.isAvailable ?? true,
-    })
+    return this.compatibility.create(companyId, data)
   }
 
   /**
    * Update a hall
    */
   async updateHall(hallId: number, companyId: number, data: Partial<HallInput>) {
-    const hall = await Hall.query()
-      .where('id', hallId)
-      .where('companyId', companyId)
-      .whereNull('deletedAt')
-      .firstOrFail()
-
-    hall.merge({
-      ...data,
-      pricing: data.pricing !== undefined ? toDatabaseAmount(data.pricing) : undefined,
-    })
-    await hall.save()
-
-    return hall
+    return this.compatibility.update(hallId, companyId, data)
   }
 
   /**
    * Delete a hall
    */
   async deleteHall(hallId: number, companyId: number) {
-    const hall = await Hall.query()
-      .where('id', hallId)
-      .where('companyId', companyId)
-      .whereNull('deletedAt')
-      .firstOrFail()
-
-    hall.deletedAt = DateTime.now()
-    await hall.save()
-    return hall
+    return this.compatibility.archive(hallId, companyId)
   }
 
   /**

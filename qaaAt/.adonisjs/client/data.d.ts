@@ -12,8 +12,10 @@ import type HallTransformer from '#transformers/hall_transformer'
 import type NotificationTransformer from '#transformers/notification_transformer'
 import type PushInstallationTransformer from '#transformers/push_installation_transformer'
 import type ServiceTransformer from '#transformers/service_transformer'
+import type SpaceTransformer from '#transformers/space_transformer'
 import type UserProfileTransformer from '#transformers/user_profile_transformer'
 import type UserTransformer from '#transformers/user_transformer'
+import type VenueTransformer from '#transformers/venue_transformer'
 
 export namespace Data {
   export type Booking = InferData<BookingTransformer>
@@ -44,6 +46,10 @@ export namespace Data {
   export namespace Service {
     export type Variants = InferVariants<ServiceTransformer>
   }
+  export type Space = InferData<SpaceTransformer>
+  export namespace Space {
+    export type Variants = InferVariants<SpaceTransformer>
+  }
   export type UserProfile = InferData<UserProfileTransformer>
   export namespace UserProfile {
     export type Variants = InferVariants<UserProfileTransformer>
@@ -51,5 +57,9 @@ export namespace Data {
   export type User = InferData<UserTransformer>
   export namespace User {
     export type Variants = InferVariants<UserTransformer>
+  }
+  export type Venue = InferData<VenueTransformer>
+  export namespace Venue {
+    export type Variants = InferVariants<VenueTransformer>
   }
 }

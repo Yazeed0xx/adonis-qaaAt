@@ -314,9 +314,12 @@ export class CompanyMembershipService {
       'client:company_app',
       `company:${result.membership.companyId}`,
     ])
-    await result.membership.load('company')
-    await result.membership.load('permissionOverrides')
-    return { ...result, token: accessToken.value!.release() }
+    const membership = await CompanyMembership.query()
+      .where('id', result.membership.id)
+      .preload('company')
+      .preload('permissionOverrides')
+      .firstOrFail()
+    return { user: result.user, membership, token: accessToken.value!.release() }
   }
 
   async updateMember(

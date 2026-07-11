@@ -347,6 +347,122 @@ router
   .prefix('/api/companies/halls')
   .use([middleware.auth(), middleware.company()])
 
+router
+  .group(() => {
+    router.get('/', [controllers.Venues, 'index']).openapi({
+      summary: 'List company venues',
+      operationId: 'listCompanyVenues',
+      tags: ['Venues'],
+      security: [{ bearer: [] }],
+    })
+    router.get('/:id', [controllers.Venues, 'show']).openapi({
+      summary: 'Get company venue',
+      operationId: 'getCompanyVenue',
+      tags: ['Venues'],
+      security: [{ bearer: [] }],
+    })
+    router
+      .post('/', [controllers.Venues, 'store'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Create a venue',
+        operationId: 'createVenue',
+        tags: ['Venues'],
+        security: [{ bearer: [] }],
+        responses: {
+          201: { description: 'Venue created' },
+          422: { description: 'Validation failed' },
+        },
+      })
+    router
+      .patch('/:id', [controllers.Venues, 'update'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Update a venue',
+        operationId: 'updateVenue',
+        tags: ['Venues'],
+        security: [{ bearer: [] }],
+      })
+  })
+  .prefix('/api/companies/venues')
+  .use([middleware.auth(), middleware.company()])
+
+router
+  .group(() => {
+    router.get('/', [controllers.Spaces, 'index']).openapi({
+      summary: 'List company spaces',
+      operationId: 'listCompanySpaces',
+      tags: ['Spaces'],
+      security: [{ bearer: [] }],
+    })
+    router.get('/:id', [controllers.Spaces, 'show']).openapi({
+      summary: 'Preview a company space',
+      operationId: 'getCompanySpace',
+      tags: ['Spaces'],
+      security: [{ bearer: [] }],
+    })
+    router
+      .post('/', [controllers.Spaces, 'store'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Create a draft space',
+        operationId: 'createSpace',
+        tags: ['Spaces'],
+        security: [{ bearer: [] }],
+        responses: {
+          201: { description: 'Draft space created' },
+          422: { description: 'Validation failed' },
+        },
+      })
+    router
+      .patch('/:id', [controllers.Spaces, 'update'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Update a draft or changes-requested space',
+        operationId: 'updateSpace',
+        tags: ['Spaces'],
+        security: [{ bearer: [] }],
+      })
+    router
+      .post('/:id/submissions', [controllers.Spaces, 'submit'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Submit a space for review',
+        operationId: 'submitSpace',
+        tags: ['Space moderation'],
+        security: [{ bearer: [] }],
+      })
+    router
+      .delete('/:id', [controllers.Spaces, 'destroy'])
+      .use(middleware.approvedCompany())
+      .openapi({
+        summary: 'Archive a space',
+        operationId: 'archiveSpace',
+        tags: ['Spaces'],
+        security: [{ bearer: [] }],
+        responses: { 204: { description: 'Space archived' } },
+      })
+  })
+  .prefix('/api/companies/spaces')
+  .use([middleware.auth(), middleware.company()])
+
+router.get('/api/space-catalog', [controllers.SpaceCatalog, 'index']).openapi({
+  summary: 'List controlled space categories and amenities',
+  operationId: 'getSpaceCatalog',
+  tags: ['Spaces'],
+  security: [],
+})
+router.get('/api/spaces/:id', [controllers.PublicSpaces, 'show']).openapi({
+  summary: 'Get a safely published space',
+  operationId: 'getPublicSpace',
+  tags: ['Spaces'],
+  security: [],
+  responses: {
+    200: { description: 'Published space' },
+    404: { description: 'Space unavailable or not published' },
+  },
+})
+
 // Admin Authentication Routes
 router
   .group(() => {
@@ -390,6 +506,13 @@ router
     // Bookings Management
     router.get('/bookings', [controllers.Admin, 'getBookings'])
     router.delete('/bookings/:id', [controllers.Admin, 'deleteBooking'])
+
+    router.get('/spaces', [controllers.AdminSpaces, 'index'])
+    router.get('/spaces/pending', [controllers.AdminSpaces, 'pending'])
+    router.get('/spaces/:id', [controllers.AdminSpaces, 'show'])
+    router.post('/spaces/:id/publish', [controllers.AdminSpaces, 'publish'])
+    router.post('/spaces/:id/request-changes', [controllers.AdminSpaces, 'requestChanges'])
+    router.post('/spaces/:id/suspend', [controllers.AdminSpaces, 'suspend'])
   })
   .prefix('/api/admin')
   .use([middleware.auth(), middleware.admin()])

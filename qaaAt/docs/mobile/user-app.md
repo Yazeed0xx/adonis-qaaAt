@@ -10,6 +10,18 @@ Read [README.md](./README.md) first for shared authentication, pagination, error
 
 Customer registration and login issue tokens with persisted `client:customer_app` context. Company-app and admin-app tokens are rejected from customer routes. A customer invited into a company keeps the same identity, password, and personal bookings, then signs into the company app separately for a company-scoped token.
 
+## Sprint 2 Space preview
+
+The current Hall discovery, Hall detail, availability, and booking APIs remain unchanged. Continue using them for production booking flows.
+
+Sprint 2 adds `GET /api/space-catalog` and safe read-by-ID preview at `GET /api/spaces/:id`. Broad Space discovery is deferred until Sprint 3 availability rules exist. The preview returns only a published Space from an approved company. A mapped legacy Hall is additionally hidden when its preserved `isAvailable` value is false.
+
+Localized `name` and `description` prefer Arabic, fall back to English, and finally use the verbatim legacy Hall value. `legacy_imported` media may contain historical Hall references; new arbitrary external media URLs are not accepted.
+
+Mapped legacy Venue previews preserve the Hall's free-form `location` as `legacyLocation`; clients must not interpret it as a normalized district.
+
+Do not create bookings from the new Space preview yet. `bookings.hall_id`, legacy pricing, and existing Hall availability remain authoritative during this compatibility phase.
+
 ## Product flow
 
 1. Register and store `data.token.token` securely.

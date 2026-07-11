@@ -15,6 +15,7 @@ import BookingTransformer from '#transformers/booking_transformer'
 import CompanyTransformer from '#transformers/company_transformer'
 import HallTransformer from '#transformers/hall_transformer'
 import UserTransformer from '#transformers/user_transformer'
+import { HallCompatibilityService } from '#services/hall_compatibility_service'
 
 export default class AdminController {
   /**
@@ -243,8 +244,7 @@ export default class AdminController {
     const admin = auth.getUserOrFail()
     const hall = await Hall.findOrFail(params.id)
 
-    hall.deletedAt = DateTime.now()
-    await hall.save()
+    await new HallCompatibilityService().archive(hall.id, hall.companyId)
 
     await adminAuditService.record({
       adminUserId: admin.id,

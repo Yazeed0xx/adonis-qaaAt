@@ -28,6 +28,29 @@ export class AdminAuditLogSchema extends BaseModel {
   declare targetType: string
 }
 
+export class AmenityDefinitionSchema extends BaseModel {
+  static $columns = ['createdAt', 'group', 'id', 'isActive', 'isSearchable', 'nameAr', 'nameEn', 'slug', 'updatedAt'] as const
+  $columns = AmenityDefinitionSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare group: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isActive: boolean
+  @column()
+  declare isSearchable: boolean
+  @column()
+  declare nameAr: string
+  @column()
+  declare nameEn: string
+  @column()
+  declare slug: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class AuthAccessTokenSchema extends BaseModel {
   static $columns = ['abilities', 'createdAt', 'expiresAt', 'hash', 'id', 'lastUsedAt', 'name', 'tokenableId', 'type', 'updatedAt'] as const
   $columns = AuthAccessTokenSchema.$columns
@@ -537,6 +560,212 @@ export class ServiceSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class SpaceAmenitySchema extends BaseModel {
+  static $columns = ['amenityDefinitionId', 'createdAt', 'id', 'spaceId'] as const
+  $columns = SpaceAmenitySchema.$columns
+  @column()
+  declare amenityDefinitionId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare spaceId: number
+}
+
+export class SpaceCategorySchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'isActive', 'nameAr', 'nameEn', 'slug', 'sortOrder', 'updatedAt'] as const
+  $columns = SpaceCategorySchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isActive: boolean
+  @column()
+  declare nameAr: string
+  @column()
+  declare nameEn: string
+  @column()
+  declare slug: string
+  @column()
+  declare sortOrder: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class SpaceEventDetailSchema extends BaseModel {
+  static $columns = ['createdAt', 'femaleCapacity', 'hasBridalRoom', 'hasSeparateEntrances', 'hasStage', 'maleCapacity', 'spaceId', 'updatedAt'] as const
+  $columns = SpaceEventDetailSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare femaleCapacity: number | null
+  @column()
+  declare hasBridalRoom: boolean | null
+  @column()
+  declare hasSeparateEntrances: boolean | null
+  @column()
+  declare hasStage: boolean | null
+  @column()
+  declare maleCapacity: number | null
+  @column({ isPrimary: true })
+  declare spaceId: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class SpaceLargeFormatDetailSchema extends BaseModel {
+  static $columns = ['ceilingHeightM', 'createdAt', 'floorAreaSqm', 'hasLoadingAccess', 'powerRequirement', 'spaceId', 'updatedAt', 'visitorCapacity'] as const
+  $columns = SpaceLargeFormatDetailSchema.$columns
+  @column()
+  declare ceilingHeightM: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare floorAreaSqm: string | null
+  @column()
+  declare hasLoadingAccess: boolean | null
+  @column()
+  declare powerRequirement: string | null
+  @column({ isPrimary: true })
+  declare spaceId: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare visitorCapacity: number | null
+}
+
+export class SpaceLayoutCapacitySchema extends BaseModel {
+  static $columns = ['capacity', 'createdAt', 'id', 'layout', 'spaceId', 'updatedAt'] as const
+  $columns = SpaceLayoutCapacitySchema.$columns
+  @column()
+  declare capacity: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare layout: string
+  @column()
+  declare spaceId: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class SpaceMediaSchema extends BaseModel {
+  static $columns = ['altTextAr', 'altTextEn', 'createdAt', 'id', 'isCover', 'legacyReference', 'mediaType', 'moderationStatus', 'provenance', 'sortOrder', 'spaceId', 'storageKey', 'updatedAt'] as const
+  $columns = SpaceMediaSchema.$columns
+  @column()
+  declare altTextAr: string | null
+  @column()
+  declare altTextEn: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isCover: boolean
+  @column()
+  declare legacyReference: string | null
+  @column()
+  declare mediaType: string
+  @column()
+  declare moderationStatus: string
+  @column()
+  declare provenance: string
+  @column()
+  declare sortOrder: number
+  @column()
+  declare spaceId: number
+  @column()
+  declare storageKey: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class SpaceModerationEventSchema extends BaseModel {
+  static $columns = ['action', 'actorUserId', 'companyId', 'createdAt', 'id', 'metadata', 'nextStatus', 'previousStatus', 'reason', 'spaceId'] as const
+  $columns = SpaceModerationEventSchema.$columns
+  @column()
+  declare action: string
+  @column()
+  declare actorUserId: number | null
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare metadata: any | null
+  @column()
+  declare nextStatus: string
+  @column()
+  declare previousStatus: string | null
+  @column()
+  declare reason: string | null
+  @column()
+  declare spaceId: number
+}
+
+export class SpaceSchema extends BaseModel {
+  static $columns = ['bookingMode', 'capacityTotal', 'categoryId', 'companyId', 'createdAt', 'deletedAt', 'descriptionAr', 'descriptionEn', 'id', 'instantBookApprovedAt', 'instantBookApprovedBy', 'legacyDescription', 'legacyHallId', 'legacyIsAvailable', 'legacyName', 'maximumDurationMinutes', 'minimumDurationMinutes', 'minimumNoticeHours', 'nameAr', 'nameEn', 'publicationStatus', 'publishedAt', 'publishedBy', 'requiresVisit', 'updatedAt', 'venueId'] as const
+  $columns = SpaceSchema.$columns
+  @column()
+  declare bookingMode: string
+  @column()
+  declare capacityTotal: number
+  @column()
+  declare categoryId: number
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column()
+  declare descriptionAr: string | null
+  @column()
+  declare descriptionEn: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare instantBookApprovedAt: DateTime | null
+  @column()
+  declare instantBookApprovedBy: number | null
+  @column()
+  declare legacyDescription: string | null
+  @column()
+  declare legacyHallId: number | null
+  @column()
+  declare legacyIsAvailable: boolean | null
+  @column()
+  declare legacyName: string | null
+  @column()
+  declare maximumDurationMinutes: number | null
+  @column()
+  declare minimumDurationMinutes: number | null
+  @column()
+  declare minimumNoticeHours: number | null
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string | null
+  @column()
+  declare publicationStatus: string
+  @column.dateTime()
+  declare publishedAt: DateTime | null
+  @column()
+  declare publishedBy: number | null
+  @column()
+  declare requiresVisit: boolean
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare venueId: number
+}
+
 export class UserProfileSchema extends BaseModel {
   static $columns = ['address', 'avatar', 'createdAt', 'deletedAt', 'firstName', 'id', 'lastName', 'phone', 'updatedAt', 'userId'] as const
   $columns = UserProfileSchema.$columns
@@ -587,4 +816,55 @@ export class UserSchema extends BaseModel {
   declare userName: string
   @column()
   declare userType: string
+}
+
+export class VenueSchema extends BaseModel {
+  static $columns = ['accessInstructionsAr', 'accessInstructionsEn', 'additionalNumber', 'buildingNumber', 'city', 'companyId', 'createdAt', 'deletedAt', 'district', 'id', 'latitude', 'legacyAddress', 'legacyLocation', 'legacyName', 'longitude', 'nameAr', 'nameEn', 'parkingNotesAr', 'parkingNotesEn', 'postalCode', 'street', 'updatedAt', 'verificationStatus'] as const
+  $columns = VenueSchema.$columns
+  @column()
+  declare accessInstructionsAr: string | null
+  @column()
+  declare accessInstructionsEn: string | null
+  @column()
+  declare additionalNumber: string | null
+  @column()
+  declare buildingNumber: string | null
+  @column()
+  declare city: string
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column()
+  declare district: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare latitude: string | null
+  @column()
+  declare legacyAddress: string | null
+  @column()
+  declare legacyLocation: string | null
+  @column()
+  declare legacyName: string | null
+  @column()
+  declare longitude: string | null
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string | null
+  @column()
+  declare parkingNotesAr: string | null
+  @column()
+  declare parkingNotesEn: string | null
+  @column()
+  declare postalCode: string | null
+  @column()
+  declare street: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare verificationStatus: string
 }

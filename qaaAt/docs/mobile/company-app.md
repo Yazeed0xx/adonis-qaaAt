@@ -24,6 +24,27 @@ Roles are `owner`, `manager`, `booking_staff`, `calendar_staff`, `accountant`, a
 
 Public/auth-assisted acceptance uses `GET /api/company-invitations/inspect?token=...` and `POST /api/company-invitations/accept`. The acceptance secret is never returned by create, resend, or list APIs; it is delivered only to the invited mailbox through the notification outbox. For a genuinely new identity, the one-time hashed and expiring mailbox-delivered secret proves control of the invited email, and the employee supplies `password` plus optional `name`. The server creates the account using the locked invitation email, never a caller-supplied email. Existing users must authenticate normally, and acceptance never changes an existing password.
 
+## Sprint 2 Venue and Space contract
+
+Venue and Space APIs are additive. Existing Hall screens remain supported and are still the write source for mapped legacy records.
+
+- `GET/POST /api/companies/venues`
+- `GET/PATCH /api/companies/venues/:id`
+- `GET/POST /api/companies/spaces`
+- `GET/PATCH/DELETE /api/companies/spaces/:id`
+- `POST /api/companies/spaces/:id/submissions`
+- `GET /api/space-catalog`
+
+Reads require `spaces.view`; writes require `spaces.manage` and an approved company. Every operation is scoped to the company selected by the company-app token.
+
+New Venue and Space names use `{ ar?, en? }` and require at least one value. Responses derive `name` deterministically as Arabic, then English, then the preserved verbatim legacy name. New Space writes never accept a separate compatibility name.
+
+Publication states are `draft`, `pending_review`, `changes_requested`, `published`, `suspended`, and `archived`. Providers edit `draft` or `changes_requested`, then resubmit. Editing a published non-legacy Space moves it directly to `pending_review` and hides it from public preview until an admin republishes it. Suspended and archived Spaces cannot be edited. Admins publish, request changes with a reason, suspend a published Space, or restore it. Providers cannot activate `instant_book`.
+
+Mapped legacy Spaces are read-only through the Space mutation APIs. Continue updating those records through `/api/companies/halls`; the backend synchronizes only name, description, capacity, free-form `location` into `legacyLocation`, address/city, `isAvailable`, known amenities, and legacy images in one transaction. Legacy `location` is not assumed to be a structured district. It does not synchronize pricing, booking states, or arbitrary fields.
+
+Media upload is not exposed in Sprint 2. Existing Hall image references appear as `legacy_imported` media. New media metadata requires a future controlled-storage upload workflow; arbitrary remote URLs are not accepted by Space APIs.
+
 ## Product flow
 
 1. Register with legal/business details and a scanned commercial-registration PDF.

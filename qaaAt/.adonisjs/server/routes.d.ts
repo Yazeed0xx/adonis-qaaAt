@@ -52,6 +52,18 @@ export type ScannedRoutes = {
     'hall.store': { paramsTuple?: []; params?: {} }
     'hall.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'hall.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'venues.index': { paramsTuple?: []; params?: {} }
+    'venues.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'venues.store': { paramsTuple?: []; params?: {} }
+    'venues.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'spaces.index': { paramsTuple?: []; params?: {} }
+    'spaces.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'spaces.store': { paramsTuple?: []; params?: {} }
+    'spaces.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'spaces.submit': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'spaces.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'space_catalog.index': { paramsTuple?: []; params?: {} }
+    'public_spaces.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_auth.login': { paramsTuple?: []; params?: {} }
     'admin_auth.me': { paramsTuple?: []; params?: {} }
     'admin_auth.logout': { paramsTuple?: []; params?: {} }
@@ -73,6 +85,12 @@ export type ScannedRoutes = {
     'admin.delete_hall': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.get_bookings': { paramsTuple?: []; params?: {} }
     'admin.delete_booking': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin_spaces.index': { paramsTuple?: []; params?: {} }
+    'admin_spaces.pending': { paramsTuple?: []; params?: {} }
+    'admin_spaces.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin_spaces.publish': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin_spaces.request_changes': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin_spaces.suspend': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'health_checks': { paramsTuple?: []; params?: {} }
     'health_checks.live': { paramsTuple?: []; params?: {} }
     'public_company_invitations.inspect': { paramsTuple?: []; params?: {} }
@@ -99,6 +117,12 @@ export type ScannedRoutes = {
     'company_booking.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'hall.index': { paramsTuple?: []; params?: {} }
     'hall.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'venues.index': { paramsTuple?: []; params?: {} }
+    'venues.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'spaces.index': { paramsTuple?: []; params?: {} }
+    'spaces.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'space_catalog.index': { paramsTuple?: []; params?: {} }
+    'public_spaces.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_auth.me': { paramsTuple?: []; params?: {} }
     'admin.get_statistics': { paramsTuple?: []; params?: {} }
     'admin.get_users': { paramsTuple?: []; params?: {} }
@@ -108,6 +132,9 @@ export type ScannedRoutes = {
     'admin.get_company': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.get_halls': { paramsTuple?: []; params?: {} }
     'admin.get_bookings': { paramsTuple?: []; params?: {} }
+    'admin_spaces.index': { paramsTuple?: []; params?: {} }
+    'admin_spaces.pending': { paramsTuple?: []; params?: {} }
+    'admin_spaces.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'health_checks': { paramsTuple?: []; params?: {} }
     'health_checks.live': { paramsTuple?: []; params?: {} }
     'public_company_invitations.inspect': { paramsTuple?: []; params?: {} }
@@ -133,6 +160,12 @@ export type ScannedRoutes = {
     'company_booking.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'hall.index': { paramsTuple?: []; params?: {} }
     'hall.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'venues.index': { paramsTuple?: []; params?: {} }
+    'venues.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'spaces.index': { paramsTuple?: []; params?: {} }
+    'spaces.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'space_catalog.index': { paramsTuple?: []; params?: {} }
+    'public_spaces.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_auth.me': { paramsTuple?: []; params?: {} }
     'admin.get_statistics': { paramsTuple?: []; params?: {} }
     'admin.get_users': { paramsTuple?: []; params?: {} }
@@ -142,6 +175,9 @@ export type ScannedRoutes = {
     'admin.get_company': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.get_halls': { paramsTuple?: []; params?: {} }
     'admin.get_bookings': { paramsTuple?: []; params?: {} }
+    'admin_spaces.index': { paramsTuple?: []; params?: {} }
+    'admin_spaces.pending': { paramsTuple?: []; params?: {} }
+    'admin_spaces.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'health_checks': { paramsTuple?: []; params?: {} }
     'health_checks.live': { paramsTuple?: []; params?: {} }
     'public_company_invitations.inspect': { paramsTuple?: []; params?: {} }
@@ -168,6 +204,9 @@ export type ScannedRoutes = {
     'company_booking.accept': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'company_booking.reject': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'hall.store': { paramsTuple?: []; params?: {} }
+    'venues.store': { paramsTuple?: []; params?: {} }
+    'spaces.store': { paramsTuple?: []; params?: {} }
+    'spaces.submit': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_auth.login': { paramsTuple?: []; params?: {} }
     'admin_auth.logout': { paramsTuple?: []; params?: {} }
     'admin.ban_user': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -178,6 +217,9 @@ export type ScannedRoutes = {
     'admin.reject_company': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.suspend_company': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.reactivate_company': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin_spaces.publish': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin_spaces.request_changes': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin_spaces.suspend': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'public_company_invitations.accept': { paramsTuple?: []; params?: {} }
   }
   DELETE: {
@@ -186,11 +228,14 @@ export type ScannedRoutes = {
     'company_invitations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'push_installations.destroy': { paramsTuple: [ParamValue]; params: {'installationId': ParamValue} }
     'hall.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'spaces.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.delete_hall': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.delete_booking': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PATCH: {
     'company_members.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'venues.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'spaces.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PUT: {
     'hall.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

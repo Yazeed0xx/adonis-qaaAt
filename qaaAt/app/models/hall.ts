@@ -4,6 +4,9 @@ import { DateTime } from 'luxon'
 import { HallSchema } from '#database/schema'
 import Company from '#models/company'
 import Booking from '#models/booking'
+import Space from '#models/space'
+import type { HasOne } from '@adonisjs/lucid/types/relations'
+import { hasOne } from '@adonisjs/lucid/orm'
 
 export default class Hall extends HallSchema {
   static publiclyVisible = scope((query) => {
@@ -66,4 +69,7 @@ export default class Hall extends HallSchema {
 
   @hasMany(() => Booking)
   declare bookings: HasMany<typeof Booking>
+
+  @hasOne(() => Space, { foreignKey: 'legacyHallId' })
+  declare mappedSpace: HasOne<typeof Space>
 }

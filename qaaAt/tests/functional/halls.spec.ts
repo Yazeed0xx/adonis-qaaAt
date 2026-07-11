@@ -4,9 +4,12 @@ import Hall from '#models/hall'
 import { CompanyFactory } from '#database/factories/company_factory'
 import { HallFactory } from '#database/factories/hall_factory'
 import { DateTime } from 'luxon'
+import db from '@adonisjs/lucid/services/db'
+import BackfillMigration from '#database/migrations/1770000000011_seed_catalogs_and_backfill_halls'
 
 test.group('Hall endpoints', (group) => {
   group.each.setup(() => testUtils.db().truncate())
+  group.each.setup(() => new BackfillMigration(db.connection(), import.meta.url).up())
 
   test('serve the Outloud OpenAPI 3.1 hall contract', async ({ client }) => {
     const response = await client.get('/openapi.json')

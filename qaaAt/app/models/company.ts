@@ -8,6 +8,8 @@ import Hall from '#models/hall'
 import Service from '#models/service'
 import CompanyMembership from '#models/company_membership'
 import CompanyInvitation from '#models/company_invitation'
+import Venue from '#models/venue'
+import Space from '#models/space'
 
 export default class Company extends CompanySchema {
   declare id: number
@@ -48,4 +50,10 @@ export default class Company extends CompanySchema {
 
   @hasMany(() => CompanyInvitation)
   declare invitations: HasMany<typeof CompanyInvitation>
+
+  @hasMany(() => Venue)
+  declare venues: HasMany<typeof Venue>
+
+  @hasMany(() => Space)
+  declare spaces: HasMany<typeof Space>
 }
