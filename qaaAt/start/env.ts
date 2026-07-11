@@ -75,6 +75,8 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   PRIVATE_STORAGE_PATH: Env.schema.string.optional(),
   OPENAPI_ENABLED: Env.schema.boolean.optional(),
+  PAYMENT_DRIVER: Env.schema.enum.optional(['fake'] as const),
+  FAKE_PAYMENT_WEBHOOK_SECRET: Env.schema.string.optional(),
 
   /*
   |----------------------------------------------------------

@@ -502,6 +502,7 @@ duplicated, or unavailable.
 - Preserve read-only hall access on pending/rejected screens, but hide hall mutations and all booking management until approval.
 - Treat nested booking relations as optional and refresh details after accept/reject when a complete object is required.
 - Do not expose company-profile editing, service CRUD, registration-PDF download, payment actions, or media upload until backend endpoints are added.
+
 # Sprint 4 request workflows
 
 - Use `GET /api/companies/booking-requests` as the unified provider inbox for both legacy Hall and new Space-only request-to-book records. `pending` means awaiting provider; `accepted` means approved and awaiting payment. Approval can return `409 INVENTORY_OVERLAP`, `AVAILABILITY_SCHEDULE_CONFLICT`, or `SPACE_NOT_APPROVABLE`; refresh the item and calendar instead of retrying blindly.
@@ -513,6 +514,7 @@ duplicated, or unavailable.
 - Configure response deadlines with `GET|PUT /api/companies/spaces/:spaceId/request-settings`. Null overrides inherit category defaults.
 - Present Arabic labels first with deterministic English fallback. Suggested labels: `pending` = `بانتظار رد المزود`, `accepted` = `مقبول - بانتظار الدفع`, inquiry `open` = `مفتوح`, visit `submitted` = `بانتظار التأكيد`.
 - Existing `/api/companies/bookings` and `/api/companies/bookings/pending` remain operational for legacy Hall screens during migration.
+
 # Sprint 5 pricing and quotes
 
 Company pricing uses integer SAR minor units represented as decimal strings in request and response JSON. Never parse monetary fields through JavaScript `Number`; use string/BigInt-safe client handling. Manage rate plans under `/api/companies/pricing/rate-plans`, priced options under `/pricing/service-options`, Space attachments under `/spaces/:spaceId/service-options`, and packages under `/pricing/packages`. Reads require `pricing.view`; mutations require `pricing.manage`.
@@ -522,3 +524,15 @@ Create quotes from eligible date inquiries with `POST /api/companies/quotes`. Qu
 Legacy Hall service strings remain descriptive compatibility data and are not priced service options.
 
 Every quote revision uses one VAT-inclusion display policy across all lines. Mixed source policies return `422 QUOTE_TAX_POLICY_MIXED`.
+
+## Sprint 6 company finance
+
+Members with effective `finance.view` may read `/api/companies/payments`, `/api/companies/refunds`, and `/api/companies/reconciliation`. `refunds.approve` manages cancellation-policy versions; `refunds.request` may call `/api/companies/bookings/:bookingId/paid-cancellation`. Active membership, tenant scope, role presets, and allow/deny overrides apply.
+
+Retry a failed Refund with `POST /api/companies/refunds/:id/retry` and `{ idempotencyKey }`. This requires effective `refunds.approve`; revoked memberships and deny overrides are rejected. Each retry adds a historical RefundAttempt to the same Refund. Same-key reuse returns the same attempt, conflicting reuse returns `PAYMENT_IDEMPOTENCY_CONFLICT`, and succeeded Refunds cannot be retried.
+
+Amounts are canonical minor-unit strings. `deposit` is distinct from `full_payment`, and remaining balance must stay visible. Do not build manual mark-paid/refunded controls: verified provider events own financial completion and Booking confirmation. Reconciliation is read-only evidence.
+
+Provider cancellation is explicitly full-refundable in this MVP. Customer refunds use the policy snapshot captured before payment. Historical Bookings do not change after policy edits. Receipt snapshots are not ZATCA tax invoices.
+
+Finance notifications fan out only to active members with effective `finance.view`, including deny overrides. Payment/refund failure and reconciliation events are durable operational notifications. Never expose raw webhook bodies, signatures, provider secrets, customer contact snapshots, or mutable receipt controls.

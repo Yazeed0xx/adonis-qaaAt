@@ -181,3 +181,4 @@ These are backend limitations, not undocumented mobile endpoints:
 - Hall image, logo, and banner fields accept strings/URLs; there is no media upload endpoint for them.
 
 Frontend teams should not invent calls for these capabilities. Add the backend routes first or hide the corresponding UI.
+Sprint 6 adds trusted-webhook payment confirmation. Both apps must use exact monetary strings and must never interpret checkout redirects or local UI completion as payment success. See the app-specific Sprint 6 sections and `docs/product/SPRINT_6_IMPLEMENTATION_NOTES_EN.md`.

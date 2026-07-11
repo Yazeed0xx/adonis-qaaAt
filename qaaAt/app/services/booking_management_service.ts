@@ -15,6 +15,7 @@ import bookingAuditService from '#services/booking_audit_service'
 import notificationOutboxService from '#services/notification_outbox_service'
 import inventoryService from '#services/inventory_service'
 import availabilityService from '#services/availability_service'
+import { resolvePermissions, type CompanyRole } from '#lib/company_permissions'
 
 interface CreateBookingData {
   hallId: number
@@ -33,6 +34,28 @@ interface TimeSlot {
 
 export class BookingManagementService {
   private static EXPIRY_DAYS = 7
+
+  private async financeRecipients(client: any, companyId: number) {
+    const members = await client
+      .from('company_memberships')
+      .where({ company_id: companyId, status: 'active' })
+    const overrides = members.length
+      ? await client.from('company_membership_permissions').whereIn(
+          'company_membership_id',
+          members.map((member: any) => member.id)
+        )
+      : []
+    return members
+      .filter((member: any) =>
+        resolvePermissions(
+          member.role as CompanyRole,
+          overrides
+            .filter((item: any) => item.company_membership_id === member.id)
+            .map((item: any) => ({ permission: item.permission, effect: item.effect }))
+        ).includes('finance.view')
+      )
+      .map((member: any) => member.user_id)
+  }
 
   /**
    * Create a new booking request
@@ -370,11 +393,26 @@ export class BookingManagementService {
         throw new BookingNotFoundException()
       }
 
+      const payment = await trx
+        .from('payments')
+        .where('booking_id', booking.id)
+        .orderBy('id')
+        .forUpdate()
+        .first()
+      if (payment)
+        await trx.from('payment_attempts').where('payment_id', payment.id).orderBy('id').forUpdate()
+      if (booking.status === 'confirmed' && payment?.status === 'paid')
+        throw new InvalidStateException(
+          'Paid bookings must use the refund-aware cancellation workflow',
+          'CANCELLATION_PAYMENT_FLOW_REQUIRED'
+        )
+
       const previousStatusForCancellation = booking.status
       bookingStatusService.assertTransition(booking.status, 'cancelled')
 
-      if (booking.status === 'accepted')
+      if (booking.status === 'accepted') {
         await inventoryService.releaseBookingHold(trx, booking.id, 'booking_cancelled', 'cancelled')
+      }
 
       booking.useTransaction(trx)
       booking.status = 'cancelled'
@@ -413,15 +451,29 @@ export class BookingManagementService {
         .whereNull('deletedAt')
         .forUpdate()
         .firstOrFail()
+      const payment = await trx
+        .from('payments')
+        .where('booking_id', booking.id)
+        .orderBy('id')
+        .forUpdate()
+        .first()
+      if (payment)
+        await trx.from('payment_attempts').where('payment_id', payment.id).orderBy('id').forUpdate()
+      if (booking.status === 'confirmed' && payment?.status === 'paid')
+        throw new InvalidStateException(
+          'Paid bookings must use the refund-aware cancellation workflow',
+          'CANCELLATION_PAYMENT_FLOW_REQUIRED'
+        )
       bookingStatusService.assertTransition(booking.status, 'cancelled')
       const previousStatus = booking.status
-      if (booking.status === 'accepted')
+      if (booking.status === 'accepted') {
         await inventoryService.releaseBookingHold(
           trx,
           booking.id,
           'provider_cancelled',
           'cancelled'
         )
+      }
       booking.useTransaction(trx)
       booking.status = 'cancelled'
       await booking.save()
@@ -582,6 +634,25 @@ export class BookingManagementService {
     let count = 0
     for (const candidate of candidates) {
       const expired = await db.transaction(async (trx) => {
+        const booking = await Booking.query({ client: trx })
+          .where('id', candidate.booking_id)
+          .preload('hall', (query) => query.preload('company'))
+          .forUpdate()
+          .skipLocked()
+          .first()
+        if (!booking) return false
+        const payment = await trx
+          .from('payments')
+          .where('booking_id', booking.id)
+          .orderBy('id')
+          .forUpdate()
+          .first()
+        if (payment)
+          await trx
+            .from('payment_attempts')
+            .where('payment_id', payment.id)
+            .orderBy('id')
+            .forUpdate()
         const hold = await trx
           .from('booking_holds')
           .where('id', candidate.id)
@@ -591,11 +662,6 @@ export class BookingManagementService {
           .skipLocked()
           .first()
         if (!hold) return false
-        const booking = await Booking.query({ client: trx })
-          .where('id', hold.booking_id)
-          .preload('hall', (query) => query.preload('company'))
-          .forUpdate()
-          .firstOrFail()
         await inventoryService.releaseBookingHold(
           trx,
           booking.id,
@@ -629,13 +695,7 @@ export class BookingManagementService {
             },
             trx
           )
-          const providerUserId = await trx
-            .from('companies')
-            .where('id', hold.company_id)
-            .select('user_id')
-            .first()
-            .then((row) => row?.user_id)
-          if (providerUserId)
+          for (const providerUserId of await this.financeRecipients(trx, hold.company_id))
             await notificationOutboxService.enqueue(
               {
                 userId: providerUserId,

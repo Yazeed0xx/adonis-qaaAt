@@ -16,7 +16,9 @@ export type BookingStatus =
   | 'completed'
   | 'expired'
   | 'payment_expired'
-export type PaymentStatus = 'unpaid' | 'paid' | 'refunded'
+  | 'partially_refunded'
+  | 'refunded'
+export type PaymentStatus = 'unpaid' | 'deposit_paid' | 'paid' | 'partially_refunded' | 'refunded'
 
 export default class Booking extends BookingSchema {
   /**

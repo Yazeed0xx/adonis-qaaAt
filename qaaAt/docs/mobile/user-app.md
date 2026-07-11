@@ -474,6 +474,7 @@ excluded from push payloads.
 - Treat nested transformer relations as optional.
 - Disable duplicate booking submissions while the first request is in flight; the backend also serializes same-hall/day creation and rejects overlaps.
 - Do not present payment, profile editing, password reset, or priced service selection until their backend endpoints exist.
+
 # Sprint 4 request workflows
 
 - For a published Space with `bookingMode=request_to_book`, submit to `POST /api/users/booking-requests`. Persist and reuse `idempotencyKey` for retries. Pending requests may overlap and do not reserve inventory.
@@ -486,8 +487,23 @@ excluded from push payloads.
 - New request lists/details are `/api/users/booking-requests`, `/api/users/date-inquiries`, and `/api/users/visit-requests`.
 - Keep existing Hall booking screens on `/api/users/bookings`; their envelope and actions remain compatible.
 - Render Arabic names/status text first, then English, then the deterministic compatibility name. Treat `409` version/availability responses as refreshable workflow conflicts and never imply that a pending request has reserved the date.
+
 # Sprint 5 pricing and quotes
 
 Public active pricing is available from `GET /api/spaces/:spaceId/pricing`; all money fields are integer halalas serialized as decimal strings and currency is `SAR`. Do not parse them through JavaScript `Number`. Active packages include ordered customer-safe contents with Arabic-first fallback. Customer quote endpoints are under `/api/users/quotes`. Only sent revision history is visible, and provider internal notes are never returned.
 
 Accept the current revision with `POST /api/users/quotes/:id/accept` and optionally send `revisionId` to detect stale revisions. Acceptance creates a temporary awaiting-payment hold but does not mark the Booking paid or confirmed. Decline with `POST /api/users/quotes/:id/decline`. Refresh after `QUOTE_REVISION_STALE`, `QUOTE_EXPIRED`, `INVENTORY_OVERLAP`, or `SPACE_NOT_APPROVABLE`.
+
+## Sprint 6 payment contract
+
+For an accepted Booking, call `GET /api/users/bookings/:bookingId/payable`. It returns authoritative `payableAmountMinor`, `bookingTotalMinor`, `remainingBalanceMinor`, SAR currency, purpose (`deposit` or `full_payment`), and cancellation policy. Monetary fields are decimal strings.
+
+Initiate with `POST /api/users/bookings/:bookingId/payments` and `{ idempotencyKey }`, then poll `GET /api/users/payments/:id`. Never treat checkout completion, redirects, deep links, or local UI state as payment proof. Only a trusted server webhook makes the Booking `confirmed`. Deposit payment preserves a non-zero remaining balance; Sprint 6 does not collect it automatically.
+
+Cancel an eligible confirmed Booking through `POST /api/users/bookings/:bookingId/paid-cancellation` with `reason` and `idempotencyKey`. Refund completion is asynchronous. `GET /api/users/payments/:id/receipt` becomes available only after trusted success and is not a ZATCA tax invoice.
+
+Development/test fake checkout uses `qaaat-fake://`; production clients must not depend on that scheme or expose mark-paid controls.
+
+Webhook completion can be delayed or replayed after checkout creation, so polling must tolerate `created`, `provider_pending`, and `unknown` without fabricating success. A `reconciliation_required` provider outcome is operational state, not customer-visible proof of payment. Receipt identity is display-only, excludes direct contact data, and remains immutable except for trusted refund totals/status.
+
+Read an owned Refund and its latest bounded safe attempt history with `GET /api/users/refunds/:id`. Refund amounts remain canonical minor-unit strings. Customers cannot trigger PSP refund retries.

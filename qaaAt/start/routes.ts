@@ -8,6 +8,7 @@
 */
 
 import router from '@adonisjs/core/services/router'
+import env from '#start/env'
 import { controllers } from '#generated/controllers'
 import {
   authThrottle,
@@ -16,6 +17,11 @@ import {
   resendVerificationThrottle,
 } from '#start/limiter'
 import { middleware } from './kernel.js'
+
+const UserPaymentsController = () => import('#controllers/user_payments_controller')
+const CompanyPaymentsController = () => import('#controllers/company_payments_controller')
+const AdminPaymentsController = () => import('#controllers/admin_payments_controller')
+const PaymentWebhooksController = () => import('#controllers/payment_webhooks_controller')
 
 router.get('/', async () => {
   return {
@@ -652,6 +658,94 @@ router
   })
   .prefix('/api/users')
   .use([middleware.auth(), middleware.userType(), middleware.verifiedEmail()])
+
+router
+  .group(() => {
+    router
+      .get('/bookings/:bookingId/payable', [UserPaymentsController, 'payable'])
+      .openapi({ summary: 'Read authoritative payable summary', tags: ['Payments'] })
+    router
+      .post('/bookings/:bookingId/payments', [UserPaymentsController, 'initiate'])
+      .openapi({ summary: 'Initiate an idempotent payment attempt', tags: ['Payments'] })
+    router
+      .post('/bookings/:bookingId/paid-cancellation', [UserPaymentsController, 'cancel'])
+      .openapi({ summary: 'Cancel a paid booking under its policy snapshot', tags: ['Payments'] })
+    router
+      .get('/payments', [UserPaymentsController, 'index'])
+      .openapi({ summary: 'List customer payments', tags: ['Payments'] })
+    router
+      .get('/payments/:id', [UserPaymentsController, 'show'])
+      .openapi({ summary: 'Read payment and latest attempt state', tags: ['Payments'] })
+    router
+      .get('/payments/:id/receipt', [UserPaymentsController, 'receipt'])
+      .openapi({ summary: 'Read trusted post-payment receipt summary', tags: ['Payments'] })
+    router
+      .get('/refunds/:id', [UserPaymentsController, 'refund'])
+      .openapi({ summary: 'Read owned refund and bounded attempt history', tags: ['Payments'] })
+  })
+  .prefix('/api/users')
+  .use([middleware.auth(), middleware.userType(), middleware.verifiedEmail()])
+
+router
+  .group(() => {
+    router
+      .get('/payments', [CompanyPaymentsController, 'index'])
+      .openapi({ summary: 'List company payments', tags: ['Company finance'] })
+    router
+      .get('/refunds', [CompanyPaymentsController, 'refunds'])
+      .openapi({ summary: 'List company refunds', tags: ['Company finance'] })
+    router
+      .post('/refunds/:id/retry', [CompanyPaymentsController, 'retryRefund'])
+      .openapi({ summary: 'Retry a failed refund attempt', tags: ['Company finance'] })
+    router
+      .get('/cancellation-policies', [CompanyPaymentsController, 'policies'])
+      .openapi({ summary: 'List cancellation policy versions', tags: ['Company finance'] })
+    router.post('/cancellation-policies', [CompanyPaymentsController, 'storePolicy']).openapi({
+      summary: 'Create and activate a cancellation policy version',
+      tags: ['Company finance'],
+    })
+    router
+      .post('/bookings/:bookingId/paid-cancellation', [CompanyPaymentsController, 'cancel'])
+      .openapi({ summary: 'Provider cancellation of a paid booking', tags: ['Company finance'] })
+    router
+      .get('/reconciliation', [CompanyPaymentsController, 'reconciliation'])
+      .openapi({ summary: 'Read tenant reconciliation exceptions', tags: ['Company finance'] })
+  })
+  .prefix('/api/companies')
+  .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
+
+router
+  .group(() => {
+    router
+      .get('/payments', [AdminPaymentsController, 'index'])
+      .openapi({ summary: 'Audit payments', tags: ['Admin finance'] })
+    router
+      .get('/payment-attempts', [AdminPaymentsController, 'attempts'])
+      .openapi({ summary: 'Audit payment attempts', tags: ['Admin finance'] })
+    router
+      .get('/payment-webhooks', [AdminPaymentsController, 'webhooks'])
+      .openapi({ summary: 'Audit bounded webhook processing metadata', tags: ['Admin finance'] })
+    router
+      .get('/refunds', [AdminPaymentsController, 'refunds'])
+      .openapi({ summary: 'Audit refunds', tags: ['Admin finance'] })
+    router
+      .get('/reconciliation', [AdminPaymentsController, 'reconciliation'])
+      .openapi({ summary: 'Audit reconciliation mismatches', tags: ['Admin finance'] })
+  })
+  .prefix('/api/admin/finance')
+  .use([middleware.auth(), middleware.admin()])
+
+if (env.get('NODE_ENV') !== 'production' && env.get('PAYMENT_DRIVER') === 'fake') {
+  router.post('/api/payment-webhooks/fake', [PaymentWebhooksController, 'fake']).openapi({
+    summary: 'Verified fake-provider webhook (development and test only)',
+    tags: ['Payment webhooks'],
+    security: [],
+    responses: {
+      200: { description: 'Event acknowledged' },
+      401: { description: 'Invalid signature' },
+    },
+  })
+}
 
 router
   .group(() => {

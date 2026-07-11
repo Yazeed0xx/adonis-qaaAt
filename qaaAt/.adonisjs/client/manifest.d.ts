@@ -11,5 +11,6 @@
 /// <reference path="../../config/logger.ts" />
 /// <reference path="../../config/mail.ts" />
 /// <reference path="../../config/openapi.ts" />
+/// <reference path="../../config/payment.ts" />
 /// <reference path="../../config/push.ts" />
 /// <reference path="../../config/queue.ts" />

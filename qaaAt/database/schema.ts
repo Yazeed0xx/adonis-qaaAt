@@ -130,6 +130,35 @@ export class BookingAuditLogSchema extends BaseModel {
   declare reason: string | null
 }
 
+export class BookingCancellationIdempotencySchema extends BaseModel {
+  static $columns = ['actorScope', 'actorUserId', 'bookingId', 'companyId', 'createdAt', 'id', 'idempotencyKey', 'paymentId', 'refundId', 'refundableAmountMinor', 'requestFingerprint', 'resultSnapshot'] as const
+  $columns = BookingCancellationIdempotencySchema.$columns
+  @column()
+  declare actorScope: string
+  @column()
+  declare actorUserId: number
+  @column()
+  declare bookingId: number
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare idempotencyKey: string
+  @column()
+  declare paymentId: bigint | number
+  @column()
+  declare refundId: bigint | number | null
+  @column()
+  declare refundableAmountMinor: bigint | number
+  @column()
+  declare requestFingerprint: string
+  @column()
+  declare resultSnapshot: any
+}
+
 export class BookingHoldSchema extends BaseModel {
   static $columns = ['bookingId', 'companyId', 'createdAt', 'endsAt', 'expiresAt', 'id', 'purpose', 'releaseReason', 'releasedAt', 'spaceId', 'startsAt', 'status', 'updatedAt'] as const
   $columns = BookingHoldSchema.$columns
@@ -178,6 +207,27 @@ export class BookingInventoryMigrationReportSchema extends BaseModel {
   declare statusCounts: any
 }
 
+export class BookingInvoiceSnapshotSchema extends BaseModel {
+  static $columns = ['amountRefundedMinor', 'bookingId', 'createdAt', 'id', 'paymentId', 'snapshot', 'status', 'updatedAt'] as const
+  $columns = BookingInvoiceSnapshotSchema.$columns
+  @column()
+  declare amountRefundedMinor: bigint | number
+  @column()
+  declare bookingId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare paymentId: bigint | number
+  @column()
+  declare snapshot: any
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class BookingServiceSchema extends BaseModel {
   static $columns = ['bookingId', 'createdAt', 'id', 'priceAtBooking', 'serviceId', 'updatedAt'] as const
   $columns = BookingServiceSchema.$columns
@@ -196,7 +246,7 @@ export class BookingServiceSchema extends BaseModel {
 }
 
 export class BookingSchema extends BaseModel {
-  static $columns = ['acceptedQuoteId', 'acceptedQuoteRevisionId', 'acceptedTotalMinor', 'attendance', 'bookingDate', 'categoryRequirements', 'categorySlugSnapshot', 'companyId', 'companyRespondedAt', 'contactPreference', 'createdAt', 'customerEmailSnapshot', 'customerNameSnapshot', 'customerPhoneSnapshot', 'deletedAt', 'endTime', 'endsAt', 'eventType', 'expiresAt', 'hallId', 'id', 'lockVersion', 'originalEndLocal', 'originalStartLocal', 'originalTimezone', 'paymentDueDate', 'paymentStatus', 'rejectionReason', 'requestReference', 'requestSource', 'requirementsSchemaVersion', 'responseExpiresAt', 'sessionCode', 'spaceId', 'spaceNameSnapshotAr', 'spaceNameSnapshotEn', 'specialRequests', 'startTime', 'startsAt', 'status', 'submittedAt', 'totalPrice', 'updatedAt', 'userId', 'venueId', 'venueNameSnapshotAr', 'venueNameSnapshotEn'] as const
+  static $columns = ['acceptedQuoteId', 'acceptedQuoteRevisionId', 'acceptedTotalMinor', 'attendance', 'bookingDate', 'cancellationPolicySnapshot', 'cancellationPolicyVersionId', 'cancelledAt', 'categoryRequirements', 'categorySlugSnapshot', 'companyId', 'companyRespondedAt', 'confirmedAt', 'contactPreference', 'createdAt', 'customerEmailSnapshot', 'customerNameSnapshot', 'customerPhoneSnapshot', 'deletedAt', 'endTime', 'endsAt', 'eventType', 'expiresAt', 'hallId', 'id', 'lockVersion', 'originalEndLocal', 'originalStartLocal', 'originalTimezone', 'paidTotalMinor', 'paymentDueDate', 'paymentStatus', 'rejectionReason', 'remainingTotalMinor', 'requestReference', 'requestSource', 'requirementsSchemaVersion', 'responseExpiresAt', 'sessionCode', 'spaceId', 'spaceNameSnapshotAr', 'spaceNameSnapshotEn', 'specialRequests', 'startTime', 'startsAt', 'status', 'submittedAt', 'totalPrice', 'updatedAt', 'userId', 'venueId', 'venueNameSnapshotAr', 'venueNameSnapshotEn'] as const
   $columns = BookingSchema.$columns
   @column()
   declare acceptedQuoteId: number | null
@@ -209,6 +259,12 @@ export class BookingSchema extends BaseModel {
   @column.date()
   declare bookingDate: DateTime
   @column()
+  declare cancellationPolicySnapshot: any | null
+  @column()
+  declare cancellationPolicyVersionId: number | null
+  @column.dateTime()
+  declare cancelledAt: DateTime | null
+  @column()
   declare categoryRequirements: any | null
   @column()
   declare categorySlugSnapshot: string | null
@@ -216,6 +272,8 @@ export class BookingSchema extends BaseModel {
   declare companyId: number | null
   @column.dateTime()
   declare companyRespondedAt: DateTime | null
+  @column.dateTime()
+  declare confirmedAt: DateTime | null
   @column()
   declare contactPreference: string
   @column.dateTime({ autoCreate: true })
@@ -248,12 +306,16 @@ export class BookingSchema extends BaseModel {
   declare originalStartLocal: string | null
   @column()
   declare originalTimezone: string | null
+  @column()
+  declare paidTotalMinor: bigint | number
   @column.dateTime()
   declare paymentDueDate: DateTime | null
   @column()
   declare paymentStatus: string
   @column()
   declare rejectionReason: string | null
+  @column()
+  declare remainingTotalMinor: bigint | number | null
   @column()
   declare requestReference: string | null
   @column()
@@ -292,6 +354,31 @@ export class BookingSchema extends BaseModel {
   declare venueNameSnapshotAr: string | null
   @column()
   declare venueNameSnapshotEn: string | null
+}
+
+export class CancellationPolicySchema extends BaseModel {
+  static $columns = ['archivedAt', 'companyId', 'createdAt', 'createdByMembershipId', 'depositNonRefundable', 'id', 'isActive', 'name', 'tiers', 'version'] as const
+  $columns = CancellationPolicySchema.$columns
+  @column.dateTime()
+  declare archivedAt: DateTime | null
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdByMembershipId: number
+  @column()
+  declare depositNonRefundable: boolean
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isActive: boolean
+  @column()
+  declare name: string
+  @column()
+  declare tiers: any
+  @column()
+  declare version: number
 }
 
 export class CategoryRequestResponsePolicySchema extends BaseModel {
@@ -707,6 +794,154 @@ export class PackageSchema extends BaseModel {
   declare vatRateBps: number
 }
 
+export class PaymentAttemptSchema extends BaseModel {
+  static $columns = ['cancelledAt', 'checkoutUrl', 'currency', 'failedAt', 'failureCode', 'failureMessage', 'id', 'idempotencyKey', 'initiatedAt', 'paymentId', 'provider', 'providerAttemptReference', 'providerPaymentReference', 'reference', 'requestFingerprint', 'requestedAmountMinor', 'status', 'succeededAt', 'updatedAt', 'userId'] as const
+  $columns = PaymentAttemptSchema.$columns
+  @column.dateTime()
+  declare cancelledAt: DateTime | null
+  @column()
+  declare checkoutUrl: string | null
+  @column()
+  declare currency: string
+  @column.dateTime()
+  declare failedAt: DateTime | null
+  @column()
+  declare failureCode: string | null
+  @column()
+  declare failureMessage: string | null
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare idempotencyKey: string
+  @column.dateTime()
+  declare initiatedAt: DateTime
+  @column()
+  declare paymentId: bigint | number
+  @column()
+  declare provider: string
+  @column()
+  declare providerAttemptReference: string | null
+  @column()
+  declare providerPaymentReference: string | null
+  @column()
+  declare reference: string
+  @column()
+  declare requestFingerprint: string
+  @column()
+  declare requestedAmountMinor: bigint | number
+  @column()
+  declare status: string
+  @column.dateTime()
+  declare succeededAt: DateTime | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+}
+
+export class PaymentEventSchema extends BaseModel {
+  static $columns = ['action', 'actorUserId', 'bookingId', 'companyId', 'createdAt', 'id', 'metadata', 'paymentId', 'refundId'] as const
+  $columns = PaymentEventSchema.$columns
+  @column()
+  declare action: string
+  @column()
+  declare actorUserId: number | null
+  @column()
+  declare bookingId: number | null
+  @column()
+  declare companyId: number | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare metadata: any | null
+  @column()
+  declare paymentId: bigint | number | null
+  @column()
+  declare refundId: bigint | number | null
+}
+
+export class PaymentWebhookEventSchema extends BaseModel {
+  static $columns = ['eventType', 'failureReason', 'id', 'internalCorrelationReference', 'lastProcessingAttemptAt', 'outcome', 'payloadHash', 'processedAt', 'processingAttempts', 'provider', 'providerEventId', 'providerObjectReference', 'receivedAt', 'safePayload', 'signatureVerified'] as const
+  $columns = PaymentWebhookEventSchema.$columns
+  @column()
+  declare eventType: string | null
+  @column()
+  declare failureReason: string | null
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare internalCorrelationReference: string | null
+  @column.dateTime()
+  declare lastProcessingAttemptAt: DateTime | null
+  @column()
+  declare outcome: string
+  @column()
+  declare payloadHash: string
+  @column.dateTime()
+  declare processedAt: DateTime | null
+  @column()
+  declare processingAttempts: number
+  @column()
+  declare provider: string
+  @column()
+  declare providerEventId: string
+  @column()
+  declare providerObjectReference: string | null
+  @column.dateTime()
+  declare receivedAt: DateTime
+  @column()
+  declare safePayload: any | null
+  @column()
+  declare signatureVerified: boolean
+}
+
+export class PaymentSchema extends BaseModel {
+  static $columns = ['amountPaidMinor', 'amountRefundedMinor', 'bookingId', 'bookingTotalMinor', 'companyId', 'createdAt', 'currency', 'expectedAmountMinor', 'id', 'latestSuccessfulAttemptId', 'paidAt', 'provider', 'purpose', 'quoteId', 'quoteRevisionId', 'reference', 'remainingBalanceMinor', 'status', 'updatedAt', 'userId'] as const
+  $columns = PaymentSchema.$columns
+  @column()
+  declare amountPaidMinor: bigint | number
+  @column()
+  declare amountRefundedMinor: bigint | number
+  @column()
+  declare bookingId: number
+  @column()
+  declare bookingTotalMinor: bigint | number
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column()
+  declare expectedAmountMinor: bigint | number
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare latestSuccessfulAttemptId: bigint | number | null
+  @column.dateTime()
+  declare paidAt: DateTime | null
+  @column()
+  declare provider: string
+  @column()
+  declare purpose: string
+  @column()
+  declare quoteId: number | null
+  @column()
+  declare quoteRevisionId: number | null
+  @column()
+  declare reference: string
+  @column()
+  declare remainingBalanceMinor: bigint | number
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+}
+
 export class PushDeliverySchema extends BaseModel {
   static $columns = ['attempts', 'createdAt', 'expoTicketId', 'id', 'lastErrorCode', 'lastErrorMessage', 'nextAttemptAt', 'notificationId', 'processingStartedAt', 'providerAcceptedAt', 'pushInstallationId', 'receiptCheckedAt', 'sentAt', 'status', 'updatedAt'] as const
   $columns = PushDeliverySchema.$columns
@@ -1067,6 +1302,117 @@ export class RatePlanSchema extends BaseModel {
   declare updatedAt: DateTime | null
   @column()
   declare vatRateBps: number
+}
+
+export class ReconciliationRecordSchema extends BaseModel {
+  static $columns = ['companyId', 'createdAt', 'expectedAmountMinor', 'expectedCurrency', 'id', 'internalStatus', 'lastCheckedAt', 'paymentId', 'provider', 'providerReference', 'providerStatus', 'reportedAmountMinor', 'reportedCurrency', 'resolutionReason', 'resolvedAt', 'result'] as const
+  $columns = ReconciliationRecordSchema.$columns
+  @column()
+  declare companyId: number | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare expectedAmountMinor: bigint | number | null
+  @column()
+  declare expectedCurrency: string | null
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare internalStatus: string | null
+  @column.dateTime()
+  declare lastCheckedAt: DateTime
+  @column()
+  declare paymentId: bigint | number | null
+  @column()
+  declare provider: string
+  @column()
+  declare providerReference: string
+  @column()
+  declare providerStatus: string | null
+  @column()
+  declare reportedAmountMinor: bigint | number | null
+  @column()
+  declare reportedCurrency: string | null
+  @column()
+  declare resolutionReason: string | null
+  @column.dateTime()
+  declare resolvedAt: DateTime | null
+  @column()
+  declare result: string
+}
+
+export class RefundAttemptSchema extends BaseModel {
+  static $columns = ['createdAt', 'currency', 'failureCode', 'failureMessage', 'id', 'idempotencyKey', 'processedAt', 'provider', 'providerRefundReference', 'reference', 'refundId', 'requestFingerprint', 'requestedAmountMinor', 'status', 'updatedAt'] as const
+  $columns = RefundAttemptSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column()
+  declare failureCode: string | null
+  @column()
+  declare failureMessage: string | null
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare idempotencyKey: string
+  @column.dateTime()
+  declare processedAt: DateTime | null
+  @column()
+  declare provider: string
+  @column()
+  declare providerRefundReference: string | null
+  @column()
+  declare reference: string
+  @column()
+  declare refundId: bigint | number
+  @column()
+  declare requestFingerprint: string
+  @column()
+  declare requestedAmountMinor: bigint | number
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class RefundSchema extends BaseModel {
+  static $columns = ['actorUserId', 'approvedAmountMinor', 'bookingId', 'companyId', 'createdAt', 'currency', 'id', 'idempotencyKey', 'paymentId', 'processedAt', 'providerRefundReference', 'reason', 'reference', 'requestedAmountMinor', 'sourceCancellationEvent', 'status', 'userId'] as const
+  $columns = RefundSchema.$columns
+  @column()
+  declare actorUserId: number | null
+  @column()
+  declare approvedAmountMinor: bigint | number
+  @column()
+  declare bookingId: number
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare idempotencyKey: string
+  @column()
+  declare paymentId: bigint | number
+  @column.dateTime()
+  declare processedAt: DateTime | null
+  @column()
+  declare providerRefundReference: string | null
+  @column()
+  declare reason: string
+  @column()
+  declare reference: string
+  @column()
+  declare requestedAmountMinor: bigint | number
+  @column()
+  declare sourceCancellationEvent: string
+  @column()
+  declare status: string
+  @column()
+  declare userId: number
 }
 
 export class RequestIdempotencyKeySchema extends BaseModel {

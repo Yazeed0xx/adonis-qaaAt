@@ -6,6 +6,7 @@ export type BookingAuditAction =
   | 'booking.reject'
   | 'booking.payment_expired'
   | 'booking.cancel'
+  | 'booking.confirm'
 
 interface BookingAuditEntry {
   actorUserId: number | null

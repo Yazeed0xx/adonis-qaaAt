@@ -37,6 +37,13 @@ export type NotificationType =
   | 'quote_declined'
   | 'quote_withdrawn'
   | 'quote_expired'
+  | 'payment_initiated'
+  | 'payment_succeeded'
+  | 'payment_failed'
+  | 'refund_requested'
+  | 'refund_succeeded'
+  | 'refund_failed'
+  | 'reconciliation_required'
 
 export interface NotificationData {
   userId?: number

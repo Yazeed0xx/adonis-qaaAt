@@ -1,9 +1,8 @@
+/* eslint-disable @unicorn/no-await-expression-member */
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
-import app from '@adonisjs/core/services/app'
-import { MigrationRunner } from '@adonisjs/lucid/migration'
 import CompanyMembership from '#models/company_membership'
 import { UserFactory } from '#database/factories/user_factory'
 import { CompanyFactory } from '#database/factories/company_factory'
@@ -14,6 +13,10 @@ import calendar from '#services/company_calendar_service'
 import availability from '#services/availability_service'
 import availabilityPolicy from '#services/availability_policy_service'
 import BackfillMigration from '#database/migrations/1770000000011_seed_catalogs_and_backfill_halls'
+import AvailabilityMigration from '#database/migrations/1770000000020_create_availability_and_inventory'
+import RequestsMigration from '#database/migrations/1770000000030_create_requests_inquiries_and_visits'
+import PricingMigration from '#database/migrations/1770000000040_create_pricing_and_quotes'
+import PaymentsMigration from '#database/migrations/1770000000050_create_payments_and_refunds'
 
 async function setupCompanyHall() {
   await new BackfillMigration(db.connection(), import.meta.url).up()
@@ -724,7 +727,7 @@ test.group('Sprint 3 availability and inventory', (group) => {
     removedException.assertStatus(204)
   })
 
-  test('Sprint 3 rollback maps payment_expired to expired before restoring the old constraint', async ({
+  test('Sprint 3 rollback maps payment_expired to expired without migration step counts', async ({
     assert,
   }) => {
     const { hall } = await setupCompanyHall()
@@ -735,26 +738,24 @@ test.group('Sprint 3 availability and inventory', (group) => {
       status: 'payment_expired',
     }).create()
     let rolledBack = false
-    let restoreError: Error | null = null
     try {
-      const rollback = new MigrationRunner(db, app, {
-        direction: 'down',
-        step: 3,
-        disableLocks: true,
-      })
-      await rollback.run()
-      if (rollback.error) throw rollback.error
+      await new PaymentsMigration(db.connection(), import.meta.url).execDown()
+      await new PricingMigration(db.connection(), import.meta.url).execDown()
+      await new RequestsMigration(db.connection(), import.meta.url).execDown()
+      await new AvailabilityMigration(db.connection(), import.meta.url).execDown()
       rolledBack = true
-      const row = await db.from('bookings').where('id', booking.id).firstOrFail()
-      assert.equal(row.status, 'expired')
+      assert.equal(
+        (await db.from('bookings').where('id', booking.id).firstOrFail()).status,
+        'expired'
+      )
     } finally {
       if (rolledBack) {
-        const migrate = new MigrationRunner(db, app, { direction: 'up', disableLocks: true })
-        await migrate.run()
-        restoreError = migrate.error
+        await new AvailabilityMigration(db.connection(), import.meta.url).execUp()
+        await new RequestsMigration(db.connection(), import.meta.url).execUp()
+        await new PricingMigration(db.connection(), import.meta.url).execUp()
+        await new PaymentsMigration(db.connection(), import.meta.url).execUp()
       }
     }
-    if (restoreError) throw restoreError
   })
 })
 

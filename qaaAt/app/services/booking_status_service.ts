@@ -9,16 +9,20 @@ export type BookingStatus =
   | 'expired'
   | 'completed'
   | 'payment_expired'
+  | 'partially_refunded'
+  | 'refunded'
 
 const ALLOWED_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   pending: ['accepted', 'rejected', 'cancelled', 'expired'],
   accepted: ['confirmed', 'cancelled', 'payment_expired'],
-  confirmed: ['completed'],
+  confirmed: ['completed', 'cancelled', 'partially_refunded', 'refunded'],
   rejected: [],
   cancelled: [],
   expired: [],
   completed: [],
   payment_expired: [],
+  partially_refunded: ['refunded'],
+  refunded: [],
 }
 
 export class BookingStatusService {
