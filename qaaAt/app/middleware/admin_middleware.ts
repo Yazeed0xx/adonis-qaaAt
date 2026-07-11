@@ -10,7 +10,7 @@ export default class AdminMiddleware {
 
     const user = ctx.auth.getUserOrFail()
 
-    if (user.userType !== 'admin') {
+    if (user.userType !== 'admin' || !user.currentAccessToken?.allows('client:admin_app')) {
       return ctx.response.forbidden({
         message: 'Access denied. Admin privileges required.',
       })

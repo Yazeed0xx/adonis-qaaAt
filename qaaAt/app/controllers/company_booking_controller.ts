@@ -1,39 +1,27 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import BookingNotFoundException from '#exceptions/booking_not_found_exception'
-import Company from '#models/company'
 import bookingManagementService from '#services/booking_management_service'
 import { rejectBookingValidator } from '#validators/booking_validator'
 import Booking from '#models/booking'
 import BookingTransformer from '#transformers/booking_transformer'
-import CompanyNotFoundException from '#exceptions/company_not_found_exception'
+import companyContextService from '#services/company_context_service'
 
 export default class CompanyBookingController {
   /**
    * Get company's company from user
    */
-  private async getCompany(userId: number): Promise<Company> {
-    const company = await Company.query().where('userId', userId).whereNull('deletedAt').first()
-    if (!company) {
-      throw new CompanyNotFoundException()
-    }
-    return company
-  }
-
   /**
    * List all bookings for company's halls
    */
-  async index({ auth, request, serialize }: HttpContext) {
-    await auth.check()
-    const user = auth.getUserOrFail()
-
-    const company = await this.getCompany(user.id)
+  async index({ companyContext, request, serialize }: HttpContext) {
+    companyContextService.requirePermission(companyContext, 'bookings.view')
 
     const page = Math.max(1, Number(request.input('page', 1)) || 1)
     const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
     const status = request.input('status')
 
     const bookings = await bookingManagementService.getCompanyBookings(
-      company.id,
+      companyContext.companyId,
       page,
       limit,
       status
@@ -45,17 +33,14 @@ export default class CompanyBookingController {
   /**
    * List pending bookings that need response
    */
-  async pending({ auth, request, serialize }: HttpContext) {
-    await auth.check()
-    const user = auth.getUserOrFail()
-
-    const company = await this.getCompany(user.id)
+  async pending({ companyContext, request, serialize }: HttpContext) {
+    companyContextService.requirePermission(companyContext, 'booking_requests.view')
 
     const page = Math.max(1, Number(request.input('page', 1)) || 1)
     const limit = Math.min(100, Math.max(1, Number(request.input('limit', 20)) || 20))
 
     const bookings = await bookingManagementService.getPendingCompanyBookings(
-      company.id,
+      companyContext.companyId,
       page,
       limit
     )
@@ -66,17 +51,14 @@ export default class CompanyBookingController {
   /**
    * Get a single booking
    */
-  async show({ auth, params, serialize }: HttpContext) {
-    await auth.check()
-    const user = auth.getUserOrFail()
-
-    const company = await this.getCompany(user.id)
+  async show({ companyContext, params, serialize }: HttpContext) {
+    companyContextService.requirePermission(companyContext, 'bookings.view')
 
     const booking = await Booking.query()
       .where('id', params.id)
       .whereNull('deletedAt')
       .whereHas('hall', (query) => {
-        query.where('companyId', company.id)
+        query.where('companyId', companyContext.companyId)
       })
       .preload('hall')
       .preload('user', (query) => {
@@ -95,13 +77,16 @@ export default class CompanyBookingController {
   /**
    * Accept a booking
    */
-  async accept({ auth, params, response, serialize }: HttpContext) {
+  async accept({ auth, companyContext, params, response, serialize }: HttpContext) {
+    companyContextService.requirePermission(companyContext, 'booking_requests.manage')
     await auth.check()
     const user = auth.getUserOrFail()
 
-    const company = await this.getCompany(user.id)
-
-    const booking = await bookingManagementService.acceptBooking(params.id, company.id, user.id)
+    const booking = await bookingManagementService.acceptBooking(
+      params.id,
+      companyContext.companyId,
+      user.id
+    )
 
     return response.ok({
       message:
@@ -113,17 +98,16 @@ export default class CompanyBookingController {
   /**
    * Reject a booking
    */
-  async reject({ auth, params, request, response, serialize }: HttpContext) {
+  async reject({ auth, companyContext, params, request, response, serialize }: HttpContext) {
+    companyContextService.requirePermission(companyContext, 'booking_requests.manage')
     await auth.check()
     const user = auth.getUserOrFail()
 
     const payload = await request.validateUsing(rejectBookingValidator)
 
-    const company = await this.getCompany(user.id)
-
     const booking = await bookingManagementService.rejectBooking(
       params.id,
-      company.id,
+      companyContext.companyId,
       user.id,
       payload.reason
     )

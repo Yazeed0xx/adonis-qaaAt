@@ -57,11 +57,13 @@ export class NotificationOutboxService {
             .first()
           if (!current) return
 
-          const notification = await notificationService.persist(
-            { ...row.payload, outboxId: row.id },
-            trx
-          )
-          await pushFanoutService.createDeliveries(notification.id, row.payload.userId, trx)
+          if (row.payload.userId) {
+            const notification = await notificationService.persist(
+              { ...row.payload, outboxId: row.id },
+              trx
+            )
+            await pushFanoutService.createDeliveries(notification.id, row.payload.userId, trx)
+          }
           await trx.from('notification_outbox').where('id', row.id).update({
             processed_at: DateTime.now().toSQL(),
             processing_started_at: null,

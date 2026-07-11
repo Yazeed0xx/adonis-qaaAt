@@ -10,6 +10,13 @@ import db from '@adonisjs/lucid/services/db'
 import { randomUUID } from 'node:crypto'
 import drive from '@adonisjs/drive/services/main'
 import pdfSecurityService from '#services/pdf_security_service'
+import CompanyMembership from '#models/company_membership'
+import CompanyMembershipException from '#exceptions/company_membership_exception'
+import {
+  resolvePermissions,
+  type CompanyPermission,
+  type CompanyRole,
+} from '#lib/company_permissions'
 
 export default class CompanyAuthController {
   /**
@@ -54,6 +61,17 @@ export default class CompanyAuthController {
         { client: trx }
       )
 
+      await CompanyMembership.create(
+        {
+          companyId: company.id,
+          userId: user.id,
+          role: 'owner',
+          status: 'active',
+          joinedAt: company.createdAt,
+        },
+        { client: trx }
+      )
+
       await CompanyProfile.create(
         {
           userId: user.id,
@@ -83,7 +101,10 @@ export default class CompanyAuthController {
     company = await Company.findOrFail(company.id)
 
     // Generate access token
-    const token = await User.accessTokens.create(user)
+    const token = await User.accessTokens.create(user, [
+      'client:company_app',
+      `company:${company.id}`,
+    ])
 
     return response.created({
       message: 'Company registered successfully. Your account is pending admin approval.',
@@ -111,7 +132,7 @@ export default class CompanyAuthController {
    * Login company
    */
   async login({ request, response }: HttpContext) {
-    const { email, password } = await request.validateUsing(companyLoginValidator)
+    const { email, password, companyId } = await request.validateUsing(companyLoginValidator)
 
     let user: User
     try {
@@ -120,30 +141,53 @@ export default class CompanyAuthController {
       throw new InvalidCredentialsException()
     }
 
-    if (user.userType !== 'company' || user.deletedAt) {
+    if (user.deletedAt) {
       throw new InvalidCredentialsException()
     }
 
-    // Load company and profile
-    await user.load('company', (query) => {
-      query.preload('companyProfile')
-    })
-
-    if (!user.company || user.company.status === 'suspended') {
+    let memberships = await CompanyMembership.query()
+      .where('userId', user.id)
+      .where('status', 'active')
+      .whereHas('company', (query) => query.whereNull('deletedAt').whereNot('status', 'suspended'))
+      .preload('company', (query) => query.preload('companyProfile'))
+      .preload('permissionOverrides')
+      .orderBy('id', 'asc')
+    if (memberships.length === 0 && user.userType === 'company') {
+      const legacyCompany = await Company.query()
+        .where('userId', user.id)
+        .whereNull('deletedAt')
+        .whereNot('status', 'suspended')
+        .first()
+      if (legacyCompany) {
+        await CompanyMembership.updateOrCreate(
+          { companyId: legacyCompany.id, userId: user.id },
+          { role: 'owner', status: 'active', joinedAt: legacyCompany.createdAt }
+        )
+        memberships = await CompanyMembership.query()
+          .where('userId', user.id)
+          .where('status', 'active')
+          .preload('company', (query) => query.preload('companyProfile'))
+          .preload('permissionOverrides')
+      }
+    }
+    const membership = companyId
+      ? memberships.find((item) => item.companyId === companyId)
+      : memberships[0]
+    if (!membership) {
       throw new InvalidCredentialsException()
     }
 
-    // Generate access token
-    const token = await User.accessTokens.create(user)
+    const token = await User.accessTokens.create(user, [
+      'client:company_app',
+      `company:${membership.companyId}`,
+    ])
 
     // Build message based on company status
     let message = 'Login successful'
-    if (user.company?.status === 'pending') {
+    if (membership.company.status === 'pending') {
       message = 'Login successful. Your company is pending admin approval.'
-    } else if (user.company?.status === 'rejected') {
+    } else if (membership.company.status === 'rejected') {
       message = 'Login successful. Your company registration was rejected.'
-    } else if (user.company?.status === 'suspended') {
-      message = 'Login successful. Your company account is suspended.'
     }
 
     return response.ok({
@@ -154,7 +198,9 @@ export default class CompanyAuthController {
           email: user.email,
           userType: user.userType,
         },
-        company: user.company,
+        company: membership.company,
+        membership: this.serializeMembership(membership),
+        memberships: memberships.map((item) => this.serializeMembership(item)),
         token: {
           type: 'bearer',
           token: token.value!.release(),
@@ -171,14 +217,26 @@ export default class CompanyAuthController {
 
     const user = auth.getUserOrFail()
 
-    if (user.userType !== 'company') {
+    if (!user.currentAccessToken?.allows('client:company_app') && user.userType !== 'company') {
       throw new AccessDeniedException('Access denied. Company account required.')
     }
 
-    // Load company with profile
-    await user.load('company', (query) => {
-      query.preload('companyProfile')
-    })
+    const companyAbility = user.currentAccessToken?.abilities.find((ability) =>
+      ability.startsWith('company:')
+    )
+    const membership = await CompanyMembership.query()
+      .where('userId', user.id)
+      .where('status', 'active')
+      .if(companyAbility, (query) => query.where('companyId', Number(companyAbility!.slice(8))))
+      .preload('company', (query) => query.preload('companyProfile'))
+      .preload('permissionOverrides')
+      .first()
+    if (!membership)
+      throw new CompanyMembershipException(
+        'Active company membership required',
+        'COMPANY_MEMBERSHIP_REQUIRED',
+        403
+      )
 
     return response.ok({
       data: {
@@ -187,7 +245,8 @@ export default class CompanyAuthController {
           email: user.email,
           userType: user.userType,
         },
-        company: user.company,
+        company: membership.company,
+        membership: this.serializeMembership(membership),
       },
     })
   }
@@ -208,5 +267,19 @@ export default class CompanyAuthController {
     return response.ok({
       message: 'Logged out successfully',
     })
+  }
+
+  private serializeMembership(membership: CompanyMembership) {
+    const overrides = membership.permissionOverrides.map((item) => ({
+      permission: item.permission as CompanyPermission,
+      effect: item.effect as 'allow' | 'deny',
+    }))
+    return {
+      id: membership.id,
+      companyId: membership.companyId,
+      role: membership.role,
+      status: membership.status,
+      permissions: resolvePermissions(membership.role as CompanyRole, overrides),
+    }
   }
 }

@@ -60,7 +60,7 @@ export default class UserAuthController {
     }
 
     // Generate access token
-    const token = await User.accessTokens.create(user)
+    const token = await User.accessTokens.create(user, ['client:customer_app'])
 
     return response.created({
       message: 'User registered successfully. Please check your email for your verification code.',
@@ -98,7 +98,7 @@ export default class UserAuthController {
     }
 
     // Generate access token
-    const token = await User.accessTokens.create(user)
+    const token = await User.accessTokens.create(user, ['client:customer_app'])
 
     return response.ok({
       message: 'Login successful',

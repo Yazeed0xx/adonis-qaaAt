@@ -9,6 +9,7 @@ import Company from '#models/company'
 import Booking from '#models/booking'
 import Notification from '#models/notification'
 import PushInstallation from '#models/push_installation'
+import CompanyMembership from '#models/company_membership'
 import type { HasOne, HasMany } from '@adonisjs/lucid/types/relations'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
@@ -35,6 +36,9 @@ export default class User extends compose(UserSchema, AuthFinder) {
 
   @hasMany(() => PushInstallation)
   declare pushInstallations: HasMany<typeof PushInstallation>
+
+  @hasMany(() => CompanyMembership)
+  declare companyMemberships: HasMany<typeof CompanyMembership>
 
   static accessTokens = DbAccessTokensProvider.forModel(User, {
     expiresIn: '30 days',

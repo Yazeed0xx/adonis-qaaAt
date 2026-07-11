@@ -17,15 +17,19 @@ export interface RegisterPushInstallationInput {
 export class PushInstallationService {
   async registerCompany(userId: number, input: RegisterPushInstallationInput) {
     await this.assertEligibleCompany(userId)
-    return this.register(userId, input)
+    return this.register(userId, 'company_app', input)
   }
 
   async registerUser(userId: number, input: RegisterPushInstallationInput) {
     await this.assertEligibleUser(userId)
-    return this.register(userId, input)
+    return this.register(userId, 'customer_app', input)
   }
 
-  private async register(userId: number, input: RegisterPushInstallationInput) {
+  private async register(
+    userId: number,
+    clientContext: 'customer_app' | 'company_app',
+    input: RegisterPushInstallationInput
+  ) {
     return db.transaction(async (trx) => {
       for (const lockKey of [
         `installation:${input.installationId}`,
@@ -54,6 +58,7 @@ export class PushInstallationService {
         existing.useTransaction(trx)
         existing.merge({
           userId,
+          clientContext,
           expoPushToken: input.expoPushToken,
           platform: input.platform,
           deviceName: input.deviceName ?? null,
@@ -69,6 +74,7 @@ export class PushInstallationService {
       return PushInstallation.create(
         {
           userId,
+          clientContext,
           installationId: input.installationId,
           expoPushToken: input.expoPushToken,
           platform: input.platform,
@@ -102,9 +108,12 @@ export class PushInstallationService {
 
   private async assertEligibleCompany(userId: number): Promise<void> {
     const company = await Company.query()
-      .where('userId', userId)
       .whereNull('deletedAt')
-      .whereHas('user', (query) => query.whereNull('deletedAt'))
+      .where((query) => {
+        query.where('userId', userId).orWhereHas('memberships', (memberships) => {
+          memberships.where('userId', userId).where('status', 'active')
+        })
+      })
       .first()
 
     if (!company || company.status === 'suspended') {

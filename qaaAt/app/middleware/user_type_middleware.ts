@@ -8,7 +8,7 @@ export default class UserTypeMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
     const user = ctx.auth.getUserOrFail()
 
-    if (user.userType !== 'user') {
+    if (user.userType !== 'user' || !user.currentAccessToken?.allows('client:customer_app')) {
       return ctx.response.forbidden({
         message: 'Access denied. User account required.',
       })

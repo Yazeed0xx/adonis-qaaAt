@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-QaaAt is a hall booking application built with AdonisJS 6, TypeScript, and PostgreSQL. It supports three user types (users, companies, admins) with authentication, hall management, and booking systems.
+QaaAt is a hall booking application built with AdonisJS 7, TypeScript, and PostgreSQL. It supports customer, company-member, and admin application contexts with authentication, hall management, and booking systems.
 
 ## Common Commands
 
@@ -47,7 +47,7 @@ All application code lives in `qaaAt/`:
 ### Authentication System
 
 - Token-based auth using AdonisJS Access Tokens
-- Three user types stored in `users.user_type`: "user", "company", "admin"
+- `users.user_type` remains a compatibility field; company authorization is derived from active company memberships and persisted access-token client context.
 - Middleware guards: `auth()` (any authenticated), `admin()`, `company()`
 - Token sent via `Authorization: Bearer {token}` header
 

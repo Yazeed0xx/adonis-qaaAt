@@ -17,9 +17,11 @@ export type NotificationType =
   | 'booking_cancelled'
   | 'booking_expired'
   | 'new_booking_request'
+  | 'company_invitation'
 
 export interface NotificationData {
-  userId: number
+  userId?: number
+  recipientEmail?: string
   type: NotificationType
   title: string
   message: string
@@ -43,6 +45,7 @@ export class NotificationService {
 
   async persist(options: NotificationData, client?: QueryClientContract): Promise<Notification> {
     const queryClient = client ?? db.connection()
+    if (!options.userId) throw new Error('userId is required for in-app notification persistence')
     let notification: Notification
     if (options.outboxId) {
       await queryClient
@@ -84,7 +87,7 @@ export class NotificationService {
   async dispatchEmail(options: NotificationData): Promise<void> {
     if (options.sendEmail) {
       try {
-        const user = await User.find(options.userId)
+        const user = options.userId ? await User.find(options.userId) : null
         if (user) {
           await this.sendEmail(
             user,
@@ -93,6 +96,12 @@ export class NotificationService {
             options.message,
             options.data
           )
+        } else if (options.recipientEmail) {
+          await SendMailJob.dispatch({
+            to: options.recipientEmail,
+            subject: options.emailSubject || options.title,
+            html: `<h1>${escapeHtml(options.title)}</h1><p>${escapeHtml(options.message)}</p>`,
+          }).toQueue('emails')
         }
       } catch {
         // Email send failed — in-app notification was still created

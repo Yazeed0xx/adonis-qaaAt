@@ -23,7 +23,7 @@ export default class AdminAuthController {
     }
 
     // Generate access token
-    const token = await User.accessTokens.create(user)
+    const token = await User.accessTokens.create(user, ['client:admin_app'])
 
     return response.ok({
       message: 'Login successful',

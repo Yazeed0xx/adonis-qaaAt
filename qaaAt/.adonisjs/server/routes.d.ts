@@ -29,6 +29,13 @@ export type ScannedRoutes = {
     'company_auth.login': { paramsTuple?: []; params?: {} }
     'company_auth.me': { paramsTuple?: []; params?: {} }
     'company_auth.logout': { paramsTuple?: []; params?: {} }
+    'company_members.index': { paramsTuple?: []; params?: {} }
+    'company_members.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_members.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_invitations.index': { paramsTuple?: []; params?: {} }
+    'company_invitations.store': { paramsTuple?: []; params?: {} }
+    'company_invitations.resend': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_invitations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'push_installations.store': { paramsTuple?: []; params?: {} }
     'push_installations.destroy': { paramsTuple: [ParamValue]; params: {'installationId': ParamValue} }
     'companies.notification.index': { paramsTuple?: []; params?: {} }
@@ -68,6 +75,8 @@ export type ScannedRoutes = {
     'admin.delete_booking': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'health_checks': { paramsTuple?: []; params?: {} }
     'health_checks.live': { paramsTuple?: []; params?: {} }
+    'public_company_invitations.inspect': { paramsTuple?: []; params?: {} }
+    'public_company_invitations.accept': { paramsTuple?: []; params?: {} }
   }
   GET: {
     'drive.fs.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
@@ -81,6 +90,8 @@ export type ScannedRoutes = {
     'user_booking.index': { paramsTuple?: []; params?: {} }
     'user_booking.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'company_auth.me': { paramsTuple?: []; params?: {} }
+    'company_members.index': { paramsTuple?: []; params?: {} }
+    'company_invitations.index': { paramsTuple?: []; params?: {} }
     'companies.notification.index': { paramsTuple?: []; params?: {} }
     'companies.notification.unreadCount': { paramsTuple?: []; params?: {} }
     'company_booking.index': { paramsTuple?: []; params?: {} }
@@ -99,6 +110,7 @@ export type ScannedRoutes = {
     'admin.get_bookings': { paramsTuple?: []; params?: {} }
     'health_checks': { paramsTuple?: []; params?: {} }
     'health_checks.live': { paramsTuple?: []; params?: {} }
+    'public_company_invitations.inspect': { paramsTuple?: []; params?: {} }
   }
   HEAD: {
     'drive.fs.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
@@ -112,6 +124,8 @@ export type ScannedRoutes = {
     'user_booking.index': { paramsTuple?: []; params?: {} }
     'user_booking.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'company_auth.me': { paramsTuple?: []; params?: {} }
+    'company_members.index': { paramsTuple?: []; params?: {} }
+    'company_invitations.index': { paramsTuple?: []; params?: {} }
     'companies.notification.index': { paramsTuple?: []; params?: {} }
     'companies.notification.unreadCount': { paramsTuple?: []; params?: {} }
     'company_booking.index': { paramsTuple?: []; params?: {} }
@@ -130,6 +144,7 @@ export type ScannedRoutes = {
     'admin.get_bookings': { paramsTuple?: []; params?: {} }
     'health_checks': { paramsTuple?: []; params?: {} }
     'health_checks.live': { paramsTuple?: []; params?: {} }
+    'public_company_invitations.inspect': { paramsTuple?: []; params?: {} }
   }
   POST: {
     'user_auth.register': { paramsTuple?: []; params?: {} }
@@ -145,6 +160,8 @@ export type ScannedRoutes = {
     'company_auth.register': { paramsTuple?: []; params?: {} }
     'company_auth.login': { paramsTuple?: []; params?: {} }
     'company_auth.logout': { paramsTuple?: []; params?: {} }
+    'company_invitations.store': { paramsTuple?: []; params?: {} }
+    'company_invitations.resend': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'push_installations.store': { paramsTuple?: []; params?: {} }
     'companies.notification.markAsRead': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'companies.notification.markAllAsRead': { paramsTuple?: []; params?: {} }
@@ -161,13 +178,19 @@ export type ScannedRoutes = {
     'admin.reject_company': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.suspend_company': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.reactivate_company': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'public_company_invitations.accept': { paramsTuple?: []; params?: {} }
   }
   DELETE: {
     'user_push_installations.destroy': { paramsTuple: [ParamValue]; params: {'installationId': ParamValue} }
+    'company_members.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'company_invitations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'push_installations.destroy': { paramsTuple: [ParamValue]; params: {'installationId': ParamValue} }
     'hall.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.delete_hall': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.delete_booking': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+  }
+  PATCH: {
+    'company_members.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PUT: {
     'hall.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

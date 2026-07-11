@@ -6,6 +6,24 @@ Development API references are available at `GET /docs` (Scalar) and `GET /opena
 
 Read [README.md](./README.md) first for shared authentication, pagination, error normalization, rate limits, and backend setup.
 
+## Sprint 1 membership and session contract
+
+Company-app tokens persist `client:company_app` and `company:{id}` abilities. Customer-app tokens are rejected on company routes. A shared User may retain `userType: "user"` and still sign in here with an active membership.
+
+`POST /api/companies/login` accepts `email`, `password`, and optional `companyId`. It preserves `user`, `company`, and `token`, and adds `membership` plus `memberships`. Each membership contains `id`, `companyId`, `role`, `status`, and resolved `permissions`.
+
+- `GET /api/companies/members` requires `members.view`.
+- `PATCH /api/companies/members/:id` accepts optional `role`, `status`, and `permissionOverrides`; it requires `members.manage`.
+- `DELETE /api/companies/members/:id` revokes membership and only the company-app sessions scoped to that company. Customer sessions and sessions for other companies remain valid.
+- `GET /api/companies/invitations` requires `members.view`.
+- `POST /api/companies/invitations` accepts required `name`, required `email`, `role`, and optional overrides. Phone-only invitations are intentionally rejected until verified SMS delivery and phone-based authentication exist.
+- `POST /api/companies/invitations/:id/resend` rotates the acceptance token.
+- `DELETE /api/companies/invitations/:id` cancels a pending invitation.
+
+Roles are `owner`, `manager`, `booking_staff`, `calendar_staff`, `accountant`, and `viewer`. Overrides use `{ permission, effect: "allow" | "deny" }`; deny wins. The final active owner cannot be removed or demoted. Only an owner can invite/promote/modify an owner or grant `payout_settings.manage`. Other members can delegate only effective permissions they already hold.
+
+Public/auth-assisted acceptance uses `GET /api/company-invitations/inspect?token=...` and `POST /api/company-invitations/accept`. The acceptance secret is never returned by create, resend, or list APIs; it is delivered only to the invited mailbox through the notification outbox. For a genuinely new identity, the one-time hashed and expiring mailbox-delivered secret proves control of the invited email, and the employee supplies `password` plus optional `name`. The server creates the account using the locked invitation email, never a caller-supplied email. Existing users must authenticate normally, and acceptance never changes an existing password.
+
 ## Product flow
 
 1. Register with legal/business details and a scanned commercial-registration PDF.

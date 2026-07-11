@@ -6,6 +6,8 @@ import User from '#models/user'
 import CompanyProfile from '#models/company_profile'
 import Hall from '#models/hall'
 import Service from '#models/service'
+import CompanyMembership from '#models/company_membership'
+import CompanyInvitation from '#models/company_invitation'
 
 export default class Company extends CompanySchema {
   declare id: number
@@ -40,4 +42,10 @@ export default class Company extends CompanySchema {
 
   @hasMany(() => Service)
   declare services: HasMany<typeof Service>
+
+  @hasMany(() => CompanyMembership)
+  declare memberships: HasMany<typeof CompanyMembership>
+
+  @hasMany(() => CompanyInvitation)
+  declare invitations: HasMany<typeof CompanyInvitation>
 }

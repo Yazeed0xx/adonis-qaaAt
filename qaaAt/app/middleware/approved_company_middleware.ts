@@ -1,6 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
-import Company from '#models/company'
 
 /**
  * Approved company middleware ensures only approved companies can access certain routes
@@ -8,21 +7,7 @@ import Company from '#models/company'
  */
 export default class ApprovedCompanyMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
-    const user = ctx.auth.getUserOrFail()
-
-    if (user.userType !== 'company') {
-      return ctx.response.forbidden({
-        message: 'Access denied. Company account required.',
-      })
-    }
-
-    const company = await Company.findBy('userId', user.id)
-
-    if (!company) {
-      return ctx.response.notFound({
-        message: 'Company profile not found.',
-      })
-    }
+    const company = ctx.companyContext.company
 
     switch (company.status) {
       case 'pending':

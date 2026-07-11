@@ -6,6 +6,10 @@ Development API references are available at `GET /docs` (Scalar) and `GET /opena
 
 Read [README.md](./README.md) first for shared authentication, pagination, error normalization, rate limits, and backend setup.
 
+## Session isolation
+
+Customer registration and login issue tokens with persisted `client:customer_app` context. Company-app and admin-app tokens are rejected from customer routes. A customer invited into a company keeps the same identity, password, and personal bookings, then signs into the company app separately for a company-scoped token.
+
 ## Product flow
 
 1. Register and store `data.token.token` securely.

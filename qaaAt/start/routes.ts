@@ -64,8 +64,12 @@ router
   .group(() => {
     router.post('/register', [controllers.auth.UserAuth, 'register']).use(authThrottle)
     router.post('/login', [controllers.auth.UserAuth, 'login']).use(authThrottle)
-    router.get('/me', [controllers.auth.UserAuth, 'me']).use(middleware.auth())
-    router.post('/logout', [controllers.auth.UserAuth, 'logout']).use(middleware.auth())
+    router
+      .get('/me', [controllers.auth.UserAuth, 'me'])
+      .use([middleware.auth(), middleware.userType()])
+    router
+      .post('/logout', [controllers.auth.UserAuth, 'logout'])
+      .use([middleware.auth(), middleware.userType()])
 
     router
       .post('/push-installations', [controllers.UserPushInstallations, 'store'])
@@ -146,8 +150,85 @@ router
   .group(() => {
     router.post('/register', [controllers.auth.CompanyAuth, 'register']).use(authThrottle)
     router.post('/login', [controllers.auth.CompanyAuth, 'login']).use(authThrottle)
-    router.get('/me', [controllers.auth.CompanyAuth, 'me']).use(middleware.auth())
-    router.post('/logout', [controllers.auth.CompanyAuth, 'logout']).use(middleware.auth())
+    router
+      .get('/me', [controllers.auth.CompanyAuth, 'me'])
+      .use([middleware.auth(), middleware.company()])
+    router
+      .post('/logout', [controllers.auth.CompanyAuth, 'logout'])
+      .use([middleware.auth(), middleware.company()])
+
+    router
+      .get('/members', [controllers.CompanyMembers, 'index'])
+      .openapi({
+        summary: 'List company members',
+        operationId: 'listCompanyMembers',
+        tags: ['Company memberships'],
+        security: [{ bearer: [] }],
+      })
+      .use([middleware.auth(), middleware.company()])
+    router
+      .patch('/members/:id', [controllers.CompanyMembers, 'update'])
+      .openapi({
+        summary: 'Update a company member',
+        operationId: 'updateCompanyMember',
+        tags: ['Company memberships'],
+        security: [{ bearer: [] }],
+      })
+      .use([middleware.auth(), middleware.company()])
+    router
+      .delete('/members/:id', [controllers.CompanyMembers, 'destroy'])
+      .openapi({
+        summary: 'Revoke a company member',
+        operationId: 'revokeCompanyMember',
+        tags: ['Company memberships'],
+        security: [{ bearer: [] }],
+        responses: {
+          204: { description: 'Membership revoked' },
+          409: { description: 'Last active owner' },
+        },
+      })
+      .use([middleware.auth(), middleware.company()])
+    router
+      .get('/invitations', [controllers.CompanyInvitations, 'index'])
+      .openapi({
+        summary: 'List company invitations',
+        operationId: 'listCompanyInvitations',
+        tags: ['Company invitations'],
+        security: [{ bearer: [] }],
+      })
+      .use([middleware.auth(), middleware.company()])
+    router
+      .post('/invitations', [controllers.CompanyInvitations, 'store'])
+      .openapi({
+        summary: 'Create a company invitation',
+        operationId: 'createCompanyInvitation',
+        tags: ['Company invitations'],
+        security: [{ bearer: [] }],
+        responses: {
+          201: { description: 'Invitation created' },
+          422: { description: 'Validation failed' },
+        },
+      })
+      .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
+    router
+      .post('/invitations/:id/resend', [controllers.CompanyInvitations, 'resend'])
+      .openapi({
+        summary: 'Resend a company invitation',
+        operationId: 'resendCompanyInvitation',
+        tags: ['Company invitations'],
+        security: [{ bearer: [] }],
+      })
+      .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
+    router
+      .delete('/invitations/:id', [controllers.CompanyInvitations, 'destroy'])
+      .openapi({
+        summary: 'Cancel a company invitation',
+        operationId: 'cancelCompanyInvitation',
+        tags: ['Company invitations'],
+        security: [{ bearer: [] }],
+        responses: { 204: { description: 'Invitation cancelled' } },
+      })
+      .use([middleware.auth(), middleware.company()])
 
     router
       .post('/push-installations', [controllers.PushInstallations, 'store'])
@@ -270,8 +351,12 @@ router
 router
   .group(() => {
     router.post('/login', [controllers.auth.AdminAuth, 'login']).use(authThrottle)
-    router.get('/me', [controllers.auth.AdminAuth, 'me']).use(middleware.auth())
-    router.post('/logout', [controllers.auth.AdminAuth, 'logout']).use(middleware.auth())
+    router
+      .get('/me', [controllers.auth.AdminAuth, 'me'])
+      .use([middleware.auth(), middleware.admin()])
+    router
+      .post('/logout', [controllers.auth.AdminAuth, 'logout'])
+      .use([middleware.auth(), middleware.admin()])
   })
   .prefix('/api/admin')
 
@@ -312,3 +397,26 @@ router
 // Health Check Routes
 router.get('/health', [controllers.HealthChecks, 'handle'])
 router.get('/health/live', [controllers.HealthChecks, 'live'])
+
+router
+  .get('/api/company-invitations/inspect', [controllers.PublicCompanyInvitations, 'inspect'])
+  .openapi({
+    summary: 'Inspect a company invitation',
+    operationId: 'inspectCompanyInvitation',
+    tags: ['Company invitations'],
+    security: [],
+  })
+router
+  .post('/api/company-invitations/accept', [controllers.PublicCompanyInvitations, 'accept'])
+  .openapi({
+    summary: 'Accept a company invitation',
+    operationId: 'acceptCompanyInvitation',
+    tags: ['Company invitations'],
+    security: [],
+    responses: {
+      201: { description: 'Invitation accepted' },
+      401: { description: 'Existing account authentication required' },
+      409: { description: 'Invitation conflict' },
+      410: { description: 'Invitation expired' },
+    },
+  })
