@@ -349,6 +349,7 @@ export class NotificationOutboxSchema extends BaseModel {
     'lastError',
     'payload',
     'processedAt',
+    'processingStartedAt',
   ] as const
   $columns = NotificationOutboxSchema.$columns
   @column()
@@ -365,6 +366,8 @@ export class NotificationOutboxSchema extends BaseModel {
   declare payload: any
   @column.dateTime()
   declare processedAt: DateTime | null
+  @column.dateTime()
+  declare processingStartedAt: DateTime | null
 }
 
 export class NotificationSchema extends BaseModel {
@@ -396,6 +399,99 @@ export class NotificationSchema extends BaseModel {
   declare title: string
   @column()
   declare type: string
+  @column()
+  declare userId: number
+}
+
+export class PushDeliverySchema extends BaseModel {
+  static $columns = [
+    'attempts',
+    'createdAt',
+    'expoTicketId',
+    'id',
+    'lastErrorCode',
+    'lastErrorMessage',
+    'nextAttemptAt',
+    'notificationId',
+    'processingStartedAt',
+    'providerAcceptedAt',
+    'pushInstallationId',
+    'receiptCheckedAt',
+    'sentAt',
+    'status',
+    'updatedAt',
+  ] as const
+  $columns = PushDeliverySchema.$columns
+  @column()
+  declare attempts: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare expoTicketId: string | null
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare lastErrorCode: string | null
+  @column()
+  declare lastErrorMessage: string | null
+  @column.dateTime()
+  declare nextAttemptAt: DateTime | null
+  @column()
+  declare notificationId: bigint | number
+  @column.dateTime()
+  declare processingStartedAt: DateTime | null
+  @column.dateTime()
+  declare providerAcceptedAt: DateTime | null
+  @column()
+  declare pushInstallationId: bigint | number
+  @column.dateTime()
+  declare receiptCheckedAt: DateTime | null
+  @column.dateTime()
+  declare sentAt: DateTime | null
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class PushInstallationSchema extends BaseModel {
+  static $columns = [
+    'appVersion',
+    'createdAt',
+    'deviceName',
+    'expoPushToken',
+    'id',
+    'installationId',
+    'lastSeenAt',
+    'notificationsEnabled',
+    'platform',
+    'revokedAt',
+    'updatedAt',
+    'userId',
+  ] as const
+  $columns = PushInstallationSchema.$columns
+  @column()
+  declare appVersion: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deviceName: string | null
+  @column()
+  declare expoPushToken: string
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare installationId: string
+  @column.dateTime()
+  declare lastSeenAt: DateTime
+  @column()
+  declare notificationsEnabled: boolean
+  @column()
+  declare platform: string
+  @column.dateTime()
+  declare revokedAt: DateTime | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
   @column()
   declare userId: number
 }

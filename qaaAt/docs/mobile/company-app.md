@@ -16,26 +16,28 @@ Read [README.md](./README.md) first for shared authentication, pagination, error
 
 ## Endpoint map
 
-| Method | Path                                        | Auth/state       | Purpose                            |
-| ------ | ------------------------------------------- | ---------------- | ---------------------------------- |
-| POST   | `/api/companies/register`                   | Public multipart | Create pending company             |
-| POST   | `/api/companies/login`                      | Public           | Sign in unless suspended           |
-| GET    | `/api/companies/me`                         | Company token    | Restore company and approval state |
-| POST   | `/api/companies/logout`                     | Bearer           | Revoke current token               |
-| GET    | `/api/companies/halls`                      | Company token    | List own halls                     |
-| GET    | `/api/companies/halls/:id`                  | Company token    | Read own hall                      |
-| POST   | `/api/companies/halls`                      | Approved company | Create hall                        |
-| PUT    | `/api/companies/halls/:id`                  | Approved company | Update own hall                    |
-| DELETE | `/api/companies/halls/:id`                  | Approved company | Soft-delete own hall               |
-| GET    | `/api/companies/bookings`                   | Approved company | List bookings for own halls        |
-| GET    | `/api/companies/bookings/pending`           | Approved company | List actionable pending bookings   |
-| GET    | `/api/companies/bookings/:id`               | Approved company | Read owned booking                 |
-| POST   | `/api/companies/bookings/:id/accept`        | Approved company | Accept pending booking             |
-| POST   | `/api/companies/bookings/:id/reject`        | Approved company | Reject pending booking             |
-| GET    | `/api/companies/notifications`              | Company token    | List notifications                 |
-| GET    | `/api/companies/notifications/unread-count` | Company token    | Get unread count                   |
-| POST   | `/api/companies/notifications/:id/read`     | Company token    | Mark one read                      |
-| POST   | `/api/companies/notifications/read-all`     | Company token    | Mark all read                      |
+| Method | Path                                                | Auth/state       | Purpose                            |
+| ------ | --------------------------------------------------- | ---------------- | ---------------------------------- |
+| POST   | `/api/companies/register`                           | Public multipart | Create pending company             |
+| POST   | `/api/companies/login`                              | Public           | Sign in unless suspended           |
+| GET    | `/api/companies/me`                                 | Company token    | Restore company and approval state |
+| POST   | `/api/companies/logout`                             | Bearer           | Revoke current token               |
+| GET    | `/api/companies/halls`                              | Company token    | List own halls                     |
+| GET    | `/api/companies/halls/:id`                          | Company token    | Read own hall                      |
+| POST   | `/api/companies/halls`                              | Approved company | Create hall                        |
+| PUT    | `/api/companies/halls/:id`                          | Approved company | Update own hall                    |
+| DELETE | `/api/companies/halls/:id`                          | Approved company | Soft-delete own hall               |
+| GET    | `/api/companies/bookings`                           | Approved company | List bookings for own halls        |
+| GET    | `/api/companies/bookings/pending`                   | Approved company | List actionable pending bookings   |
+| GET    | `/api/companies/bookings/:id`                       | Approved company | Read owned booking                 |
+| POST   | `/api/companies/bookings/:id/accept`                | Approved company | Accept pending booking             |
+| POST   | `/api/companies/bookings/:id/reject`                | Approved company | Reject pending booking             |
+| GET    | `/api/companies/notifications`                      | Company token    | List notifications                 |
+| GET    | `/api/companies/notifications/unread-count`         | Company token    | Get unread count                   |
+| POST   | `/api/companies/notifications/:id/read`             | Company token    | Mark one read                      |
+| POST   | `/api/companies/notifications/read-all`             | Company token    | Mark all read                      |
+| POST   | `/api/companies/push-installations`                 | Company token    | Register or refresh this device    |
+| DELETE | `/api/companies/push-installations/:installationId` | Company token    | Revoke this device installation    |
 
 Hall reads intentionally do not require approval; hall writes do. All booking-management actions require approval. Notifications require a company account but not approval.
 
@@ -412,6 +414,41 @@ Notifications are eventually consistent. Booking and company-status transactions
 - `POST /api/companies/notifications/read-all` → `{ message, data: { markedCount: number } }`
 
 Notification ownership is enforced; unknown or another account's ID returns `404 NOTIFICATION_NOT_FOUND`.
+
+### Expo push installation
+
+After login and whenever Expo returns a refreshed token, register the installation:
+
+```http
+POST /api/companies/push-installations
+Authorization: Bearer <company-token>
+Content-Type: application/json
+
+{
+  "installationId": "93e33577-61c0-4efa-a760-df20d80f6b49",
+  "expoPushToken": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+  "platform": "ios",
+  "deviceName": "iPhone",
+  "appVersion": "1.0.0"
+}
+```
+
+The idempotent `200` response contains `installationId`, platform, optional device metadata,
+`notificationsEnabled`, and `lastSeenAt`. It never returns the Expo token. Pending and rejected
+companies may register so they can receive account-status updates; suspended or deleted companies
+receive `403`.
+
+Before local logout or notification opt-out, call
+`DELETE /api/companies/push-installations/:installationId`. It always returns `204` for the current
+account, including when the installation is already absent or revoked. Local logout must still
+complete if this best-effort request fails. Logging out one installation must not revoke other
+devices.
+
+Push payload data contains only `notificationId`, `type`, `route`, and an optional `bookingId`.
+Treat the route as a navigation hint, then authenticate and fetch the authoritative resource. The
+backend sends generic text for account rejection and never includes rejection reasons or customer
+details in a push. In-app notification records remain authoritative when pushes are delayed,
+duplicated, or unavailable.
 
 ## Recommended client behavior
 

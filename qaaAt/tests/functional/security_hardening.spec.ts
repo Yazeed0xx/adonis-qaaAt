@@ -29,6 +29,14 @@ test.group('P1 backend security hardening', (group) => {
     const admin = await UserFactory.apply('admin', 'verified').create()
     const { owner, company } = await createCompany('approved')
     const token = await User.accessTokens.create(owner)
+    await db.table('push_installations').insert({
+      user_id: owner.id,
+      installation_id: 'suspended-company-device',
+      expo_push_token: 'ExponentPushToken[suspended-company-device]',
+      platform: 'ios',
+      notifications_enabled: true,
+      last_seen_at: DateTime.now().toSQL(),
+    })
 
     assert.ok(token.expiresAt)
     assert.ok(token.expiresAt.getTime() > Date.now() + 29 * 24 * 60 * 60 * 1000)
@@ -47,6 +55,12 @@ test.group('P1 backend security hardening', (group) => {
       .count('* as total')
       .first()
     assert.equal(Number(remainingTokens?.total), 0)
+    const installation = await db
+      .from('push_installations')
+      .where('user_id', owner.id)
+      .firstOrFail()
+    assert.equal(installation.notifications_enabled, false)
+    assert.ok(installation.revoked_at)
 
     const loginResponse = await client.post('/api/companies/login').json({
       email: owner.email,
@@ -65,6 +79,29 @@ test.group('P1 backend security hardening', (group) => {
       .json({})
 
     response.assertStatus(403)
+  })
+
+  test('banning a user revokes all of their push installations', async ({ client }) => {
+    const admin = await UserFactory.apply('admin', 'verified').create()
+    const user = await UserFactory.apply('user', 'verified').create()
+    await db.table('push_installations').insert({
+      user_id: user.id,
+      installation_id: 'banned-user-device',
+      expo_push_token: 'ExponentPushToken[banned-user-device]',
+      platform: 'android',
+      notifications_enabled: true,
+      last_seen_at: DateTime.now().toSQL(),
+    })
+
+    const response = await client
+      .post(`/api/admin/users/${user.id}/ban`)
+      .withGuard('api')
+      .loginAs(admin)
+    response.assertStatus(200)
+
+    const installation = await db.from('push_installations').where('user_id', user.id).firstOrFail()
+    assert.equal(installation.notifications_enabled, false)
+    assert.ok(installation.revoked_at)
   })
 
   test('booking ID reads and cancellation are scoped to the owning user and company', async ({

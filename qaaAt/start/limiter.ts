@@ -25,3 +25,10 @@ export const bookingCreationThrottle = limiter.define('bookingCreate', (ctx) => 
 
   return limiter.allowRequests(10).every('10 minutes').blockFor('15 mins').usingKey(key)
 })
+
+export const pushRegistrationThrottle = limiter.define('pushRegistration', (ctx) => {
+  const key = ctx.auth.user
+    ? `push_registration_${ctx.auth.user.id}`
+    : `push_ip_${ctx.request.ip()}`
+  return limiter.allowRequests(20).every('10 minutes').blockFor('15 mins').usingKey(key)
+})

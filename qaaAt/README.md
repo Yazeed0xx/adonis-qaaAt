@@ -117,6 +117,12 @@ Required production settings include `NODE_ENV=production`, `QUEUE_DRIVER=databa
 `/data/private` and set `PRIVATE_STORAGE_PATH=/data/private` when using the supplied Docker image.
 Do not place registration documents on an ephemeral container filesystem.
 
+Company push notifications require `PUSH_NOTIFICATIONS_ENABLED=true` and an
+`EXPO_PUSH_ACCESS_TOKEN` from an Expo project with enhanced push security enabled. Keep the web and
+queue-worker processes running: scheduled jobs create in-app notifications, send pending Expo
+deliveries, and check push receipts. Push delivery remains disabled by default in development and
+test environments.
+
 Use `/health/live` for liveness and `/health` for readiness. Readiness includes database, memory, and
 disk checks. API documentation is disabled in production unless `OPENAPI_ENABLED=true` is explicitly
 set.

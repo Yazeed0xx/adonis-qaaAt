@@ -10,6 +10,7 @@ import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import adminAuditService from '#services/admin_audit_service'
 import notificationOutboxService from '#services/notification_outbox_service'
+import pushInstallationService from '#services/push_installation_service'
 import BookingTransformer from '#transformers/booking_transformer'
 import CompanyTransformer from '#transformers/company_transformer'
 import HallTransformer from '#transformers/hall_transformer'
@@ -104,18 +105,23 @@ export default class AdminController {
       throw new AccessDeniedException('Cannot ban admin users')
     }
 
-    user.deletedAt = DateTime.now()
-    await user.save()
+    await db.transaction(async (trx) => {
+      user.useTransaction(trx)
+      user.deletedAt = DateTime.now()
+      await user.save()
 
-    // Revoke all access tokens so the banned user is immediately logged out
-    await db.from('auth_access_tokens').where('tokenable_id', user.id).delete()
-
-    await adminAuditService.record({
-      adminUserId: admin.id,
-      action: 'user.ban',
-      targetType: 'user',
-      targetId: user.id,
-      metadata: { email: user.email },
+      await trx.from('auth_access_tokens').where('tokenable_id', user.id).delete()
+      await pushInstallationService.revokeAll(user.id, trx)
+      await adminAuditService.record(
+        {
+          adminUserId: admin.id,
+          action: 'user.ban',
+          targetType: 'user',
+          targetId: user.id,
+          metadata: { email: user.email },
+        },
+        trx
+      )
     })
 
     return response.ok({
@@ -170,18 +176,23 @@ export default class AdminController {
       throw new AccessDeniedException('Cannot ban admin users')
     }
 
-    user.deletedAt = DateTime.now()
-    await user.save()
+    await db.transaction(async (trx) => {
+      user.useTransaction(trx)
+      user.deletedAt = DateTime.now()
+      await user.save()
 
-    // Revoke all access tokens so the banned company is immediately logged out
-    await db.from('auth_access_tokens').where('tokenable_id', user.id).delete()
-
-    await adminAuditService.record({
-      adminUserId: admin.id,
-      action: 'company.ban',
-      targetType: 'company',
-      targetId: company.id,
-      metadata: { userId: user.id },
+      await trx.from('auth_access_tokens').where('tokenable_id', user.id).delete()
+      await pushInstallationService.revokeAll(user.id, trx)
+      await adminAuditService.record(
+        {
+          adminUserId: admin.id,
+          action: 'company.ban',
+          targetType: 'company',
+          targetId: company.id,
+          metadata: { userId: user.id },
+        },
+        trx
+      )
     })
 
     return response.ok({
@@ -530,6 +541,7 @@ export default class AdminController {
       await company.save()
 
       await trx.from('auth_access_tokens').where('tokenable_id', company.userId).delete()
+      await pushInstallationService.revokeAll(company.userId, trx)
 
       await adminAuditService.record(
         {

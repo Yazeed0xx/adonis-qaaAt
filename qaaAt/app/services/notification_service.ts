@@ -5,6 +5,7 @@ import User from '#models/user'
 import env from '#start/env'
 import { escapeHtml } from '#lib/escape_html'
 import db from '@adonisjs/lucid/services/db'
+import type { QueryClientContract } from '@adonisjs/lucid/types/database'
 
 export type NotificationType =
   | 'email_verified'
@@ -35,10 +36,16 @@ export class NotificationService {
    * Create an in-app notification
    */
   async notify(options: NotificationData): Promise<Notification> {
+    const notification = await this.persist(options)
+    await this.dispatchEmail(options)
+    return notification
+  }
+
+  async persist(options: NotificationData, client?: QueryClientContract): Promise<Notification> {
+    const queryClient = client ?? db.connection()
     let notification: Notification
-    let shouldSendEmail = true
     if (options.outboxId) {
-      const inserted = await db
+      await queryClient
         .table('notifications')
         .insert({
           user_id: options.userId,
@@ -51,22 +58,31 @@ export class NotificationService {
         })
         .onConflict('outbox_id')
         .ignore()
-        .returning('id')
-      shouldSendEmail = inserted.length > 0
-      const row = await db.from('notifications').where('outbox_id', options.outboxId).firstOrFail()
-      notification = await Notification.findOrFail(row.id)
+      const row = await queryClient
+        .from('notifications')
+        .where('outbox_id', options.outboxId)
+        .firstOrFail()
+      notification = await Notification.query({ client: queryClient })
+        .where('id', row.id)
+        .firstOrFail()
     } else {
-      notification = await Notification.create({
-        userId: options.userId,
-        type: options.type,
-        title: options.title,
-        message: options.message,
-        data: options.data || null,
-      })
+      notification = await Notification.create(
+        {
+          userId: options.userId,
+          type: options.type,
+          title: options.title,
+          message: options.message,
+          data: options.data || null,
+        },
+        { client: queryClient }
+      )
     }
 
-    // Send email if requested (non-blocking — don't fail notification if mail fails)
-    if (options.sendEmail && shouldSendEmail) {
+    return notification
+  }
+
+  async dispatchEmail(options: NotificationData): Promise<void> {
+    if (options.sendEmail) {
       try {
         const user = await User.find(options.userId)
         if (user) {
@@ -82,8 +98,6 @@ export class NotificationService {
         // Email send failed — in-app notification was still created
       }
     }
-
-    return notification
   }
 
   /**

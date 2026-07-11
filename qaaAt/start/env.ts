@@ -53,6 +53,12 @@ export default await Env.create(new URL('../', import.meta.url), {
   */
   QUEUE_DRIVER: Env.schema.enum.optional(['sync', 'database'] as const),
 
+  PUSH_NOTIFICATIONS_ENABLED: Env.schema.boolean.optional(),
+  EXPO_PUSH_ACCESS_TOKEN: Env.schema.string.optional(),
+  PUSH_MAX_ATTEMPTS: Env.schema.number.optional(),
+  PUSH_RECEIPT_DELAY_MINUTES: Env.schema.number.optional(),
+  PUSH_RECEIPT_CUTOFF_HOURS: Env.schema.number.optional(),
+
   /*
   |----------------------------------------------------------
   | Variables for configuring rate limiting

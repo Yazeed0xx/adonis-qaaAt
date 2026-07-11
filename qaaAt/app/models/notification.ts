@@ -1,8 +1,9 @@
 import { DateTime } from 'luxon'
-import { belongsTo, column, scope } from '@adonisjs/lucid/orm'
-import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import { belongsTo, column, hasMany, scope } from '@adonisjs/lucid/orm'
+import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import { NotificationSchema } from '#database/schema'
 import User from '#models/user'
+import PushDelivery from '#models/push_delivery'
 
 export default class Notification extends NotificationSchema {
   @column({
@@ -17,6 +18,9 @@ export default class Notification extends NotificationSchema {
 
   @belongsTo(() => User)
   declare user: BelongsTo<typeof User>
+
+  @hasMany(() => PushDelivery)
+  declare pushDeliveries: HasMany<typeof PushDelivery>
 
   /**
    * Scope: Get only unread notifications

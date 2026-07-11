@@ -13,6 +13,8 @@ export type ScannedRoutes = {
     'user_auth.login': { paramsTuple?: []; params?: {} }
     'user_auth.me': { paramsTuple?: []; params?: {} }
     'user_auth.logout': { paramsTuple?: []; params?: {} }
+    'user_push_installations.store': { paramsTuple?: []; params?: {} }
+    'user_push_installations.destroy': { paramsTuple: [ParamValue]; params: {'installationId': ParamValue} }
     'user_auth.verify_email': { paramsTuple?: []; params?: {} }
     'user_auth.resend_verification': { paramsTuple?: []; params?: {} }
     'users.notification.index': { paramsTuple?: []; params?: {} }
@@ -27,6 +29,8 @@ export type ScannedRoutes = {
     'company_auth.login': { paramsTuple?: []; params?: {} }
     'company_auth.me': { paramsTuple?: []; params?: {} }
     'company_auth.logout': { paramsTuple?: []; params?: {} }
+    'push_installations.store': { paramsTuple?: []; params?: {} }
+    'push_installations.destroy': { paramsTuple: [ParamValue]; params: {'installationId': ParamValue} }
     'companies.notification.index': { paramsTuple?: []; params?: {} }
     'companies.notification.unreadCount': { paramsTuple?: []; params?: {} }
     'companies.notification.markAsRead': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -131,6 +135,7 @@ export type ScannedRoutes = {
     'user_auth.register': { paramsTuple?: []; params?: {} }
     'user_auth.login': { paramsTuple?: []; params?: {} }
     'user_auth.logout': { paramsTuple?: []; params?: {} }
+    'user_push_installations.store': { paramsTuple?: []; params?: {} }
     'user_auth.verify_email': { paramsTuple?: []; params?: {} }
     'user_auth.resend_verification': { paramsTuple?: []; params?: {} }
     'users.notification.markAsRead': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -140,6 +145,7 @@ export type ScannedRoutes = {
     'company_auth.register': { paramsTuple?: []; params?: {} }
     'company_auth.login': { paramsTuple?: []; params?: {} }
     'company_auth.logout': { paramsTuple?: []; params?: {} }
+    'push_installations.store': { paramsTuple?: []; params?: {} }
     'companies.notification.markAsRead': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'companies.notification.markAllAsRead': { paramsTuple?: []; params?: {} }
     'company_booking.accept': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -156,13 +162,15 @@ export type ScannedRoutes = {
     'admin.suspend_company': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.reactivate_company': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
-  PUT: {
-    'hall.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-  }
   DELETE: {
+    'user_push_installations.destroy': { paramsTuple: [ParamValue]; params: {'installationId': ParamValue} }
+    'push_installations.destroy': { paramsTuple: [ParamValue]; params: {'installationId': ParamValue} }
     'hall.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.delete_hall': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin.delete_booking': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+  }
+  PUT: {
+    'hall.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
 }
 declare module '@adonisjs/core/types/http' {

@@ -15,5 +15,7 @@ export const controllers = {
   HealthChecks: () => import('#controllers/health_checks_controller'),
   Notification: () => import('#controllers/notification_controller'),
   PublicHall: () => import('#controllers/public_hall_controller'),
+  PushInstallations: () => import('#controllers/push_installations_controller'),
   UserBooking: () => import('#controllers/user_booking_controller'),
+  UserPushInstallations: () => import('#controllers/user_push_installations_controller'),
 }

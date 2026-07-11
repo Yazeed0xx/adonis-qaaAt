@@ -9,7 +9,12 @@
 
 import router from '@adonisjs/core/services/router'
 import { controllers } from '#generated/controllers'
-import { authThrottle, bookingCreationThrottle, resendVerificationThrottle } from '#start/limiter'
+import {
+  authThrottle,
+  bookingCreationThrottle,
+  pushRegistrationThrottle,
+  resendVerificationThrottle,
+} from '#start/limiter'
 import { middleware } from './kernel.js'
 
 router.get('/', async () => {
@@ -61,6 +66,35 @@ router
     router.post('/login', [controllers.auth.UserAuth, 'login']).use(authThrottle)
     router.get('/me', [controllers.auth.UserAuth, 'me']).use(middleware.auth())
     router.post('/logout', [controllers.auth.UserAuth, 'logout']).use(middleware.auth())
+
+    router
+      .post('/push-installations', [controllers.UserPushInstallations, 'store'])
+      .openapi({
+        summary: 'Register or refresh a user push installation',
+        operationId: 'registerUserPushInstallation',
+        tags: ['User push notifications'],
+        responses: {
+          200: { description: 'Installation registered or refreshed' },
+          403: { description: 'User is not eligible for push registration' },
+          422: { description: 'Invalid installation metadata or Expo push token' },
+          429: { description: 'Registration rate limit exceeded' },
+        },
+      })
+      .use([
+        middleware.auth(),
+        middleware.userType(),
+        middleware.verifiedEmail(),
+        pushRegistrationThrottle,
+      ])
+    router
+      .delete('/push-installations/:installationId', [controllers.UserPushInstallations, 'destroy'])
+      .openapi({
+        summary: 'Revoke a user push installation',
+        operationId: 'revokeUserPushInstallation',
+        tags: ['User push notifications'],
+        responses: { 204: { description: 'Installation revoked or already absent' } },
+      })
+      .use([middleware.auth(), middleware.userType()])
 
     // Email verification routes (no auth required)
     router.post('/verify-email', [controllers.auth.UserAuth, 'verifyEmail']).use(authThrottle)
@@ -114,6 +148,30 @@ router
     router.post('/login', [controllers.auth.CompanyAuth, 'login']).use(authThrottle)
     router.get('/me', [controllers.auth.CompanyAuth, 'me']).use(middleware.auth())
     router.post('/logout', [controllers.auth.CompanyAuth, 'logout']).use(middleware.auth())
+
+    router
+      .post('/push-installations', [controllers.PushInstallations, 'store'])
+      .openapi({
+        summary: 'Register or refresh a company push installation',
+        operationId: 'registerCompanyPushInstallation',
+        tags: ['Company push notifications'],
+        responses: {
+          200: { description: 'Installation registered or refreshed' },
+          403: { description: 'Company is not eligible for push registration' },
+          422: { description: 'Invalid installation metadata or Expo push token' },
+          429: { description: 'Registration rate limit exceeded' },
+        },
+      })
+      .use([middleware.auth(), middleware.company(), pushRegistrationThrottle])
+    router
+      .delete('/push-installations/:installationId', [controllers.PushInstallations, 'destroy'])
+      .openapi({
+        summary: 'Revoke a company push installation',
+        operationId: 'revokeCompanyPushInstallation',
+        tags: ['Company push notifications'],
+        responses: { 204: { description: 'Installation revoked or already absent' } },
+      })
+      .use([middleware.auth(), middleware.company()])
 
     // Company notification routes (auth required)
     router

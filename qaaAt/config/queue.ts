@@ -42,6 +42,12 @@ export default defineConfig({
         backoff: exponentialBackoff({ baseDelay: '1s', maxDelay: '2m' }),
       },
     },
+    push: {
+      retry: {
+        maxRetries: 2,
+        backoff: exponentialBackoff({ baseDelay: '5s', maxDelay: '5m' }),
+      },
+    },
   },
 
   locations: ['./app/jobs/**/*.{ts,js}'],

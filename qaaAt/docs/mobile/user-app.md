@@ -16,26 +16,28 @@ Read [README.md](./README.md) first for shared authentication, pagination, error
 
 ## Endpoint map
 
-| Method | Path                                    | Auth                | Purpose                          |
-| ------ | --------------------------------------- | ------------------- | -------------------------------- |
-| POST   | `/api/users/register`                   | Public              | Create customer account          |
-| POST   | `/api/users/login`                      | Public              | Sign in                          |
-| GET    | `/api/users/me`                         | Bearer              | Restore account/profile          |
-| POST   | `/api/users/logout`                     | Bearer              | Revoke current token             |
-| POST   | `/api/users/verify-email`               | Public              | Verify six-digit OTP             |
-| POST   | `/api/users/resend-verification`        | Public              | Request another OTP              |
-| GET    | `/api/halls`                            | Public              | Search available halls           |
-| GET    | `/api/halls/cities`                     | Public              | List cities with available halls |
-| GET    | `/api/halls/:id`                        | Public              | Read hall details                |
-| GET    | `/api/halls/:id/availability`           | Public              | Read availability for a date     |
-| GET    | `/api/users/bookings`                   | User token          | List own bookings                |
-| POST   | `/api/users/bookings`                   | Verified user token | Create booking request           |
-| GET    | `/api/users/bookings/:id`               | User token          | Read own booking                 |
-| POST   | `/api/users/bookings/:id/cancel`        | User token          | Cancel own eligible booking      |
-| GET    | `/api/users/notifications`              | User token          | List notifications               |
-| GET    | `/api/users/notifications/unread-count` | User token          | Get unread count                 |
-| POST   | `/api/users/notifications/:id/read`     | User token          | Mark one read                    |
-| POST   | `/api/users/notifications/read-all`     | User token          | Mark all read                    |
+| Method | Path                                            | Auth                | Purpose                          |
+| ------ | ----------------------------------------------- | ------------------- | -------------------------------- |
+| POST   | `/api/users/register`                           | Public              | Create customer account          |
+| POST   | `/api/users/login`                              | Public              | Sign in                          |
+| GET    | `/api/users/me`                                 | Bearer              | Restore account/profile          |
+| POST   | `/api/users/logout`                             | Bearer              | Revoke current token             |
+| POST   | `/api/users/verify-email`                       | Public              | Verify six-digit OTP             |
+| POST   | `/api/users/resend-verification`                | Public              | Request another OTP              |
+| GET    | `/api/halls`                                    | Public              | Search available halls           |
+| GET    | `/api/halls/cities`                             | Public              | List cities with available halls |
+| GET    | `/api/halls/:id`                                | Public              | Read hall details                |
+| GET    | `/api/halls/:id/availability`                   | Public              | Read availability for a date     |
+| GET    | `/api/users/bookings`                           | User token          | List own bookings                |
+| POST   | `/api/users/bookings`                           | Verified user token | Create booking request           |
+| GET    | `/api/users/bookings/:id`                       | User token          | Read own booking                 |
+| POST   | `/api/users/bookings/:id/cancel`                | User token          | Cancel own eligible booking      |
+| GET    | `/api/users/notifications`                      | User token          | List notifications               |
+| GET    | `/api/users/notifications/unread-count`         | User token          | Get unread count                 |
+| POST   | `/api/users/notifications/:id/read`             | User token          | Mark one read                    |
+| POST   | `/api/users/notifications/read-all`             | User token          | Mark all read                    |
+| POST   | `/api/users/push-installations`                 | Verified user token | Register or refresh this device  |
+| DELETE | `/api/users/push-installations/:installationId` | User token          | Revoke this device installation  |
 
 ## Data types
 
@@ -412,10 +414,41 @@ Notifications are eventually consistent. Booking transactions write notification
 
 An unknown or another user's notification returns `404 NOTIFICATION_NOT_FOUND`.
 
+### Expo push installation
+
+After verified login and whenever Expo returns a refreshed token, register the installation:
+
+```http
+POST /api/users/push-installations
+Authorization: Bearer <user-token>
+Content-Type: application/json
+
+{
+  "installationId": "93e33577-61c0-4efa-a760-df20d80f6b49",
+  "expoPushToken": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+  "platform": "android",
+  "deviceName": "Pixel",
+  "appVersion": "1.0.0"
+}
+```
+
+The idempotent `200` response contains safe installation metadata but never returns the Expo token.
+Registration requires a verified, non-deleted user account. Before local logout or notification
+opt-out, call `DELETE /api/users/push-installations/:installationId`; it returns `204` even when the
+current account does not own an active matching installation. Local logout must still complete when
+this best-effort request fails.
+
+User booking pushes use the `booking_updates` Android channel. Payload data contains only
+`notificationId`, `type`, `route`, and `bookingId`. Supported booking types are
+`booking_accepted`, `booking_rejected`, and `booking_expired`; unknown future types use a generic
+notification. Never trust payload status or text as authoritative—open the route and fetch the
+authenticated booking endpoint. Rejection reasons and private booking details are intentionally
+excluded from push payloads.
+
 ## Recommended client behavior
 
 - Persist only the raw token, not the whole auth response; restore fresh account state with `/me`.
 - Keep OTP verification separate from authentication. A valid token does not imply a verified email.
 - Treat nested transformer relations as optional.
 - Disable duplicate booking submissions while the first request is in flight; the backend also serializes same-hall/day creation and rejects overlaps.
-- Do not present payment, profile editing, password reset, priced service selection, or push-notification settings until their backend endpoints exist.
+- Do not present payment, profile editing, password reset, or priced service selection until their backend endpoints exist.

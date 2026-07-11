@@ -2,6 +2,7 @@ import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import type { QueryClientContract } from '@adonisjs/lucid/types/database'
 import notificationService, { type QueuedNotificationData } from '#services/notification_service'
+import pushFanoutService from '#services/push_fanout_service'
 
 interface OutboxRow {
   id: string
@@ -17,22 +18,57 @@ export class NotificationOutboxService {
   }
 
   async processPending(limit = 50): Promise<number> {
-    const rows = (await db
-      .from('notification_outbox')
-      .whereNull('processed_at')
-      .where('available_at', '<=', DateTime.now().toSQL())
-      .orderBy('id', 'asc')
-      .limit(limit)) as OutboxRow[]
+    const rows = await db.transaction(async (trx) => {
+      const claimed = (await trx
+        .from('notification_outbox')
+        .whereNull('processed_at')
+        .where('available_at', '<=', DateTime.now().toSQL())
+        .where((query) => {
+          query
+            .whereNull('processing_started_at')
+            .orWhere('processing_started_at', '<', DateTime.now().minus({ minutes: 5 }).toSQL())
+        })
+        .orderBy('id', 'asc')
+        .forUpdate()
+        .skipLocked()
+        .limit(limit)) as OutboxRow[]
+
+      if (claimed.length > 0) {
+        await trx
+          .from('notification_outbox')
+          .whereIn(
+            'id',
+            claimed.map((row) => row.id)
+          )
+          .update({ processing_started_at: DateTime.now().toSQL() })
+      }
+      return claimed
+    })
 
     let processed = 0
     for (const row of rows) {
       try {
-        await notificationService.notify({ ...row.payload, outboxId: row.id })
-        await db
-          .from('notification_outbox')
-          .where('id', row.id)
-          .whereNull('processed_at')
-          .update({ processed_at: DateTime.now().toSQL(), last_error: null })
+        await db.transaction(async (trx) => {
+          const current = await trx
+            .from('notification_outbox')
+            .where('id', row.id)
+            .whereNull('processed_at')
+            .forUpdate()
+            .first()
+          if (!current) return
+
+          const notification = await notificationService.persist(
+            { ...row.payload, outboxId: row.id },
+            trx
+          )
+          await pushFanoutService.createDeliveries(notification.id, row.payload.userId, trx)
+          await trx.from('notification_outbox').where('id', row.id).update({
+            processed_at: DateTime.now().toSQL(),
+            processing_started_at: null,
+            last_error: null,
+          })
+        })
+        await notificationService.dispatchEmail(row.payload)
         processed++
       } catch (error) {
         const attempts = row.attempts + 1
@@ -42,6 +78,7 @@ export class NotificationOutboxService {
           .update({
             attempts,
             last_error: error instanceof Error ? error.message.slice(0, 2000) : 'Unknown error',
+            processing_started_at: null,
             available_at: DateTime.now()
               .plus({ minutes: Math.min(60, 2 ** attempts) })
               .toSQL(),
