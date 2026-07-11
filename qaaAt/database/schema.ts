@@ -196,8 +196,14 @@ export class BookingServiceSchema extends BaseModel {
 }
 
 export class BookingSchema extends BaseModel {
-  static $columns = ['attendance', 'bookingDate', 'categoryRequirements', 'categorySlugSnapshot', 'companyId', 'companyRespondedAt', 'contactPreference', 'createdAt', 'customerEmailSnapshot', 'customerNameSnapshot', 'customerPhoneSnapshot', 'deletedAt', 'endTime', 'endsAt', 'eventType', 'expiresAt', 'hallId', 'id', 'lockVersion', 'originalEndLocal', 'originalStartLocal', 'originalTimezone', 'paymentDueDate', 'paymentStatus', 'rejectionReason', 'requestReference', 'requestSource', 'requirementsSchemaVersion', 'responseExpiresAt', 'sessionCode', 'spaceId', 'spaceNameSnapshotAr', 'spaceNameSnapshotEn', 'specialRequests', 'startTime', 'startsAt', 'status', 'submittedAt', 'totalPrice', 'updatedAt', 'userId', 'venueId', 'venueNameSnapshotAr', 'venueNameSnapshotEn'] as const
+  static $columns = ['acceptedQuoteId', 'acceptedQuoteRevisionId', 'acceptedTotalMinor', 'attendance', 'bookingDate', 'categoryRequirements', 'categorySlugSnapshot', 'companyId', 'companyRespondedAt', 'contactPreference', 'createdAt', 'customerEmailSnapshot', 'customerNameSnapshot', 'customerPhoneSnapshot', 'deletedAt', 'endTime', 'endsAt', 'eventType', 'expiresAt', 'hallId', 'id', 'lockVersion', 'originalEndLocal', 'originalStartLocal', 'originalTimezone', 'paymentDueDate', 'paymentStatus', 'rejectionReason', 'requestReference', 'requestSource', 'requirementsSchemaVersion', 'responseExpiresAt', 'sessionCode', 'spaceId', 'spaceNameSnapshotAr', 'spaceNameSnapshotEn', 'specialRequests', 'startTime', 'startsAt', 'status', 'submittedAt', 'totalPrice', 'updatedAt', 'userId', 'venueId', 'venueNameSnapshotAr', 'venueNameSnapshotEn'] as const
   $columns = BookingSchema.$columns
+  @column()
+  declare acceptedQuoteId: number | null
+  @column()
+  declare acceptedQuoteRevisionId: number | null
+  @column()
+  declare acceptedTotalMinor: bigint | number | null
   @column()
   declare attendance: number | null
   @column.date()
@@ -289,7 +295,7 @@ export class BookingSchema extends BaseModel {
 }
 
 export class CategoryRequestResponsePolicySchema extends BaseModel {
-  static $columns = ['categoryId', 'createdAt', 'dateInquiryHours', 'id', 'requestToBookHours', 'updatedAt', 'visitHours'] as const
+  static $columns = ['categoryId', 'createdAt', 'dateInquiryHours', 'id', 'quoteHoldHours', 'requestToBookHours', 'updatedAt', 'visitHours'] as const
   $columns = CategoryRequestResponsePolicySchema.$columns
   @column()
   declare categoryId: number
@@ -299,6 +305,8 @@ export class CategoryRequestResponsePolicySchema extends BaseModel {
   declare dateInquiryHours: number
   @column({ isPrimary: true })
   declare id: number
+  @column()
+  declare quoteHoldHours: number
   @column()
   declare requestToBookHours: number
   @column.dateTime({ autoCreate: true, autoUpdate: true })
@@ -637,6 +645,68 @@ export class NotificationSchema extends BaseModel {
   declare userId: number
 }
 
+export class PackageItemSchema extends BaseModel {
+  static $columns = ['companyId', 'createdAt', 'descriptionAr', 'descriptionEn', 'id', 'isIncluded', 'itemType', 'packageId', 'quantity', 'serviceOptionId', 'sortOrder'] as const
+  $columns = PackageItemSchema.$columns
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare descriptionAr: string | null
+  @column()
+  declare descriptionEn: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isIncluded: boolean
+  @column()
+  declare itemType: string
+  @column()
+  declare packageId: number
+  @column()
+  declare quantity: number
+  @column()
+  declare serviceOptionId: number | null
+  @column()
+  declare sortOrder: number
+}
+
+export class PackageSchema extends BaseModel {
+  static $columns = ['archivedAt', 'basePriceMinor', 'companyId', 'createdAt', 'currency', 'descriptionAr', 'descriptionEn', 'id', 'isActive', 'nameAr', 'nameEn', 'pricesIncludeVat', 'spaceId', 'updatedAt', 'vatRateBps'] as const
+  $columns = PackageSchema.$columns
+  @column.dateTime()
+  declare archivedAt: DateTime | null
+  @column()
+  declare basePriceMinor: bigint | number
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column()
+  declare descriptionAr: string | null
+  @column()
+  declare descriptionEn: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isActive: boolean
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string | null
+  @column()
+  declare pricesIncludeVat: boolean
+  @column()
+  declare spaceId: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare vatRateBps: number
+}
+
 export class PushDeliverySchema extends BaseModel {
   static $columns = ['attempts', 'createdAt', 'expoTicketId', 'id', 'lastErrorCode', 'lastErrorMessage', 'nextAttemptAt', 'notificationId', 'processingStartedAt', 'providerAcceptedAt', 'pushInstallationId', 'receiptCheckedAt', 'sentAt', 'status', 'updatedAt'] as const
   $columns = PushDeliverySchema.$columns
@@ -761,6 +831,192 @@ export class QueueScheduleSchema extends BaseModel {
   declare toDate: DateTime | null
 }
 
+export class QuoteEventSchema extends BaseModel {
+  static $columns = ['action', 'actorUserId', 'companyId', 'createdAt', 'id', 'metadata', 'nextStatus', 'previousStatus', 'quoteId', 'quoteRevisionId', 'reason'] as const
+  $columns = QuoteEventSchema.$columns
+  @column()
+  declare action: string
+  @column()
+  declare actorUserId: number | null
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare metadata: any | null
+  @column()
+  declare nextStatus: string
+  @column()
+  declare previousStatus: string | null
+  @column()
+  declare quoteId: number
+  @column()
+  declare quoteRevisionId: number | null
+  @column()
+  declare reason: string | null
+}
+
+export class QuoteLineItemSchema extends BaseModel {
+  static $columns = ['companyId', 'createdAt', 'currency', 'descriptionAr', 'descriptionEn', 'discountMinor', 'id', 'itemType', 'packageId', 'pricesIncludeVat', 'quantity', 'quoteRevisionId', 'ratePlanId', 'serviceOptionId', 'sortOrder', 'subtotalMinor', 'totalMinor', 'unitPriceMinor', 'vatMinor', 'vatRateBps'] as const
+  $columns = QuoteLineItemSchema.$columns
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column()
+  declare descriptionAr: string | null
+  @column()
+  declare descriptionEn: string | null
+  @column()
+  declare discountMinor: bigint | number
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare itemType: string
+  @column()
+  declare packageId: number | null
+  @column()
+  declare pricesIncludeVat: boolean
+  @column()
+  declare quantity: number
+  @column()
+  declare quoteRevisionId: number
+  @column()
+  declare ratePlanId: number | null
+  @column()
+  declare serviceOptionId: number | null
+  @column()
+  declare sortOrder: number
+  @column()
+  declare subtotalMinor: bigint | number
+  @column()
+  declare totalMinor: bigint | number
+  @column()
+  declare unitPriceMinor: bigint | number
+  @column()
+  declare vatMinor: bigint | number
+  @column()
+  declare vatRateBps: number
+}
+
+export class QuoteRevisionSchema extends BaseModel {
+  static $columns = ['companyId', 'createdAt', 'createdByMembershipId', 'currency', 'depositMinor', 'depositPercent', 'discountMinor', 'expiresAt', 'id', 'pricesIncludeVat', 'quoteId', 'remainingMinor', 'revisionNumber', 'sentAt', 'sentByMembershipId', 'status', 'subtotalMinor', 'totalMinor', 'vatMinor', 'vatRateBps'] as const
+  $columns = QuoteRevisionSchema.$columns
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdByMembershipId: number
+  @column()
+  declare currency: string
+  @column()
+  declare depositMinor: bigint | number | null
+  @column()
+  declare depositPercent: number | null
+  @column()
+  declare discountMinor: bigint | number
+  @column.dateTime()
+  declare expiresAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare pricesIncludeVat: boolean
+  @column()
+  declare quoteId: number
+  @column()
+  declare remainingMinor: bigint | number | null
+  @column()
+  declare revisionNumber: number
+  @column.dateTime()
+  declare sentAt: DateTime | null
+  @column()
+  declare sentByMembershipId: number | null
+  @column()
+  declare status: string
+  @column()
+  declare subtotalMinor: bigint | number
+  @column()
+  declare totalMinor: bigint | number
+  @column()
+  declare vatMinor: bigint | number
+  @column()
+  declare vatRateBps: number
+}
+
+export class QuoteSchema extends BaseModel {
+  static $columns = ['acceptedAt', 'acceptedRevisionId', 'bookingId', 'companyId', 'createdAt', 'createdByMembershipId', 'currentRevisionId', 'customerRequestSnapshot', 'declinedAt', 'endLocal', 'endsAt', 'expiredAt', 'id', 'inquiryId', 'internalNotes', 'lockVersion', 'reference', 'sentAt', 'spaceId', 'spaceNameAr', 'spaceNameEn', 'startLocal', 'startsAt', 'status', 'timezone', 'updatedAt', 'userId', 'venueId', 'venueNameAr', 'venueNameEn', 'visitRequestId', 'withdrawnAt'] as const
+  $columns = QuoteSchema.$columns
+  @column.dateTime()
+  declare acceptedAt: DateTime | null
+  @column()
+  declare acceptedRevisionId: number | null
+  @column()
+  declare bookingId: number | null
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdByMembershipId: number
+  @column()
+  declare currentRevisionId: number | null
+  @column()
+  declare customerRequestSnapshot: string | null
+  @column.dateTime()
+  declare declinedAt: DateTime | null
+  @column()
+  declare endLocal: string
+  @column.dateTime()
+  declare endsAt: DateTime
+  @column.dateTime()
+  declare expiredAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare inquiryId: number | null
+  @column()
+  declare internalNotes: string | null
+  @column()
+  declare lockVersion: number
+  @column()
+  declare reference: string
+  @column.dateTime()
+  declare sentAt: DateTime | null
+  @column()
+  declare spaceId: number
+  @column()
+  declare spaceNameAr: string | null
+  @column()
+  declare spaceNameEn: string | null
+  @column()
+  declare startLocal: string
+  @column.dateTime()
+  declare startsAt: DateTime
+  @column()
+  declare status: string
+  @column()
+  declare timezone: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+  @column()
+  declare venueId: number
+  @column()
+  declare venueNameAr: string | null
+  @column()
+  declare venueNameEn: string | null
+  @column()
+  declare visitRequestId: number | null
+  @column.dateTime()
+  declare withdrawnAt: DateTime | null
+}
+
 export class RateLimitSchema extends BaseModel {
   static $columns = ['expire', 'key', 'points'] as const
   $columns = RateLimitSchema.$columns
@@ -770,6 +1026,47 @@ export class RateLimitSchema extends BaseModel {
   declare key: string
   @column()
   declare points: number
+}
+
+export class RatePlanSchema extends BaseModel {
+  static $columns = ['archivedAt', 'companyId', 'createdAt', 'currency', 'fixedDurationMinutes', 'id', 'isActive', 'maximumDurationMinutes', 'minimumDurationMinutes', 'nameAr', 'nameEn', 'priceMinor', 'pricesIncludeVat', 'pricingMode', 'sessionCode', 'spaceId', 'updatedAt', 'vatRateBps'] as const
+  $columns = RatePlanSchema.$columns
+  @column.dateTime()
+  declare archivedAt: DateTime | null
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column()
+  declare fixedDurationMinutes: number | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isActive: boolean
+  @column()
+  declare maximumDurationMinutes: number | null
+  @column()
+  declare minimumDurationMinutes: number | null
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string | null
+  @column()
+  declare priceMinor: bigint | number | null
+  @column()
+  declare pricesIncludeVat: boolean
+  @column()
+  declare pricingMode: string
+  @column()
+  declare sessionCode: string | null
+  @column()
+  declare spaceId: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare vatRateBps: number
 }
 
 export class RequestIdempotencyKeySchema extends BaseModel {
@@ -793,6 +1090,39 @@ export class RequestIdempotencyKeySchema extends BaseModel {
   declare scope: string
   @column()
   declare userId: number
+}
+
+export class ServiceOptionSchema extends BaseModel {
+  static $columns = ['archivedAt', 'companyId', 'createdAt', 'currency', 'descriptionAr', 'descriptionEn', 'id', 'isActive', 'nameAr', 'nameEn', 'priceMinor', 'pricesIncludeVat', 'updatedAt', 'vatRateBps'] as const
+  $columns = ServiceOptionSchema.$columns
+  @column.dateTime()
+  declare archivedAt: DateTime | null
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column()
+  declare descriptionAr: string | null
+  @column()
+  declare descriptionEn: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isActive: boolean
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string | null
+  @column()
+  declare priceMinor: bigint | number
+  @column()
+  declare pricesIncludeVat: boolean
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare vatRateBps: number
 }
 
 export class ServiceSchema extends BaseModel {
@@ -1182,7 +1512,7 @@ export class SpaceOperatingHourSchema extends BaseModel {
 }
 
 export class SpaceRequestSettingSchema extends BaseModel {
-  static $columns = ['bookingResponseHours', 'companyId', 'createdAt', 'id', 'inquiryResponseHours', 'spaceId', 'updatedAt', 'visitResponseHours'] as const
+  static $columns = ['bookingResponseHours', 'companyId', 'createdAt', 'id', 'inquiryResponseHours', 'quoteHoldHours', 'spaceId', 'updatedAt', 'visitResponseHours'] as const
   $columns = SpaceRequestSettingSchema.$columns
   @column()
   declare bookingResponseHours: number | null
@@ -1195,11 +1525,30 @@ export class SpaceRequestSettingSchema extends BaseModel {
   @column()
   declare inquiryResponseHours: number | null
   @column()
+  declare quoteHoldHours: number | null
+  @column()
   declare spaceId: number
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
   @column()
   declare visitResponseHours: number | null
+}
+
+export class SpaceServiceOptionSchema extends BaseModel {
+  static $columns = ['companyId', 'createdAt', 'id', 'isActive', 'serviceOptionId', 'spaceId'] as const
+  $columns = SpaceServiceOptionSchema.$columns
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isActive: boolean
+  @column()
+  declare serviceOptionId: number
+  @column()
+  declare spaceId: number
 }
 
 export class SpaceSchema extends BaseModel {

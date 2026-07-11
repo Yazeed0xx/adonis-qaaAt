@@ -59,4 +59,5 @@ export const requestSettingsValidator = vine.create({
   bookingResponseHours: vine.number().min(1).max(720).nullable().optional(),
   inquiryResponseHours: vine.number().min(1).max(720).nullable().optional(),
   visitResponseHours: vine.number().min(1).max(720).nullable().optional(),
+  quoteHoldHours: vine.number().min(1).max(72).nullable().optional(),
 })

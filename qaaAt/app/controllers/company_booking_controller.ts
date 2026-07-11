@@ -56,10 +56,8 @@ export default class CompanyBookingController {
 
     const booking = await Booking.query()
       .where('id', params.id)
+      .where('companyId', companyContext.companyId)
       .whereNull('deletedAt')
-      .whereHas('hall', (query) => {
-        query.where('companyId', companyContext.companyId)
-      })
       .preload('hall')
       .preload('user', (query) => {
         query.preload('userProfile')

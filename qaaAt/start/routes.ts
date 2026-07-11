@@ -782,6 +782,120 @@ router
   .prefix('/api/admin')
   .use([middleware.auth(), middleware.admin()])
 
+router.get('/api/spaces/:spaceId/pricing', [controllers.PublicPricing, 'show']).openapi({
+  summary: 'Read active public Space pricing, packages, and service options',
+  tags: ['Pricing'],
+  security: [],
+})
+
+router
+  .group(() => {
+    router
+      .get('/pricing/rate-plans', [controllers.CompanyPricing, 'ratePlans'])
+      .openapi({ summary: 'List rate plans', tags: ['Pricing'] })
+    router
+      .post('/pricing/rate-plans', [controllers.CompanyPricing, 'storeRatePlan'])
+      .openapi({ summary: 'Create rate plan', tags: ['Pricing'] })
+    router
+      .put('/pricing/rate-plans/:id', [controllers.CompanyPricing, 'updateRatePlan'])
+      .openapi({ summary: 'Update rate plan', tags: ['Pricing'] })
+    router
+      .delete('/pricing/rate-plans/:id', [controllers.CompanyPricing, 'archiveRatePlan'])
+      .openapi({ summary: 'Archive rate plan', tags: ['Pricing'] })
+    router
+      .get('/pricing/service-options', [controllers.CompanyPricing, 'services'])
+      .openapi({ summary: 'List service options', tags: ['Pricing'] })
+    router
+      .post('/pricing/service-options', [controllers.CompanyPricing, 'storeService'])
+      .openapi({ summary: 'Create service option', tags: ['Pricing'] })
+    router
+      .put('/pricing/service-options/:id', [controllers.CompanyPricing, 'updateService'])
+      .openapi({ summary: 'Update service option', tags: ['Pricing'] })
+    router
+      .delete('/pricing/service-options/:id', [controllers.CompanyPricing, 'archiveService'])
+      .openapi({ summary: 'Archive service option', tags: ['Pricing'] })
+    router
+      .post('/spaces/:spaceId/service-options', [controllers.CompanyPricing, 'attachService'])
+      .openapi({ summary: 'Attach service option to Space', tags: ['Pricing'] })
+    router
+      .delete('/spaces/:spaceId/service-options/:serviceId', [
+        controllers.CompanyPricing,
+        'detachService',
+      ])
+      .openapi({ summary: 'Detach service option from Space', tags: ['Pricing'] })
+    router
+      .get('/pricing/packages', [controllers.CompanyPricing, 'packages'])
+      .openapi({ summary: 'List packages', tags: ['Pricing'] })
+    router
+      .post('/pricing/packages', [controllers.CompanyPricing, 'storePackage'])
+      .openapi({ summary: 'Create package', tags: ['Pricing'] })
+    router
+      .put('/pricing/packages/:id', [controllers.CompanyPricing, 'updatePackage'])
+      .openapi({ summary: 'Update package', tags: ['Pricing'] })
+    router
+      .delete('/pricing/packages/:id', [controllers.CompanyPricing, 'archivePackage'])
+      .openapi({ summary: 'Archive package', tags: ['Pricing'] })
+    router
+      .get('/quotes', [controllers.CompanyQuotes, 'index'])
+      .openapi({ summary: 'List company quotes', tags: ['Quotes'] })
+    router
+      .post('/quotes', [controllers.CompanyQuotes, 'store'])
+      .openapi({ summary: 'Create draft quote from inquiry', tags: ['Quotes'] })
+    router
+      .get('/quotes/:id', [controllers.CompanyQuotes, 'show'])
+      .openapi({ summary: 'Read quote and revision history', tags: ['Quotes'] })
+    router
+      .put('/quotes/:id', [controllers.CompanyQuotes, 'update'])
+      .openapi({ summary: 'Create or replace draft revision', tags: ['Quotes'] })
+    router
+      .post('/quotes/:id/send', [controllers.CompanyQuotes, 'send'])
+      .openapi({ summary: 'Send immutable quote revision', tags: ['Quotes'] })
+    router
+      .post('/quotes/:id/withdraw', [controllers.CompanyQuotes, 'withdraw'])
+      .openapi({ summary: 'Withdraw quote', tags: ['Quotes'] })
+  })
+  .prefix('/api/companies')
+  .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
+
+router
+  .group(() => {
+    router
+      .get('/quotes', [controllers.UserQuotes, 'index'])
+      .openapi({ summary: 'List customer quotes', tags: ['Quotes'] })
+    router
+      .get('/quotes/:id', [controllers.UserQuotes, 'show'])
+      .openapi({ summary: 'Read customer quote and sent revisions', tags: ['Quotes'] })
+    router.post('/quotes/:id/accept', [controllers.UserQuotes, 'accept']).openapi({
+      summary: 'Accept current quote revision and create payment-purpose hold',
+      tags: ['Quotes'],
+      responses: {
+        200: { description: 'Quote accepted awaiting payment' },
+        409: { description: 'Stale, expired, or overlapping quote' },
+      },
+    })
+    router
+      .post('/quotes/:id/decline', [controllers.UserQuotes, 'decline'])
+      .openapi({ summary: 'Decline current quote', tags: ['Quotes'] })
+  })
+  .prefix('/api/users')
+  .use([middleware.auth(), middleware.userType(), middleware.verifiedEmail()])
+
+router
+  .group(() => {
+    router
+      .get('/pricing', [controllers.AdminQuotes, 'pricing'])
+      .openapi({ summary: 'Audit provider pricing configuration', tags: ['Admin quotes'] })
+    router
+      .get('/quotes', [controllers.AdminQuotes, 'index'])
+      .openapi({ summary: 'Audit quotes', tags: ['Admin quotes'] })
+    router.get('/quotes/:id', [controllers.AdminQuotes, 'show']).openapi({
+      summary: 'Audit quote revisions, Booking, hold, and events',
+      tags: ['Admin quotes'],
+    })
+  })
+  .prefix('/api/admin')
+  .use([middleware.auth(), middleware.admin()])
+
 router.get('/api/space-catalog', [controllers.SpaceCatalog, 'index']).openapi({
   summary: 'List controlled space categories and amenities',
   operationId: 'getSpaceCatalog',

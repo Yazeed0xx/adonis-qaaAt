@@ -185,7 +185,9 @@ type Booking = {
   paymentDueDate: string | null
   createdAt: string
   updatedAt: string | null
-  totalPrice: number
+  totalPrice: number | null
+  totalPriceDecimal: string | null
+  totalPriceMinor: string | null
   isExpired: boolean
   hall?: Hall
   user?: {
@@ -215,6 +217,8 @@ type Booking = {
     price: number
   }>
 }
+
+Booking money compatibility: `totalPriceDecimal` is always the exact major-unit string when a total exists. Quote-backed Bookings also return the immutable `totalPriceMinor`. Numeric `totalPrice` is retained for ordinary safe legacy values and becomes `null` rather than rounded for larger amounts.
 
 type Notification = {
   id: number
@@ -509,3 +513,12 @@ duplicated, or unavailable.
 - Configure response deadlines with `GET|PUT /api/companies/spaces/:spaceId/request-settings`. Null overrides inherit category defaults.
 - Present Arabic labels first with deterministic English fallback. Suggested labels: `pending` = `بانتظار رد المزود`, `accepted` = `مقبول - بانتظار الدفع`, inquiry `open` = `مفتوح`, visit `submitted` = `بانتظار التأكيد`.
 - Existing `/api/companies/bookings` and `/api/companies/bookings/pending` remain operational for legacy Hall screens during migration.
+# Sprint 5 pricing and quotes
+
+Company pricing uses integer SAR minor units represented as decimal strings in request and response JSON. Never parse monetary fields through JavaScript `Number`; use string/BigInt-safe client handling. Manage rate plans under `/api/companies/pricing/rate-plans`, priced options under `/pricing/service-options`, Space attachments under `/spaces/:spaceId/service-options`, and packages under `/pricing/packages`. Reads require `pricing.view`; mutations require `pricing.manage`.
+
+Create quotes from eligible date inquiries with `POST /api/companies/quotes`. Quote mutations require `quotes.manage`; inbox/history reads require `quotes.view`. Sending freezes a revision. Editing commercial content after send creates a new draft revision that must be sent explicitly. Statuses are `draft`, `sent`, `accepted`, `customer_declined`, `expired`, and `withdrawn`. Quote acceptance creates an awaiting-payment inventory hold, not payment or confirmation.
+
+Legacy Hall service strings remain descriptive compatibility data and are not priced service options.
+
+Every quote revision uses one VAT-inclusion display policy across all lines. Mixed source policies return `422 QUOTE_TAX_POLICY_MIXED`.

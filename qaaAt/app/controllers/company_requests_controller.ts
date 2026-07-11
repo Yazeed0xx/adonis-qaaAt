@@ -200,6 +200,7 @@ export default class CompanyRequestsController {
         booking_response_hours: input.bookingResponseHours ?? null,
         inquiry_response_hours: input.inquiryResponseHours ?? null,
         visit_response_hours: input.visitResponseHours ?? null,
+        quote_hold_hours: input.quoteHoldHours ?? null,
         created_at: new Date(),
       })
       .onConflict('space_id')
@@ -207,6 +208,7 @@ export default class CompanyRequestsController {
         booking_response_hours: input.bookingResponseHours ?? null,
         inquiry_response_hours: input.inquiryResponseHours ?? null,
         visit_response_hours: input.visitResponseHours ?? null,
+        quote_hold_hours: input.quoteHoldHours ?? null,
         updated_at: new Date(),
       })
       .returning('*')

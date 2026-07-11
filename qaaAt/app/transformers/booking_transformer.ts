@@ -1,6 +1,6 @@
 import { BaseTransformer } from '@adonisjs/core/transformers'
 import type Booking from '#models/booking'
-import { fromDatabaseAmount } from '#lib/money'
+import { canonicalMajorAmount, legacyCompatibleAmount } from '#lib/money'
 import HallTransformer from '#transformers/hall_transformer'
 import ServiceTransformer from '#transformers/service_transformer'
 import UserTransformer from '#transformers/user_transformer'
@@ -24,7 +24,11 @@ export default class BookingTransformer extends BaseTransformer<Booking> {
         'updatedAt',
       ]),
       totalPrice:
-        this.resource.totalPrice === null ? null : fromDatabaseAmount(this.resource.totalPrice),
+        this.resource.totalPrice === null ? null : legacyCompatibleAmount(this.resource.totalPrice),
+      totalPriceDecimal:
+        this.resource.totalPrice === null ? null : canonicalMajorAmount(this.resource.totalPrice),
+      totalPriceMinor:
+        this.resource.acceptedTotalMinor === null ? null : String(this.resource.acceptedTotalMinor),
       requestReference: this.resource.requestReference,
       requestSource: this.resource.requestSource,
       companyId: this.resource.companyId,

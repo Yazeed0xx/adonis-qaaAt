@@ -4,6 +4,7 @@ import type { JobOptions } from '@adonisjs/queue/types'
 import { BookingManagementService } from '#services/booking_management_service'
 import { CompanyCalendarService } from '#services/company_calendar_service'
 import { RequestWorkflowService } from '#services/request_workflow_service'
+import { PricingQuoteService } from '#services/pricing_quote_service'
 
 @inject()
 export default class CleanupExpiredBookingsJob extends Job<Record<string, never>> {
@@ -16,7 +17,8 @@ export default class CleanupExpiredBookingsJob extends Job<Record<string, never>
   constructor(
     private bookingManagementService: BookingManagementService,
     private companyCalendarService: CompanyCalendarService,
-    private requestWorkflowService: RequestWorkflowService
+    private requestWorkflowService: RequestWorkflowService,
+    private pricingQuoteService: PricingQuoteService
   ) {
     super()
   }
@@ -25,5 +27,6 @@ export default class CleanupExpiredBookingsJob extends Job<Record<string, never>
     await this.bookingManagementService.expireOldBookings()
     await this.companyCalendarService.expireExternalHolds()
     await this.requestWorkflowService.expirePending()
+    await this.pricingQuoteService.expire()
   }
 }

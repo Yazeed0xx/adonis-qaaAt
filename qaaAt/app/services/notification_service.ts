@@ -32,6 +32,11 @@ export type NotificationType =
   | 'visit_alternative_proposed'
   | 'visit_alternative_accepted'
   | 'visit_alternative_rejected'
+  | 'quote_sent'
+  | 'quote_accepted'
+  | 'quote_declined'
+  | 'quote_withdrawn'
+  | 'quote_expired'
 
 export interface NotificationData {
   userId?: number

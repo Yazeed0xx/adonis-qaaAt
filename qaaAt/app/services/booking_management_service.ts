@@ -479,9 +479,7 @@ export class BookingManagementService {
     status?: string
   ) {
     const query = Booking.query()
-      .whereHas('hall', (hallQuery) => {
-        hallQuery.where('companyId', companyId)
-      })
+      .where('companyId', companyId)
       .whereNull('deletedAt')
       .preload('hall')
       .preload('user')
@@ -502,9 +500,7 @@ export class BookingManagementService {
     return Booking.query()
       .where('status', 'pending')
       .where('expiresAt', '>', DateTime.now().toSQL())
-      .whereHas('hall', (hallQuery) => {
-        hallQuery.where('companyId', companyId)
-      })
+      .where('companyId', companyId)
       .preload('hall')
       .preload('user')
       .preload('services')

@@ -13,6 +13,7 @@ import BackfillMigration from '#database/migrations/1770000000011_seed_catalogs_
 import StructureMigration from '#database/migrations/1770000000010_create_venues_spaces_and_catalogs'
 import AvailabilityMigration from '#database/migrations/1770000000020_create_availability_and_inventory'
 import RequestsMigration from '#database/migrations/1770000000030_create_requests_inquiries_and_visits'
+import PricingMigration from '#database/migrations/1770000000040_create_pricing_and_quotes'
 import { HallService } from '#services/hall_service'
 
 async function seedCatalogsAndBackfill() {
@@ -465,6 +466,7 @@ test.group('Sprint 2 venues, spaces, moderation, and Hall compatibility', (group
     let structuralTablesDropped = false
     let restoreError: Error | null = null
     try {
+      await new PricingMigration(db.connection(), import.meta.url).execDown()
       await new RequestsMigration(db.connection(), import.meta.url).execDown()
       await new AvailabilityMigration(db.connection(), import.meta.url).execDown()
       await new BackfillMigration(db.connection(), import.meta.url).execDown()
@@ -487,6 +489,7 @@ test.group('Sprint 2 venues, spaces, moderation, and Hall compatibility', (group
           await new BackfillMigration(db.connection(), import.meta.url).execUp()
           await new AvailabilityMigration(db.connection(), import.meta.url).execUp()
           await new RequestsMigration(db.connection(), import.meta.url).execUp()
+          await new PricingMigration(db.connection(), import.meta.url).execUp()
         } catch (error) {
           restoreError = error as Error
         }

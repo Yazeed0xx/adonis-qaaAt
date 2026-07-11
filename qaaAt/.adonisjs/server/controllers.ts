@@ -5,6 +5,7 @@
 
 export const controllers = {
   Admin: () => import('#controllers/admin_controller'),
+  AdminQuotes: () => import('#controllers/admin_quotes_controller'),
   AdminRequests: () => import('#controllers/admin_requests_controller'),
   AdminSpaces: () => import('#controllers/admin_spaces_controller'),
   auth: {
@@ -16,6 +17,8 @@ export const controllers = {
   CompanyCalendar: () => import('#controllers/company_calendar_controller'),
   CompanyInvitations: () => import('#controllers/company_invitations_controller'),
   CompanyMembers: () => import('#controllers/company_members_controller'),
+  CompanyPricing: () => import('#controllers/company_pricing_controller'),
+  CompanyQuotes: () => import('#controllers/company_quotes_controller'),
   CompanyRequests: () => import('#controllers/company_requests_controller'),
   Hall: () => import('#controllers/hall_controller'),
   HealthChecks: () => import('#controllers/health_checks_controller'),
@@ -23,12 +26,14 @@ export const controllers = {
   PublicAvailability: () => import('#controllers/public_availability_controller'),
   PublicCompanyInvitations: () => import('#controllers/public_company_invitations_controller'),
   PublicHall: () => import('#controllers/public_hall_controller'),
+  PublicPricing: () => import('#controllers/public_pricing_controller'),
   PublicSpaces: () => import('#controllers/public_spaces_controller'),
   PushInstallations: () => import('#controllers/push_installations_controller'),
   SpaceCatalog: () => import('#controllers/space_catalog_controller'),
   Spaces: () => import('#controllers/spaces_controller'),
   UserBooking: () => import('#controllers/user_booking_controller'),
   UserPushInstallations: () => import('#controllers/user_push_installations_controller'),
+  UserQuotes: () => import('#controllers/user_quotes_controller'),
   UserRequests: () => import('#controllers/user_requests_controller'),
   Venues: () => import('#controllers/venues_controller'),
 }

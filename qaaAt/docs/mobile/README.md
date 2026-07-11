@@ -133,7 +133,7 @@ Always branch on the HTTP status first. In particular, handle `401` by clearing 
 
 - Response keys are camelCase.
 - A few query keys are snake_case: `min_capacity`, `max_price`, and `unread_only`.
-- `pricing`, `price`, and `totalPrice` are returned as JavaScript numbers.
+- Legacy `pricing` and `price` remain JavaScript numbers. Booking `totalPrice` is numeric only inside the safe compatibility range; exact `totalPriceDecimal` and quote-backed `totalPriceMinor` are decimal strings.
 - Date-time values are ISO 8601 strings.
 - `bookingDate` is a date string (`YYYY-MM-DD`); booking times are strings (`HH:mm`).
 - Nullable fields may be `null`; unloaded relations are normally omitted.

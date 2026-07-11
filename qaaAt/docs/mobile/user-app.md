@@ -154,7 +154,9 @@ type Booking = {
   paymentDueDate: string | null
   createdAt: string
   updatedAt: string | null
-  totalPrice: number
+  totalPrice: number | null
+  totalPriceDecimal: string | null
+  totalPriceMinor: string | null
   isExpired: boolean
   hall?: Hall
   services?: Service[]
@@ -173,6 +175,8 @@ type Notification = {
 ```
 
 `Hall.services` is a string array stored on the hall and is not the same thing as the priced `Service[]` attached to a booking.
+
+`totalPriceDecimal` is the exact canonical major-unit amount. `totalPriceMinor` is the immutable accepted Quote total when present. The legacy numeric `totalPrice` remains available only when minor units are within JavaScript's safe-integer compatibility range; otherwise it is `null` and clients must use the exact string fields.
 
 ## Authentication and verification
 
@@ -482,3 +486,8 @@ excluded from push payloads.
 - New request lists/details are `/api/users/booking-requests`, `/api/users/date-inquiries`, and `/api/users/visit-requests`.
 - Keep existing Hall booking screens on `/api/users/bookings`; their envelope and actions remain compatible.
 - Render Arabic names/status text first, then English, then the deterministic compatibility name. Treat `409` version/availability responses as refreshable workflow conflicts and never imply that a pending request has reserved the date.
+# Sprint 5 pricing and quotes
+
+Public active pricing is available from `GET /api/spaces/:spaceId/pricing`; all money fields are integer halalas serialized as decimal strings and currency is `SAR`. Do not parse them through JavaScript `Number`. Active packages include ordered customer-safe contents with Arabic-first fallback. Customer quote endpoints are under `/api/users/quotes`. Only sent revision history is visible, and provider internal notes are never returned.
+
+Accept the current revision with `POST /api/users/quotes/:id/accept` and optionally send `revisionId` to detect stale revisions. Acceptance creates a temporary awaiting-payment hold but does not mark the Booking paid or confirmed. Decline with `POST /api/users/quotes/:id/decline`. Refresh after `QUOTE_REVISION_STALE`, `QUOTE_EXPIRED`, `INVENTORY_OVERLAP`, or `SPACE_NOT_APPROVABLE`.
