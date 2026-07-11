@@ -11,6 +11,7 @@ import type CompanyTransformer from '#transformers/company_transformer'
 import type HallTransformer from '#transformers/hall_transformer'
 import type NotificationTransformer from '#transformers/notification_transformer'
 import type PushInstallationTransformer from '#transformers/push_installation_transformer'
+import type RequestWorkflowTransformer from '#transformers/request_workflow_transformer'
 import type ServiceTransformer from '#transformers/service_transformer'
 import type SpaceTransformer from '#transformers/space_transformer'
 import type UserProfileTransformer from '#transformers/user_profile_transformer'
@@ -41,6 +42,10 @@ export namespace Data {
   export type PushInstallation = InferData<PushInstallationTransformer>
   export namespace PushInstallation {
     export type Variants = InferVariants<PushInstallationTransformer>
+  }
+  export type RequestWorkflow = InferData<RequestWorkflowTransformer>
+  export namespace RequestWorkflow {
+    export type Variants = InferVariants<RequestWorkflowTransformer>
   }
   export type Service = InferData<ServiceTransformer>
   export namespace Service {

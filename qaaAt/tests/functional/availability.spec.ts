@@ -739,7 +739,7 @@ test.group('Sprint 3 availability and inventory', (group) => {
     try {
       const rollback = new MigrationRunner(db, app, {
         direction: 'down',
-        step: 1,
+        step: 2,
         disableLocks: true,
       })
       await rollback.run()

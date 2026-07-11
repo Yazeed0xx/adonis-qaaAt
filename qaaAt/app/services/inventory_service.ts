@@ -20,6 +20,7 @@ export class InventoryService {
   }
 
   async bookingRange(trx: TransactionClientContract, booking: Booking, space: any) {
+    if (booking.startsAt && booking.endsAt) return { start: booking.startsAt, end: booking.endsAt }
     const venue = await trx.from('venues').where('id', space.venue_id).firstOrFail()
     const date = booking.bookingDate.toFormat('yyyy-MM-dd')
     const start = DateTime.fromISO(`${date}T${booking.startTime}`, { zone: venue.timezone })
@@ -59,7 +60,25 @@ export class InventoryService {
     companyId: number,
     expiresAt: DateTime
   ) {
-    const space = await this.mappedSpace(trx, booking.hallId, companyId)
+    const space = booking.spaceId
+      ? await trx
+          .from('spaces')
+          .join('companies', 'companies.id', 'spaces.company_id')
+          .where('spaces.id', booking.spaceId)
+          .where('spaces.company_id', companyId)
+          .where('spaces.publication_status', 'published')
+          .whereNull('spaces.deleted_at')
+          .where('companies.status', 'approved')
+          .whereNull('companies.deleted_at')
+          .select('spaces.*')
+          .first()
+      : await this.mappedSpace(trx, booking.hallId!, companyId)
+    if (!space)
+      throw new InventoryException(
+        'Space cannot be approved in its current state',
+        'SPACE_NOT_APPROVABLE',
+        409
+      )
     await trx.rawQuery('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [
       `space-inventory:${space.id}`,
     ])

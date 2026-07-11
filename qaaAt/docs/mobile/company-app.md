@@ -498,3 +498,14 @@ duplicated, or unavailable.
 - Preserve read-only hall access on pending/rejected screens, but hide hall mutations and all booking management until approval.
 - Treat nested booking relations as optional and refresh details after accept/reject when a complete object is required.
 - Do not expose company-profile editing, service CRUD, registration-PDF download, payment actions, or media upload until backend endpoints are added.
+# Sprint 4 request workflows
+
+- Use `GET /api/companies/booking-requests` as the unified provider inbox for both legacy Hall and new Space-only request-to-book records. `pending` means awaiting provider; `accepted` means approved and awaiting payment. Approval can return `409 INVENTORY_OVERLAP`, `AVAILABILITY_SCHEDULE_CONFLICT`, or `SPACE_NOT_APPROVABLE`; refresh the item and calendar instead of retrying blindly.
+- Date inquiries use `/api/companies/date-inquiries`. They never reserve inventory. Members need `inquiries.view` to read and `inquiries.manage` to answer.
+- Visit requests use `/api/companies/visit-requests`. They never create rentable-space blocks. Confirmation can return `409 VISIT_TIME_CONFLICT` when the Venue already has a confirmed visit.
+- Confirming the customer's exact visit interval sets `confirmed`. Supplying a different interval creates `alternative_proposed`; it is not confirmed until the customer explicitly accepts it. Refresh after `REQUEST_VERSION_CONFLICT`.
+- Confirmation and proposed alternatives must start in the future and end after they start. Invalid or elapsed intervals return `422 REQUEST_TIME_INVALID`.
+- Company request notifications fan out only to active members with the effective view permission after role presets and allow/deny overrides. Direct customer email snapshots are redacted from every inquiry and visit list, detail, and mutation response.
+- Configure response deadlines with `GET|PUT /api/companies/spaces/:spaceId/request-settings`. Null overrides inherit category defaults.
+- Present Arabic labels first with deterministic English fallback. Suggested labels: `pending` = `بانتظار رد المزود`, `accepted` = `مقبول - بانتظار الدفع`, inquiry `open` = `مفتوح`, visit `submitted` = `بانتظار التأكيد`.
+- Existing `/api/companies/bookings` and `/api/companies/bookings/pending` remain operational for legacy Hall screens during migration.

@@ -470,3 +470,15 @@ excluded from push payloads.
 - Treat nested transformer relations as optional.
 - Disable duplicate booking submissions while the first request is in flight; the backend also serializes same-hall/day creation and rejects overlaps.
 - Do not present payment, profile editing, password reset, or priced service selection until their backend endpoints exist.
+# Sprint 4 request workflows
+
+- For a published Space with `bookingMode=request_to_book`, submit to `POST /api/users/booking-requests`. Persist and reuse `idempotencyKey` for retries. Pending requests may overlap and do not reserve inventory.
+- For date-first or `quote_required` experiences, submit `POST /api/users/date-inquiries`. Sprint 4 does not expose quotes, prices, VAT, line items, acceptance, or payment holds.
+- Visits use `POST /api/users/visit-requests`; a confirmed visit is an appointment only and does not reserve the rentable Space.
+- Durable provider inquiry answers are read from `GET /api/users/date-inquiries/:id/messages`; push/outbox payloads are notification hints, not the source of truth.
+- A provider-proposed alternative visit time has status `alternative_proposed`. Accept it with `POST /api/users/visit-requests/:id/alternative/accept` or reject it with `/alternative/reject`. Until acceptance it is not confirmed.
+- Acceptance revalidates that the proposed appointment is still in the future. An elapsed proposal remains `alternative_proposed` and returns `422 REQUEST_TIME_INVALID`.
+- Confirmed visits do not expire on the original provider-response deadline. They remain until completed, cancelled, or marked no-show.
+- New request lists/details are `/api/users/booking-requests`, `/api/users/date-inquiries`, and `/api/users/visit-requests`.
+- Keep existing Hall booking screens on `/api/users/bookings`; their envelope and actions remain compatible.
+- Render Arabic names/status text first, then English, then the deterministic compatibility name. Treat `409` version/availability responses as refreshable workflow conflicts and never imply that a pending request has reserved the date.

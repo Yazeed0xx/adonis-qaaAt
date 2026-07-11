@@ -242,7 +242,7 @@ async function attachServicesToBookings(bookings: Booking[], halls: Hall[], serv
   const now = DateTime.now().toSQL()
   const rows = bookings.flatMap((booking, index) => {
     if (index % 3 === 0) return []
-    const companyServices = servicesByCompany.get(companyByHall.get(booking.hallId)!) ?? []
+    const companyServices = servicesByCompany.get(companyByHall.get(booking.hallId!)!) ?? []
     return companyServices.slice(0, index % 4 === 0 ? 2 : 1).map((service) => ({
       booking_id: booking.id,
       service_id: service.id,

@@ -575,6 +575,213 @@ router.get('/api/spaces/:id/availability', [controllers.PublicAvailability, 'sho
   },
 })
 
+router
+  .group(() => {
+    router
+      .post('/booking-requests', [controllers.UserRequests, 'storeBooking'])
+      .use(bookingCreationThrottle)
+      .openapi({
+        summary: 'Submit a Space request-to-book request',
+        tags: ['Requests'],
+        responses: {
+          201: { description: 'Submitted' },
+          409: { description: 'Space mode, state, or availability conflict' },
+        },
+      })
+    router
+      .get('/booking-requests', [controllers.UserRequests, 'bookings'])
+      .openapi({ summary: 'List customer booking requests', tags: ['Requests'] })
+    router
+      .get('/booking-requests/:id', [controllers.UserRequests, 'showBooking'])
+      .openapi({ summary: 'Get customer booking request', tags: ['Requests'] })
+    router
+      .post('/booking-requests/:id/cancel', [controllers.UserRequests, 'cancelBooking'])
+      .openapi({ summary: 'Cancel customer booking request', tags: ['Requests'] })
+    router
+      .post('/date-inquiries', [controllers.UserRequests, 'createInquiry'])
+      .use(bookingCreationThrottle)
+      .openapi({
+        summary: 'Submit a non-blocking date inquiry',
+        tags: ['Date inquiries'],
+        responses: { 201: { description: 'Submitted' } },
+      })
+    router
+      .get('/date-inquiries', [controllers.UserRequests, 'inquiries'])
+      .openapi({ summary: 'List customer date inquiries', tags: ['Date inquiries'] })
+    router
+      .get('/date-inquiries/:id', [controllers.UserRequests, 'showInquiry'])
+      .openapi({ summary: 'Get customer date inquiry', tags: ['Date inquiries'] })
+    router
+      .get('/date-inquiries/:id/messages', [controllers.UserRequests, 'inquiryMessages'])
+      .openapi({
+        summary: 'Read bounded durable provider answers for a date inquiry',
+        tags: ['Date inquiries'],
+      })
+    router
+      .post('/date-inquiries/:id/cancel', [controllers.UserRequests, 'cancelInquiry'])
+      .openapi({ summary: 'Cancel customer date inquiry', tags: ['Date inquiries'] })
+    router
+      .post('/visit-requests', [controllers.UserRequests, 'createVisit'])
+      .use(bookingCreationThrottle)
+      .openapi({
+        summary: 'Submit a visit request',
+        tags: ['Visits'],
+        responses: { 201: { description: 'Submitted' } },
+      })
+    router
+      .get('/visit-requests', [controllers.UserRequests, 'visits'])
+      .openapi({ summary: 'List customer visit requests', tags: ['Visits'] })
+    router
+      .get('/visit-requests/:id', [controllers.UserRequests, 'showVisit'])
+      .openapi({ summary: 'Get customer visit request', tags: ['Visits'] })
+    router
+      .post('/visit-requests/:id/cancel', [controllers.UserRequests, 'cancelVisit'])
+      .openapi({ summary: 'Cancel customer visit request', tags: ['Visits'] })
+    router
+      .post('/visit-requests/:id/alternative/accept', [
+        controllers.UserRequests,
+        'acceptVisitAlternative',
+      ])
+      .openapi({ summary: 'Accept a provider-proposed visit time', tags: ['Visits'] })
+    router
+      .post('/visit-requests/:id/alternative/reject', [
+        controllers.UserRequests,
+        'rejectVisitAlternative',
+      ])
+      .openapi({ summary: 'Reject a provider-proposed visit time', tags: ['Visits'] })
+  })
+  .prefix('/api/users')
+  .use([middleware.auth(), middleware.userType(), middleware.verifiedEmail()])
+
+router
+  .group(() => {
+    router.get('/booking-requests', [controllers.CompanyRequests, 'bookings']).openapi({
+      summary: 'List company booking-request inbox',
+      tags: ['Requests'],
+      security: [{ bearer: [] }],
+    })
+    router.get('/booking-requests/:id', [controllers.CompanyRequests, 'showBooking']).openapi({
+      summary: 'Get company booking request',
+      tags: ['Requests'],
+      security: [{ bearer: [] }],
+    })
+    router
+      .post('/booking-requests/:id/approve', [controllers.CompanyRequests, 'approveBooking'])
+      .openapi({
+        summary: 'Approve request and create inventory hold atomically',
+        tags: ['Requests'],
+        security: [{ bearer: [] }],
+        responses: {
+          200: { description: 'Approved awaiting payment' },
+          409: { description: 'Availability or inventory conflict' },
+        },
+      })
+    router
+      .post('/booking-requests/:id/reject', [controllers.CompanyRequests, 'rejectBooking'])
+      .openapi({
+        summary: 'Reject booking request',
+        tags: ['Requests'],
+        security: [{ bearer: [] }],
+      })
+    router
+      .post('/booking-requests/:id/cancel', [controllers.CompanyRequests, 'cancelBooking'])
+      .openapi({
+        summary: 'Cancel approved booking request',
+        tags: ['Requests'],
+        security: [{ bearer: [] }],
+      })
+    router.get('/date-inquiries', [controllers.CompanyRequests, 'inquiries']).openapi({
+      summary: 'List company date inquiries',
+      tags: ['Date inquiries'],
+      security: [{ bearer: [] }],
+    })
+    router.get('/date-inquiries/:id', [controllers.CompanyRequests, 'showInquiry']).openapi({
+      summary: 'Get company date inquiry',
+      tags: ['Date inquiries'],
+      security: [{ bearer: [] }],
+    })
+    router
+      .get('/date-inquiries/:id/messages', [controllers.CompanyRequests, 'inquiryMessages'])
+      .openapi({
+        summary: 'Read bounded inquiry response history for the owning company',
+        tags: ['Date inquiries'],
+        security: [{ bearer: [] }],
+      })
+    router
+      .post('/date-inquiries/:id/answer', [controllers.CompanyRequests, 'answerInquiry'])
+      .openapi({
+        summary: 'Answer date inquiry',
+        tags: ['Date inquiries'],
+        security: [{ bearer: [] }],
+      })
+    router
+      .post('/date-inquiries/:id/:action', [controllers.CompanyRequests, 'transitionInquiry'])
+      .where('action', /^(start-review|rejected|closed)$/)
+      .openapi({
+        summary: 'Transition date inquiry',
+        tags: ['Date inquiries'],
+        security: [{ bearer: [] }],
+      })
+    router.get('/visit-requests', [controllers.CompanyRequests, 'visits']).openapi({
+      summary: 'List company visit requests',
+      tags: ['Visits'],
+      security: [{ bearer: [] }],
+    })
+    router.get('/visit-requests/:id', [controllers.CompanyRequests, 'showVisit']).openapi({
+      summary: 'Get company visit request',
+      tags: ['Visits'],
+      security: [{ bearer: [] }],
+    })
+    router
+      .post('/visit-requests/:id/:action', [controllers.CompanyRequests, 'visitAction'])
+      .where(
+        'action',
+        /^(confirm|confirmed|reject|rejected|cancel|cancelled|complete|completed|no-show)$/
+      )
+      .openapi({
+        summary: 'Transition visit request',
+        tags: ['Visits'],
+        security: [{ bearer: [] }],
+      })
+    router
+      .get('/spaces/:spaceId/request-settings', [controllers.CompanyRequests, 'showSettings'])
+      .openapi({
+        summary: 'Read Space response-expiry overrides',
+        tags: ['Requests'],
+        security: [{ bearer: [] }],
+      })
+    router
+      .put('/spaces/:spaceId/request-settings', [controllers.CompanyRequests, 'updateSettings'])
+      .openapi({
+        summary: 'Configure Space response expiries',
+        tags: ['Requests'],
+        security: [{ bearer: [] }],
+      })
+  })
+  .prefix('/api/companies')
+  .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
+
+router
+  .group(() => {
+    router.get('/booking-requests', [controllers.AdminRequests, 'bookings']).openapi({
+      summary: 'Audit booking requests',
+      tags: ['Admin requests'],
+      security: [{ bearer: [] }],
+    })
+    router.get('/date-inquiries', [controllers.AdminRequests, 'inquiries']).openapi({
+      summary: 'Audit date inquiries',
+      tags: ['Admin requests'],
+      security: [{ bearer: [] }],
+    })
+    router.get('/visit-requests', [controllers.AdminRequests, 'visits']).openapi({
+      summary: 'Audit visit requests',
+      tags: ['Admin requests'],
+      security: [{ bearer: [] }],
+    })
+  })
+  .prefix('/api/admin')
+  .use([middleware.auth(), middleware.admin()])
+
 router.get('/api/space-catalog', [controllers.SpaceCatalog, 'index']).openapi({
   summary: 'List controlled space categories and amenities',
   operationId: 'getSpaceCatalog',

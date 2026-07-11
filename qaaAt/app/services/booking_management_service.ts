@@ -73,7 +73,7 @@ export class BookingManagementService {
         throw new BookingConflictException('Hall is not available for booking', 'HALL_UNAVAILABLE')
       }
 
-      await inventoryService.assertBookingRequestFitsPolicy(trx, {
+      const policyResult = await inventoryService.assertBookingRequestFitsPolicy(trx, {
         hallId: data.hallId,
         companyId: availableHall.companyId,
         bookingDate: data.bookingDate,
@@ -112,6 +112,22 @@ export class BookingManagementService {
           startTime: data.startTime,
           endTime: data.endTime,
           totalPrice: toDatabaseAmount(totalPrice),
+          companyId: availableHall.companyId,
+          venueId: policyResult.space.venue_id,
+          spaceId: policyResult.space.id,
+          requestReference: `LEG-${crypto.randomUUID()}`,
+          requestSource: 'legacy_hall_api',
+          spaceNameSnapshotEn: availableHall.name,
+          venueNameSnapshotEn: policyResult.space.venue_name_en ?? null,
+          customerEmailSnapshot: null,
+          contactPreference: 'in_app',
+          startsAt: policyResult.start.toUTC(),
+          endsAt: policyResult.end.toUTC(),
+          originalStartLocal: policyResult.start.toISO({ includeOffset: false }),
+          originalEndLocal: policyResult.end.toISO({ includeOffset: false }),
+          originalTimezone: policyResult.start.zoneName,
+          submittedAt: DateTime.now(),
+          responseExpiresAt: DateTime.now().plus({ days: BookingManagementService.EXPIRY_DAYS }),
           specialRequests: data.specialRequests || null,
           status: 'pending',
           paymentStatus: 'unpaid',
@@ -190,7 +206,7 @@ export class BookingManagementService {
       const lockedBooking = await Booking.query({ client: trx })
         .where('id', bookingId)
         .whereNull('deletedAt')
-        .preload('hall', (query) => query.preload('company'))
+        .preload('hall')
         .preload('user')
         .forUpdate()
         .first()
@@ -199,7 +215,7 @@ export class BookingManagementService {
         throw new BookingNotFoundException()
       }
 
-      if (lockedBooking.hall.companyId !== companyId) {
+      if (lockedBooking.companyId !== companyId) {
         throw new ForbiddenActionException('This booking does not belong to your company')
       }
 
@@ -236,10 +252,13 @@ export class BookingManagementService {
           userId: lockedBooking.userId,
           type: 'booking_accepted',
           title: 'Booking Confirmed',
-          message: `Great news! Your booking for "${lockedBooking.hall.name}" on ${lockedBooking.bookingDate.toFormat('yyyy-MM-dd')} has been accepted. Please proceed with payment to secure your reservation.`,
+          message: `Great news! Your booking for "${lockedBooking.spaceNameSnapshotAr ?? lockedBooking.spaceNameSnapshotEn ?? lockedBooking.hall?.name ?? 'Space'}" on ${lockedBooking.bookingDate.toFormat('yyyy-MM-dd')} has been accepted. Please proceed with payment to secure your reservation.`,
           data: {
             bookingId: lockedBooking.id,
-            hallName: lockedBooking.hall.name,
+            hallName:
+              lockedBooking.spaceNameSnapshotAr ??
+              lockedBooking.spaceNameSnapshotEn ??
+              lockedBooking.hall?.name,
             bookingDate: lockedBooking.bookingDate.toFormat('yyyy-MM-dd'),
           },
           sendEmail: true,
@@ -267,7 +286,7 @@ export class BookingManagementService {
       const lockedBooking = await Booking.query({ client: trx })
         .where('id', bookingId)
         .whereNull('deletedAt')
-        .preload('hall', (query) => query.preload('company'))
+        .preload('hall')
         .preload('user')
         .forUpdate()
         .first()
@@ -276,7 +295,7 @@ export class BookingManagementService {
         throw new BookingNotFoundException()
       }
 
-      if (lockedBooking.hall.companyId !== companyId) {
+      if (lockedBooking.companyId !== companyId) {
         throw new ForbiddenActionException('This booking does not belong to your company')
       }
 
@@ -312,10 +331,13 @@ export class BookingManagementService {
           userId: lockedBooking.userId,
           type: 'booking_rejected',
           title: 'Booking Rejected',
-          message: `Unfortunately, your booking for "${lockedBooking.hall.name}" on ${lockedBooking.bookingDate.toFormat('yyyy-MM-dd')} was rejected. Reason: ${reason}`,
+          message: `Unfortunately, your booking for "${lockedBooking.spaceNameSnapshotAr ?? lockedBooking.spaceNameSnapshotEn ?? lockedBooking.hall?.name ?? 'Space'}" on ${lockedBooking.bookingDate.toFormat('yyyy-MM-dd')} was rejected. Reason: ${reason}`,
           data: {
             bookingId: lockedBooking.id,
-            hallName: lockedBooking.hall.name,
+            hallName:
+              lockedBooking.spaceNameSnapshotAr ??
+              lockedBooking.spaceNameSnapshotEn ??
+              lockedBooking.hall?.name,
             bookingDate: lockedBooking.bookingDate.toFormat('yyyy-MM-dd'),
             reason,
           },
@@ -348,6 +370,7 @@ export class BookingManagementService {
         throw new BookingNotFoundException()
       }
 
+      const previousStatusForCancellation = booking.status
       bookingStatusService.assertTransition(booking.status, 'cancelled')
 
       if (booking.status === 'accepted')
@@ -357,6 +380,73 @@ export class BookingManagementService {
       booking.status = 'cancelled'
       await booking.save()
 
+      const legacyHall = booking.companyId
+        ? null
+        : await trx.from('halls').where('id', booking.hallId!).select('company_id').firstOrFail()
+      const companyId = booking.companyId ?? legacyHall!.company_id
+      await bookingAuditService.record(
+        {
+          actorUserId: userId,
+          bookingId: booking.id,
+          companyId,
+          action: 'booking.cancel',
+          previousStatus: previousStatusForCancellation,
+          nextStatus: 'cancelled',
+        },
+        trx
+      )
+
+      return booking
+    })
+  }
+
+  async cancelBookingByCompany(
+    bookingId: number,
+    companyId: number,
+    actorUserId: number,
+    reason: string
+  ) {
+    return db.transaction(async (trx) => {
+      const booking = await Booking.query({ client: trx })
+        .where('id', bookingId)
+        .where('companyId', companyId)
+        .whereNull('deletedAt')
+        .forUpdate()
+        .firstOrFail()
+      bookingStatusService.assertTransition(booking.status, 'cancelled')
+      const previousStatus = booking.status
+      if (booking.status === 'accepted')
+        await inventoryService.releaseBookingHold(
+          trx,
+          booking.id,
+          'provider_cancelled',
+          'cancelled'
+        )
+      booking.useTransaction(trx)
+      booking.status = 'cancelled'
+      await booking.save()
+      await bookingAuditService.record(
+        {
+          actorUserId,
+          bookingId: booking.id,
+          companyId,
+          action: 'booking.cancel',
+          previousStatus,
+          nextStatus: 'cancelled',
+          reason,
+        },
+        trx
+      )
+      await notificationOutboxService.enqueue(
+        {
+          userId: booking.userId,
+          type: 'booking_cancelled',
+          title: 'تم إلغاء طلب الحجز',
+          message: reason,
+          data: { bookingId: booking.id, reason },
+        },
+        trx
+      )
       return booking
     })
   }
@@ -460,10 +550,13 @@ export class BookingManagementService {
             userId: lockedBooking.userId,
             type: 'booking_expired',
             title: 'Booking Request Expired',
-            message: `Your booking request for "${lockedBooking.hall.name}" on ${lockedBooking.bookingDate.toFormat('yyyy-MM-dd')} has expired as the company did not respond within 7 days. Please try booking again or choose a different hall.`,
+            message: `Your booking request for "${lockedBooking.spaceNameSnapshotAr ?? lockedBooking.spaceNameSnapshotEn ?? lockedBooking.hall?.name ?? 'Space'}" on ${lockedBooking.bookingDate.toFormat('yyyy-MM-dd')} has expired because the company did not respond in time.`,
             data: {
               bookingId: lockedBooking.id,
-              hallName: lockedBooking.hall.name,
+              hallName:
+                lockedBooking.spaceNameSnapshotAr ??
+                lockedBooking.spaceNameSnapshotEn ??
+                lockedBooking.hall?.name,
               bookingDate: lockedBooking.bookingDate.toFormat('yyyy-MM-dd'),
             },
             sendEmail: true,
@@ -540,7 +633,12 @@ export class BookingManagementService {
             },
             trx
           )
-          const providerUserId = booking.hall.company?.userId
+          const providerUserId = await trx
+            .from('companies')
+            .where('id', hold.company_id)
+            .select('user_id')
+            .first()
+            .then((row) => row?.user_id)
           if (providerUserId)
             await notificationOutboxService.enqueue(
               {

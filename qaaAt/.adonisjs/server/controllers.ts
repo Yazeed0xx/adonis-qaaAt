@@ -5,6 +5,7 @@
 
 export const controllers = {
   Admin: () => import('#controllers/admin_controller'),
+  AdminRequests: () => import('#controllers/admin_requests_controller'),
   AdminSpaces: () => import('#controllers/admin_spaces_controller'),
   auth: {
     AdminAuth: () => import('#controllers/auth/admin_auth_controller'),
@@ -15,6 +16,7 @@ export const controllers = {
   CompanyCalendar: () => import('#controllers/company_calendar_controller'),
   CompanyInvitations: () => import('#controllers/company_invitations_controller'),
   CompanyMembers: () => import('#controllers/company_members_controller'),
+  CompanyRequests: () => import('#controllers/company_requests_controller'),
   Hall: () => import('#controllers/hall_controller'),
   HealthChecks: () => import('#controllers/health_checks_controller'),
   Notification: () => import('#controllers/notification_controller'),
@@ -27,5 +29,6 @@ export const controllers = {
   Spaces: () => import('#controllers/spaces_controller'),
   UserBooking: () => import('#controllers/user_booking_controller'),
   UserPushInstallations: () => import('#controllers/user_push_installations_controller'),
+  UserRequests: () => import('#controllers/user_requests_controller'),
   Venues: () => import('#controllers/venues_controller'),
 }

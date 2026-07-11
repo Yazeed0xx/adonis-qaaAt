@@ -18,6 +18,20 @@ export type NotificationType =
   | 'booking_expired'
   | 'new_booking_request'
   | 'company_invitation'
+  | 'date_inquiry_received'
+  | 'date_inquiry_answered'
+  | 'date_inquiry_cancelled'
+  | 'date_inquiry_expired'
+  | 'visit_requested'
+  | 'visit_confirmed'
+  | 'visit_rejected'
+  | 'visit_cancelled'
+  | 'visit_completed'
+  | 'visit_no_show'
+  | 'visit_expired'
+  | 'visit_alternative_proposed'
+  | 'visit_alternative_accepted'
+  | 'visit_alternative_rejected'
 
 export interface NotificationData {
   userId?: number

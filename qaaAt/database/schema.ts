@@ -196,24 +196,52 @@ export class BookingServiceSchema extends BaseModel {
 }
 
 export class BookingSchema extends BaseModel {
-  static $columns = ['bookingDate', 'companyRespondedAt', 'createdAt', 'deletedAt', 'endTime', 'expiresAt', 'hallId', 'id', 'paymentDueDate', 'paymentStatus', 'rejectionReason', 'specialRequests', 'startTime', 'status', 'totalPrice', 'updatedAt', 'userId'] as const
+  static $columns = ['attendance', 'bookingDate', 'categoryRequirements', 'categorySlugSnapshot', 'companyId', 'companyRespondedAt', 'contactPreference', 'createdAt', 'customerEmailSnapshot', 'customerNameSnapshot', 'customerPhoneSnapshot', 'deletedAt', 'endTime', 'endsAt', 'eventType', 'expiresAt', 'hallId', 'id', 'lockVersion', 'originalEndLocal', 'originalStartLocal', 'originalTimezone', 'paymentDueDate', 'paymentStatus', 'rejectionReason', 'requestReference', 'requestSource', 'requirementsSchemaVersion', 'responseExpiresAt', 'sessionCode', 'spaceId', 'spaceNameSnapshotAr', 'spaceNameSnapshotEn', 'specialRequests', 'startTime', 'startsAt', 'status', 'submittedAt', 'totalPrice', 'updatedAt', 'userId', 'venueId', 'venueNameSnapshotAr', 'venueNameSnapshotEn'] as const
   $columns = BookingSchema.$columns
+  @column()
+  declare attendance: number | null
   @column.date()
   declare bookingDate: DateTime
+  @column()
+  declare categoryRequirements: any | null
+  @column()
+  declare categorySlugSnapshot: string | null
+  @column()
+  declare companyId: number | null
   @column.dateTime()
   declare companyRespondedAt: DateTime | null
+  @column()
+  declare contactPreference: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column()
+  declare customerEmailSnapshot: string | null
+  @column()
+  declare customerNameSnapshot: string | null
+  @column()
+  declare customerPhoneSnapshot: string | null
   @column.dateTime()
   declare deletedAt: DateTime | null
   @column()
   declare endTime: string
   @column.dateTime()
+  declare endsAt: DateTime | null
+  @column()
+  declare eventType: string | null
+  @column.dateTime()
   declare expiresAt: DateTime | null
   @column()
-  declare hallId: number
+  declare hallId: number | null
   @column({ isPrimary: true })
   declare id: number
+  @column()
+  declare lockVersion: number
+  @column()
+  declare originalEndLocal: string | null
+  @column()
+  declare originalStartLocal: string | null
+  @column()
+  declare originalTimezone: string | null
   @column.dateTime()
   declare paymentDueDate: DateTime | null
   @column()
@@ -221,17 +249,62 @@ export class BookingSchema extends BaseModel {
   @column()
   declare rejectionReason: string | null
   @column()
+  declare requestReference: string | null
+  @column()
+  declare requestSource: string
+  @column()
+  declare requirementsSchemaVersion: number
+  @column.dateTime()
+  declare responseExpiresAt: DateTime | null
+  @column()
+  declare sessionCode: string | null
+  @column()
+  declare spaceId: number | null
+  @column()
+  declare spaceNameSnapshotAr: string | null
+  @column()
+  declare spaceNameSnapshotEn: string | null
+  @column()
   declare specialRequests: string | null
   @column()
   declare startTime: string
+  @column.dateTime()
+  declare startsAt: DateTime | null
   @column()
   declare status: string
+  @column.dateTime()
+  declare submittedAt: DateTime | null
   @column()
-  declare totalPrice: string
+  declare totalPrice: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
   @column()
   declare userId: number
+  @column()
+  declare venueId: number | null
+  @column()
+  declare venueNameSnapshotAr: string | null
+  @column()
+  declare venueNameSnapshotEn: string | null
+}
+
+export class CategoryRequestResponsePolicySchema extends BaseModel {
+  static $columns = ['categoryId', 'createdAt', 'dateInquiryHours', 'id', 'requestToBookHours', 'updatedAt', 'visitHours'] as const
+  $columns = CategoryRequestResponsePolicySchema.$columns
+  @column()
+  declare categoryId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare dateInquiryHours: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare requestToBookHours: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare visitHours: number
 }
 
 export class CompanySchema extends BaseModel {
@@ -476,6 +549,50 @@ export class HallSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class InquiryEventSchema extends BaseModel {
+  static $columns = ['action', 'actorUserId', 'companyId', 'createdAt', 'id', 'inquiryId', 'metadata', 'nextStatus', 'previousStatus', 'reason'] as const
+  $columns = InquiryEventSchema.$columns
+  @column()
+  declare action: string
+  @column()
+  declare actorUserId: number | null
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare inquiryId: number
+  @column()
+  declare metadata: any | null
+  @column()
+  declare nextStatus: string
+  @column()
+  declare previousStatus: string | null
+  @column()
+  declare reason: string | null
+}
+
+export class InquiryMessageSchema extends BaseModel {
+  static $columns = ['body', 'companyId', 'createdAt', 'id', 'inquiryId', 'senderType', 'senderUserId'] as const
+  $columns = InquiryMessageSchema.$columns
+  @column()
+  declare body: string
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare inquiryId: number
+  @column()
+  declare senderType: string
+  @column()
+  declare senderUserId: number
+}
+
 export class NotificationOutboxSchema extends BaseModel {
   static $columns = ['attempts', 'availableAt', 'createdAt', 'id', 'lastError', 'payload', 'processedAt', 'processingStartedAt'] as const
   $columns = NotificationOutboxSchema.$columns
@@ -655,6 +772,29 @@ export class RateLimitSchema extends BaseModel {
   declare points: number
 }
 
+export class RequestIdempotencyKeySchema extends BaseModel {
+  static $columns = ['createdAt', 'expiresAt', 'id', 'idempotencyKey', 'requestHash', 'resourceId', 'resourceType', 'scope', 'userId'] as const
+  $columns = RequestIdempotencyKeySchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare idempotencyKey: string
+  @column()
+  declare requestHash: string
+  @column()
+  declare resourceId: number
+  @column()
+  declare resourceType: string
+  @column()
+  declare scope: string
+  @column()
+  declare userId: number
+}
+
 export class ServiceSchema extends BaseModel {
   static $columns = ['companyId', 'createdAt', 'deletedAt', 'description', 'id', 'isActive', 'name', 'price', 'updatedAt'] as const
   $columns = ServiceSchema.$columns
@@ -797,6 +937,75 @@ export class SpaceEventDetailSchema extends BaseModel {
   declare spaceId: number
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
+}
+
+export class SpaceInquirySchema extends BaseModel {
+  static $columns = ['answeredAt', 'attendance', 'cancelledAt', 'closedAt', 'companyId', 'contactPreference', 'createdAt', 'customerEmailSnapshot', 'customerNameSnapshot', 'deletedAt', 'eventType', 'id', 'initialMessage', 'kind', 'lockVersion', 'originalEndLocal', 'originalStartLocal', 'originalTimezone', 'preferredEndsAt', 'preferredStartsAt', 'reference', 'responseExpiresAt', 'spaceId', 'spaceNameSnapshotAr', 'spaceNameSnapshotEn', 'status', 'subject', 'updatedAt', 'userId', 'venueId', 'venueNameSnapshotAr', 'venueNameSnapshotEn'] as const
+  $columns = SpaceInquirySchema.$columns
+  @column.dateTime()
+  declare answeredAt: DateTime | null
+  @column()
+  declare attendance: number | null
+  @column.dateTime()
+  declare cancelledAt: DateTime | null
+  @column.dateTime()
+  declare closedAt: DateTime | null
+  @column()
+  declare companyId: number
+  @column()
+  declare contactPreference: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerEmailSnapshot: string | null
+  @column()
+  declare customerNameSnapshot: string | null
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column()
+  declare eventType: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare initialMessage: string | null
+  @column()
+  declare kind: string
+  @column()
+  declare lockVersion: number
+  @column()
+  declare originalEndLocal: string
+  @column()
+  declare originalStartLocal: string
+  @column()
+  declare originalTimezone: string
+  @column.dateTime()
+  declare preferredEndsAt: DateTime
+  @column.dateTime()
+  declare preferredStartsAt: DateTime
+  @column()
+  declare reference: string
+  @column.dateTime()
+  declare responseExpiresAt: DateTime
+  @column()
+  declare spaceId: number
+  @column()
+  declare spaceNameSnapshotAr: string | null
+  @column()
+  declare spaceNameSnapshotEn: string | null
+  @column()
+  declare status: string
+  @column()
+  declare subject: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+  @column()
+  declare venueId: number
+  @column()
+  declare venueNameSnapshotAr: string | null
+  @column()
+  declare venueNameSnapshotEn: string | null
 }
 
 export class SpaceInventoryBlockSchema extends BaseModel {
@@ -972,6 +1181,27 @@ export class SpaceOperatingHourSchema extends BaseModel {
   declare weekday: number
 }
 
+export class SpaceRequestSettingSchema extends BaseModel {
+  static $columns = ['bookingResponseHours', 'companyId', 'createdAt', 'id', 'inquiryResponseHours', 'spaceId', 'updatedAt', 'visitResponseHours'] as const
+  $columns = SpaceRequestSettingSchema.$columns
+  @column()
+  declare bookingResponseHours: number | null
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare inquiryResponseHours: number | null
+  @column()
+  declare spaceId: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare visitResponseHours: number | null
+}
+
 export class SpaceSchema extends BaseModel {
   static $columns = ['bookingMode', 'capacityTotal', 'categoryId', 'companyId', 'createdAt', 'deletedAt', 'descriptionAr', 'descriptionEn', 'id', 'instantBookApprovedAt', 'instantBookApprovedBy', 'legacyDescription', 'legacyHallId', 'legacyIsAvailable', 'legacyName', 'maximumDurationMinutes', 'minimumDurationMinutes', 'minimumNoticeHours', 'nameAr', 'nameEn', 'publicationStatus', 'publishedAt', 'publishedBy', 'requiresVisit', 'updatedAt', 'venueId'] as const
   $columns = SpaceSchema.$columns
@@ -1132,4 +1362,96 @@ export class VenueSchema extends BaseModel {
   declare updatedAt: DateTime | null
   @column()
   declare verificationStatus: string
+}
+
+export class VisitEventSchema extends BaseModel {
+  static $columns = ['action', 'actorUserId', 'companyId', 'createdAt', 'id', 'metadata', 'nextStatus', 'previousStatus', 'reason', 'visitId'] as const
+  $columns = VisitEventSchema.$columns
+  @column()
+  declare action: string
+  @column()
+  declare actorUserId: number | null
+  @column()
+  declare companyId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare metadata: any | null
+  @column()
+  declare nextStatus: string
+  @column()
+  declare previousStatus: string | null
+  @column()
+  declare reason: string | null
+  @column()
+  declare visitId: number
+}
+
+export class VisitRequestSchema extends BaseModel {
+  static $columns = ['bookingId', 'cancelledAt', 'companyId', 'completedAt', 'confirmedAt', 'createdAt', 'customerEmailSnapshot', 'customerNameSnapshot', 'customerNotes', 'deletedAt', 'endsAt', 'id', 'inquiryId', 'lockVersion', 'originalEndLocal', 'originalStartLocal', 'originalTimezone', 'proposedEndLocal', 'proposedEndsAt', 'proposedStartLocal', 'proposedStartsAt', 'providerNotes', 'reference', 'responseExpiresAt', 'spaceId', 'startsAt', 'status', 'statusReason', 'updatedAt', 'userId', 'venueId'] as const
+  $columns = VisitRequestSchema.$columns
+  @column()
+  declare bookingId: number | null
+  @column.dateTime()
+  declare cancelledAt: DateTime | null
+  @column()
+  declare companyId: number
+  @column.dateTime()
+  declare completedAt: DateTime | null
+  @column.dateTime()
+  declare confirmedAt: DateTime | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerEmailSnapshot: string | null
+  @column()
+  declare customerNameSnapshot: string | null
+  @column()
+  declare customerNotes: string | null
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column.dateTime()
+  declare endsAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare inquiryId: number | null
+  @column()
+  declare lockVersion: number
+  @column()
+  declare originalEndLocal: string
+  @column()
+  declare originalStartLocal: string
+  @column()
+  declare originalTimezone: string
+  @column()
+  declare proposedEndLocal: string | null
+  @column.dateTime()
+  declare proposedEndsAt: DateTime | null
+  @column()
+  declare proposedStartLocal: string | null
+  @column.dateTime()
+  declare proposedStartsAt: DateTime | null
+  @column()
+  declare providerNotes: string | null
+  @column()
+  declare reference: string
+  @column.dateTime()
+  declare responseExpiresAt: DateTime
+  @column()
+  declare spaceId: number | null
+  @column.dateTime()
+  declare startsAt: DateTime
+  @column()
+  declare status: string
+  @column()
+  declare statusReason: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+  @column()
+  declare venueId: number
 }
