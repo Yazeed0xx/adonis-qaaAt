@@ -279,10 +279,11 @@ Authorization: Bearer {token}
 ```
 
 **Query Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| page | number | Page number (default: 1) |
-| limit | number | Items per page (default: 20) |
+
+| Parameter | Type   | Description                  |
+| --------- | ------ | ---------------------------- |
+| page      | number | Page number (default: 1)     |
+| limit     | number | Items per page (default: 20) |
 
 **Response (200 OK):**
 
@@ -503,11 +504,12 @@ Authorization: Bearer {token}
 ```
 
 **Query Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| page | number | Page number (default: 1) |
-| limit | number | Items per page (default: 20) |
-| status | string | Filter by status |
+
+| Parameter | Type   | Description                  |
+| --------- | ------ | ---------------------------- |
+| page      | number | Page number (default: 1)     |
+| limit     | number | Items per page (default: 20) |
+| status    | string | Filter by status             |
 
 **Response (200 OK):**
 
@@ -756,10 +758,11 @@ Authorization: Bearer {token}
 ```
 
 **Query Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| page | number | Page number (default: 1) |
-| limit | number | Items per page (default: 20) |
+
+| Parameter   | Type    | Description                    |
+| ----------- | ------- | ------------------------------ |
+| page        | number  | Page number (default: 1)       |
+| limit       | number  | Items per page (default: 20)   |
 | unread_only | boolean | Only show unread notifications |
 
 **Response (200 OK):**

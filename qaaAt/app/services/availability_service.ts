@@ -47,9 +47,6 @@ export class AvailabilityService {
       .whereNull('spaces.deleted_at')
       .where('companies.status', 'approved')
       .whereNull('companies.deleted_at')
-      .where((query) =>
-        query.whereNull('spaces.legacy_hall_id').orWhere('spaces.legacy_is_available', true)
-      )
       .select('spaces.*', 'venues.timezone')
       .first()
     if (!space) throw new InventoryException('Published Space not found', 'SPACE_NOT_FOUND', 404)
@@ -288,25 +285,6 @@ export class AvailabilityService {
       )
     }
     return result
-  }
-
-  async legacyHallAvailability(hallId: number, date: DateTime) {
-    const mapped = await db
-      .from('spaces')
-      .join('venues', 'venues.id', 'spaces.venue_id')
-      .where('spaces.legacy_hall_id', hallId)
-      .select('spaces.*', 'venues.timezone')
-      .firstOrFail()
-    const start = DateTime.fromISO(date.toISODate()!, { zone: mapped.timezone }).startOf('day')
-    const result = await this.calculate(mapped, {
-      start: start.toUTC(),
-      end: start.plus({ days: 1 }).toUTC(),
-    })
-    return result.slots.map((slot: any) => ({
-      startTime: DateTime.fromISO(slot.localStart).toFormat('HH:mm'),
-      endTime: DateTime.fromISO(slot.localEnd).toFormat('HH:mm'),
-      isAvailable: slot.isAvailable,
-    }))
   }
 }
 

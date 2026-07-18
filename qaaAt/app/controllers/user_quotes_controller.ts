@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import pricingQuotes from '#services/pricing_quote_service'
+import { QuoteTransformer } from '#transformers/quote_transformer'
 import { quoteActionValidator } from '#validators/pricing_quote_validator'
 
 const paging = (request: HttpContext['request']) => ({
@@ -10,11 +11,16 @@ export default class UserQuotesController {
   async index({ auth, request, response }: HttpContext) {
     const p = paging(request)
     const rows = await pricingQuotes.listQuotes('user', auth.getUserOrFail().id, p.page, p.limit)
-    return response.ok({ data: rows.all(), meta: rows.getMeta() })
+    return response.ok({
+      data: QuoteTransformer.customerCollection(rows.all()),
+      meta: rows.getMeta(),
+    })
   }
   async show({ auth, params, response }: HttpContext) {
     return response.ok({
-      data: await pricingQuotes.userDetail(auth.getUserOrFail().id, Number(params.id)),
+      data: QuoteTransformer.customer(
+        await pricingQuotes.userDetail(auth.getUserOrFail().id, Number(params.id))
+      ),
     })
   }
   async accept({ auth, params, request, response }: HttpContext) {

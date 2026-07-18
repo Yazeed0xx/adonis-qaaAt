@@ -22,48 +22,15 @@ const UserPaymentsController = () => import('#controllers/user_payments_controll
 const CompanyPaymentsController = () => import('#controllers/company_payments_controller')
 const AdminPaymentsController = () => import('#controllers/admin_payments_controller')
 const PaymentWebhooksController = () => import('#controllers/payment_webhooks_controller')
+const AdminCatalogController = () => import('#controllers/admin_catalog_controller')
+const AdminAuditLogsController = () => import('#controllers/admin_audit_logs_controller')
+const AdminDisputesController = () => import('#controllers/admin_disputes_controller')
 
 router.get('/', async () => {
   return {
     hello: 'world',
   }
 })
-
-// Public Hall Routes (no auth required)
-router
-  .group(() => {
-    router.get('/', [controllers.PublicHall, 'index']).openapi({
-      summary: 'Browse public halls',
-      operationId: 'listPublicHalls',
-      tags: ['Public halls'],
-      security: [],
-    })
-    router.get('/cities', [controllers.PublicHall, 'cities']).openapi({
-      summary: 'List public hall cities',
-      operationId: 'listPublicHallCities',
-      tags: ['Public halls'],
-      security: [],
-    })
-    router.get('/:id', [controllers.PublicHall, 'show']).openapi({
-      summary: 'Get public hall details',
-      operationId: 'getPublicHall',
-      tags: ['Public halls'],
-      security: [],
-      responses: { 200: { description: 'Hall details' }, 404: { description: 'Hall not found' } },
-    })
-    router.get('/:id/availability', [controllers.PublicHall, 'availability']).openapi({
-      summary: 'Get hall availability',
-      operationId: 'getHallAvailability',
-      tags: ['Public halls'],
-      security: [],
-      responses: {
-        200: { description: 'Available time slots' },
-        400: { description: 'Invalid date' },
-        404: { description: 'Hall not found' },
-      },
-    })
-  })
-  .prefix('/api/halls')
 
 // User Authentication Routes
 router
@@ -128,25 +95,6 @@ router
     router
       .post('/notifications/read-all', [controllers.Notification, 'markAllAsRead'])
       .as('users.notification.markAllAsRead')
-      .use([middleware.auth(), middleware.userType()])
-
-    // User booking routes (auth + verified email required)
-    router
-      .get('/bookings', [controllers.UserBooking, 'index'])
-      .use([middleware.auth(), middleware.userType()])
-    router
-      .post('/bookings', [controllers.UserBooking, 'store'])
-      .use([
-        middleware.auth(),
-        middleware.userType(),
-        middleware.verifiedEmail(),
-        bookingCreationThrottle,
-      ])
-    router
-      .get('/bookings/:id', [controllers.UserBooking, 'show'])
-      .use([middleware.auth(), middleware.userType()])
-    router
-      .post('/bookings/:id/cancel', [controllers.UserBooking, 'cancel'])
       .use([middleware.auth(), middleware.userType()])
   })
   .prefix('/api/users')
@@ -277,81 +225,8 @@ router
       .post('/notifications/read-all', [controllers.Notification, 'markAllAsRead'])
       .as('companies.notification.markAllAsRead')
       .use([middleware.auth(), middleware.company()])
-
-    // Company booking routes (auth + company + approved required)
-    router
-      .get('/bookings', [controllers.CompanyBooking, 'index'])
-      .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
-    router
-      .get('/bookings/pending', [controllers.CompanyBooking, 'pending'])
-      .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
-    router
-      .get('/bookings/:id', [controllers.CompanyBooking, 'show'])
-      .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
-    router
-      .post('/bookings/:id/accept', [controllers.CompanyBooking, 'accept'])
-      .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
-    router
-      .post('/bookings/:id/reject', [controllers.CompanyBooking, 'reject'])
-      .use([middleware.auth(), middleware.company(), middleware.approvedCompany()])
   })
   .prefix('/api/companies')
-
-// Company Hall Management Routes (requires auth + approved company)
-router
-  .group(() => {
-    router.get('/', [controllers.Hall, 'index']).openapi({
-      summary: 'List company halls',
-      operationId: 'listCompanyHalls',
-      tags: ['Company halls'],
-      security: [{ bearer: [] }],
-    })
-    router.get('/:id', [controllers.Hall, 'show']).openapi({
-      summary: 'Get company hall details',
-      operationId: 'getCompanyHall',
-      tags: ['Company halls'],
-      security: [{ bearer: [] }],
-    })
-    router
-      .post('/', [controllers.Hall, 'store'])
-      .use([middleware.approvedCompany()])
-      .openapi({
-        summary: 'Create a hall',
-        operationId: 'createCompanyHall',
-        tags: ['Company halls'],
-        security: [{ bearer: [] }],
-        responses: {
-          201: { description: 'Hall created' },
-          422: { description: 'Validation failed' },
-        },
-      })
-    router
-      .put('/:id', [controllers.Hall, 'update'])
-      .use([middleware.approvedCompany()])
-      .openapi({
-        summary: 'Update a hall',
-        operationId: 'updateCompanyHall',
-        tags: ['Company halls'],
-        security: [{ bearer: [] }],
-        responses: {
-          200: { description: 'Hall updated' },
-          404: { description: 'Hall not found' },
-          422: { description: 'Validation failed' },
-        },
-      })
-    router
-      .delete('/:id', [controllers.Hall, 'destroy'])
-      .use([middleware.approvedCompany()])
-      .openapi({
-        summary: 'Delete a hall',
-        operationId: 'deleteCompanyHall',
-        tags: ['Company halls'],
-        security: [{ bearer: [] }],
-        responses: { 200: { description: 'Hall deleted' }, 404: { description: 'Hall not found' } },
-      })
-  })
-  .prefix('/api/companies/halls')
-  .use([middleware.auth(), middleware.company()])
 
 router
   .group(() => {
@@ -395,6 +270,32 @@ router
 
 router
   .group(() => {
+    router
+      .post('/:spaceId/media', [controllers.SpaceMedia, 'store'])
+      .use(middleware.approvedCompany())
+      .openapi({ summary: 'Upload a controlled Space image', tags: ['Space media'] })
+    router
+      .get('/:spaceId/media', [controllers.SpaceMedia, 'index'])
+      .openapi({ summary: 'List controlled Space images', tags: ['Space media'] })
+    router
+      .patch('/:spaceId/media/:mediaId', [controllers.SpaceMedia, 'update'])
+      .use(middleware.approvedCompany())
+      .openapi({ summary: 'Update Space image alt text', tags: ['Space media'] })
+    router
+      .put('/:spaceId/media/order', [controllers.SpaceMedia, 'order'])
+      .use(middleware.approvedCompany())
+      .openapi({ summary: 'Atomically reorder Space images', tags: ['Space media'] })
+    router
+      .put('/:spaceId/media/:mediaId/cover', [controllers.SpaceMedia, 'cover'])
+      .use(middleware.approvedCompany())
+      .openapi({ summary: 'Select an approved Space cover image', tags: ['Space media'] })
+    router
+      .delete('/:spaceId/media/:mediaId', [controllers.SpaceMedia, 'destroy'])
+      .use(middleware.approvedCompany())
+      .openapi({ summary: 'Delete a controlled Space image', tags: ['Space media'] })
+    router
+      .get('/:spaceId/media/:mediaId/content', [controllers.SpaceMedia, 'content'])
+      .openapi({ summary: 'Preview owned controlled Space image', tags: ['Space media'] })
     router.get('/', [controllers.Spaces, 'index']).openapi({
       summary: 'List company spaces',
       operationId: 'listCompanySpaces',
@@ -591,6 +492,7 @@ router
         tags: ['Requests'],
         responses: {
           201: { description: 'Submitted' },
+          422: { description: 'Invalid request or an explicit rate plan selection is required' },
           409: { description: 'Space mode, state, or availability conflict' },
         },
       })
@@ -661,9 +563,10 @@ router
 
 router
   .group(() => {
-    router
-      .get('/bookings/:bookingId/payable', [UserPaymentsController, 'payable'])
-      .openapi({ summary: 'Read authoritative payable summary', tags: ['Payments'] })
+    router.get('/bookings/:bookingId/payable', [UserPaymentsController, 'payable']).openapi({
+      summary: 'Read authoritative payable amount, immutable line items, VAT, and policy',
+      tags: ['Payments'],
+    })
     router
       .post('/bookings/:bookingId/payments', [UserPaymentsController, 'initiate'])
       .openapi({ summary: 'Initiate an idempotent payment attempt', tags: ['Payments'] })
@@ -728,6 +631,18 @@ router
     router
       .get('/refunds', [AdminPaymentsController, 'refunds'])
       .openapi({ summary: 'Audit refunds', tags: ['Admin finance'] })
+    router.post('/refunds/:id/retry', [AdminPaymentsController, 'retryRefund']).openapi({
+      summary: 'Retry a failed refund through the configured provider',
+      operationId: 'adminRetryRefund',
+      tags: ['Admin finance'],
+      security: [{ bearer: [] }],
+      responses: {
+        200: { description: 'Refund retry accepted' },
+        404: { description: 'Refund not found' },
+        409: { description: 'Refund is final or already has an active attempt' },
+        422: { description: 'Invalid refund ID or idempotency key' },
+      },
+    })
     router
       .get('/reconciliation', [AdminPaymentsController, 'reconciliation'])
       .openapi({ summary: 'Audit reconciliation mismatches', tags: ['Admin finance'] })
@@ -1022,6 +937,17 @@ router.get('/api/spaces/:id', [controllers.PublicSpaces, 'show']).openapi({
   },
 })
 
+router.get('/api/space-media/:mediaId/content', [controllers.PublicSpaceMedia, 'content']).openapi({
+  summary: 'Stream approved public Space media',
+  operationId: 'getPublicSpaceMediaContent',
+  tags: ['Space media'],
+  security: [],
+  responses: {
+    200: { description: 'Verified image bytes' },
+    404: { description: 'Media unavailable' },
+  },
+})
+
 // Admin Authentication Routes
 router
   .group(() => {
@@ -1039,32 +965,66 @@ router
 router
   .group(() => {
     // Statistics
-    router.get('/statistics', [controllers.Admin, 'getStatistics'])
+    router.get('/statistics', [controllers.admin.Statistics, 'show']).as('admin.get_statistics')
 
     // Users Management
-    router.get('/users', [controllers.Admin, 'getUsers'])
-    router.get('/users/:id', [controllers.Admin, 'getUser'])
-    router.post('/users/:id/ban', [controllers.Admin, 'banUser'])
-    router.post('/users/:id/unban', [controllers.Admin, 'unbanUser'])
+    router.get('/users', [controllers.admin.Users, 'index']).as('admin.get_users')
+    router.get('/users/:id', [controllers.admin.Users, 'show']).as('admin.get_user')
+    router.post('/users/:id/ban', [controllers.admin.UserBans, 'store']).as('admin.ban_user')
+    router.post('/users/:id/unban', [controllers.admin.UserBans, 'destroy']).as('admin.unban_user')
 
     // Companies Management
-    router.get('/companies', [controllers.Admin, 'getCompanies'])
-    router.get('/companies/pending', [controllers.Admin, 'getPendingCompanies'])
-    router.get('/companies/:id', [controllers.Admin, 'getCompany'])
-    router.post('/companies/:id/ban', [controllers.Admin, 'banCompany'])
-    router.post('/companies/:id/unban', [controllers.Admin, 'unbanCompany'])
-    router.post('/companies/:id/approve', [controllers.Admin, 'approveCompany'])
-    router.post('/companies/:id/reject', [controllers.Admin, 'rejectCompany'])
-    router.post('/companies/:id/suspend', [controllers.Admin, 'suspendCompany'])
-    router.post('/companies/:id/reactivate', [controllers.Admin, 'reactivateCompany'])
-
-    // Halls Management
-    router.get('/halls', [controllers.Admin, 'getHalls'])
-    router.delete('/halls/:id', [controllers.Admin, 'deleteHall'])
+    router.get('/companies', [controllers.admin.Companies, 'index']).as('admin.get_companies')
+    router
+      .get('/companies/pending', [controllers.admin.Companies, 'pending'])
+      .as('admin.get_pending_companies')
+    router.get('/companies/:id', [controllers.admin.Companies, 'show']).as('admin.get_company')
+    router
+      .post('/companies/:id/approve', [controllers.admin.CompanyApprovals, 'store'])
+      .as('admin.approve_company')
+    router
+      .post('/companies/:id/reject', [controllers.admin.CompanyRejections, 'store'])
+      .as('admin.reject_company')
+    router
+      .post('/companies/:id/suspend', [controllers.admin.CompanySuspensions, 'store'])
+      .as('admin.suspend_company')
+      .openapi({
+        summary: 'Suspend an approved company and revoke its company access',
+        operationId: 'suspendCompany',
+        tags: ['Admin companies'],
+        security: [{ bearer: [] }],
+        responses: {
+          200: { description: 'Company suspended' },
+          409: { description: 'Invalid company state' },
+          422: { description: 'Invalid company ID or moderation reason' },
+        },
+      })
+    router
+      .post('/companies/:id/reactivate', [controllers.admin.CompanySuspensions, 'destroy'])
+      .as('admin.reactivate_company')
+      .openapi({
+        summary: 'Reactivate a suspended company without restoring revoked sessions',
+        operationId: 'reactivateCompany',
+        tags: ['Admin companies'],
+        security: [{ bearer: [] }],
+        responses: {
+          200: { description: 'Company reactivated' },
+          409: { description: 'Invalid company state' },
+          422: { description: 'Invalid company ID or moderation reason' },
+        },
+      })
 
     // Bookings Management
-    router.get('/bookings', [controllers.Admin, 'getBookings'])
-    router.delete('/bookings/:id', [controllers.Admin, 'deleteBooking'])
+    router.get('/bookings', [controllers.admin.Bookings, 'index']).as('admin.get_bookings')
+    router
+      .delete('/bookings/:id', [controllers.admin.Bookings, 'destroy'])
+      .as('admin.delete_booking')
+
+    router.get('/space-media/pending', [controllers.AdminSpaceMedia, 'pending'])
+    router.get('/space-media/:mediaId/content', [controllers.AdminSpaceMedia, 'content'])
+    router.get('/space-media/:mediaId', [controllers.AdminSpaceMedia, 'show'])
+    router.post('/space-media/:mediaId/approve', [controllers.AdminSpaceMedia, 'approve'])
+    router.post('/space-media/:mediaId/reject', [controllers.AdminSpaceMedia, 'reject'])
 
     router.get('/spaces', [controllers.AdminSpaces, 'index'])
     router.get('/spaces/pending', [controllers.AdminSpaces, 'pending'])
@@ -1072,6 +1032,89 @@ router
     router.post('/spaces/:id/publish', [controllers.AdminSpaces, 'publish'])
     router.post('/spaces/:id/request-changes', [controllers.AdminSpaces, 'requestChanges'])
     router.post('/spaces/:id/suspend', [controllers.AdminSpaces, 'suspend'])
+
+    router.get('/catalog', [AdminCatalogController, 'index']).openapi({
+      summary: 'List controlled categories and amenities including inactive definitions',
+      operationId: 'adminListSpaceCatalog',
+      tags: ['Admin catalog'],
+      security: [{ bearer: [] }],
+    })
+    router.patch('/categories/:id', [AdminCatalogController, 'updateCategory']).openapi({
+      summary: 'Update a controlled category label, order, or active state',
+      operationId: 'adminUpdateSpaceCategory',
+      tags: ['Admin catalog'],
+      security: [{ bearer: [] }],
+      responses: {
+        200: { description: 'Category updated' },
+        404: { description: 'Category not found' },
+        422: { description: 'Invalid category update' },
+      },
+    })
+    router.post('/amenities', [AdminCatalogController, 'createAmenity']).openapi({
+      summary: 'Create a controlled amenity definition',
+      operationId: 'adminCreateAmenity',
+      tags: ['Admin catalog'],
+      security: [{ bearer: [] }],
+      responses: {
+        201: { description: 'Amenity created' },
+        409: { description: 'Amenity slug already exists' },
+        422: { description: 'Invalid amenity definition' },
+      },
+    })
+    router.patch('/amenities/:id', [AdminCatalogController, 'updateAmenity']).openapi({
+      summary: 'Update a controlled amenity definition',
+      operationId: 'adminUpdateAmenity',
+      tags: ['Admin catalog'],
+      security: [{ bearer: [] }],
+      responses: {
+        200: { description: 'Amenity updated' },
+        404: { description: 'Amenity not found' },
+        422: { description: 'Invalid amenity update' },
+      },
+    })
+    router.get('/audit-logs', [AdminAuditLogsController, 'index']).openapi({
+      summary: 'Inspect paginated admin, company, or booking audit logs',
+      operationId: 'adminListAuditLogs',
+      tags: ['Admin audit'],
+      security: [{ bearer: [] }],
+      responses: { 200: { description: 'Audit entries' }, 422: { description: 'Invalid filters' } },
+    })
+    router.get('/disputes', [AdminDisputesController, 'index']).openapi({
+      summary: 'List payment disputes',
+      operationId: 'adminListPaymentDisputes',
+      tags: ['Admin disputes'],
+      security: [{ bearer: [] }],
+    })
+    router.post('/disputes', [AdminDisputesController, 'store']).openapi({
+      summary: 'Open an auditable payment or refund dispute',
+      operationId: 'adminOpenPaymentDispute',
+      tags: ['Admin disputes'],
+      security: [{ bearer: [] }],
+      responses: {
+        201: { description: 'Dispute opened' },
+        404: { description: 'Payment not found' },
+        409: { description: 'An active dispute already exists' },
+        422: { description: 'Invalid payment, refund, or reason' },
+      },
+    })
+    router.get('/disputes/:id', [AdminDisputesController, 'show']).openapi({
+      summary: 'Inspect a payment dispute',
+      operationId: 'adminGetPaymentDispute',
+      tags: ['Admin disputes'],
+      security: [{ bearer: [] }],
+    })
+    router.patch('/disputes/:id', [AdminDisputesController, 'update']).openapi({
+      summary: 'Advance a payment dispute through its state machine',
+      operationId: 'adminUpdatePaymentDispute',
+      tags: ['Admin disputes'],
+      security: [{ bearer: [] }],
+      responses: {
+        200: { description: 'Dispute transitioned' },
+        404: { description: 'Dispute not found' },
+        409: { description: 'Invalid dispute transition' },
+        422: { description: 'Resolution contract violated' },
+      },
+    })
   })
   .prefix('/api/admin')
   .use([middleware.auth(), middleware.admin()])

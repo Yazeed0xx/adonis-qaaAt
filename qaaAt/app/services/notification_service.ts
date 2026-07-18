@@ -47,6 +47,7 @@ export type NotificationType =
 
 export interface NotificationData {
   userId?: number
+  companyId?: number
   recipientEmail?: string
   type: NotificationType
   title: string
@@ -57,7 +58,14 @@ export interface NotificationData {
   outboxId?: string
 }
 
-export type QueuedNotificationData = NotificationData
+export type NotificationClientContext = 'customer_app' | 'company_app'
+
+export type QueuedNotificationData = NotificationData &
+  (
+    | { clientContext: 'company_app'; companyId: number }
+    | { clientContext: 'customer_app'; companyId?: never }
+    | { clientContext?: undefined; companyId?: never }
+  )
 
 export class NotificationService {
   /**
@@ -78,6 +86,7 @@ export class NotificationService {
         .table('notifications')
         .insert({
           user_id: options.userId,
+          company_id: options.companyId ?? null,
           type: options.type,
           title: options.title,
           message: options.message,
@@ -98,6 +107,7 @@ export class NotificationService {
       notification = await Notification.create(
         {
           userId: options.userId,
+          companyId: options.companyId ?? null,
           type: options.type,
           title: options.title,
           message: options.message,
@@ -155,11 +165,15 @@ export class NotificationService {
   /**
    * Mark a notification as read
    */
-  async markAsRead(notificationId: number, userId: number): Promise<Notification | null> {
-    const notification = await Notification.query()
-      .where('id', notificationId)
-      .where('userId', userId)
-      .first()
+  async markAsRead(
+    notificationId: number,
+    userId: number,
+    companyId: number | null = null
+  ): Promise<Notification | null> {
+    const query = Notification.query().where('id', notificationId).where('userId', userId)
+    if (companyId === null) query.whereNull('companyId')
+    else query.where('companyId', companyId)
+    const notification = await query.first()
 
     if (!notification) {
       return null
@@ -174,11 +188,11 @@ export class NotificationService {
   /**
    * Mark all notifications as read for a user
    */
-  async markAllAsRead(userId: number): Promise<number> {
-    const result = await Notification.query()
-      .where('userId', userId)
-      .whereNull('readAt')
-      .update({ readAt: DateTime.now().toSQL() })
+  async markAllAsRead(userId: number, companyId: number | null = null): Promise<number> {
+    const query = Notification.query().where('userId', userId).whereNull('readAt')
+    if (companyId === null) query.whereNull('companyId')
+    else query.where('companyId', companyId)
+    const result = await query.update({ readAt: DateTime.now().toSQL() })
 
     return result[0] || 0
   }
@@ -186,11 +200,11 @@ export class NotificationService {
   /**
    * Get unread notification count for a user
    */
-  async getUnreadCount(userId: number): Promise<number> {
-    const result = await Notification.query()
-      .where('userId', userId)
-      .whereNull('readAt')
-      .count('* as total')
+  async getUnreadCount(userId: number, companyId: number | null = null): Promise<number> {
+    const query = Notification.query().where('userId', userId).whereNull('readAt')
+    if (companyId === null) query.whereNull('companyId')
+    else query.where('companyId', companyId)
+    const result = await query.count('* as total')
 
     return Number(result[0].$extras.total)
   }
@@ -202,9 +216,12 @@ export class NotificationService {
     userId: number,
     page: number = 1,
     limit: number = 20,
-    unreadOnly: boolean = false
+    unreadOnly: boolean = false,
+    companyId: number | null = null
   ) {
     const query = Notification.query().where('userId', userId).orderBy('createdAt', 'desc')
+    if (companyId === null) query.whereNull('companyId')
+    else query.where('companyId', companyId)
 
     if (unreadOnly) {
       query.whereNull('readAt')
@@ -218,12 +235,17 @@ export class NotificationService {
   /**
    * Notify user that their company was approved
    */
-  async notifyCompanyApproved(userId: number, companyName: string): Promise<Notification> {
+  async notifyCompanyApproved(
+    userId: number,
+    companyId: number,
+    companyName: string
+  ): Promise<Notification> {
     return this.notify({
       userId,
+      companyId,
       type: 'company_approved',
       title: 'Company Approved',
-      message: `Congratulations! Your company "${companyName}" has been approved. You can now create halls and start receiving bookings.`,
+      message: `Congratulations! Your company "${companyName}" has been approved. You can now create spaces and start receiving bookings.`,
       sendEmail: true,
       emailSubject: 'Your Company Has Been Approved - QaaAt',
     })
@@ -234,11 +256,13 @@ export class NotificationService {
    */
   async notifyCompanyRejected(
     userId: number,
+    companyId: number,
     companyName: string,
     reason: string
   ): Promise<Notification> {
     return this.notify({
       userId,
+      companyId,
       type: 'company_rejected',
       title: 'Company Registration Rejected',
       message: `Your company "${companyName}" registration was rejected. Reason: ${reason}`,
@@ -253,7 +277,7 @@ export class NotificationService {
    */
   async notifyBookingAccepted(
     userId: number,
-    hallName: string,
+    spaceName: string,
     bookingDate: string,
     bookingId: number
   ): Promise<Notification> {
@@ -261,8 +285,8 @@ export class NotificationService {
       userId,
       type: 'booking_accepted',
       title: 'Booking Confirmed',
-      message: `Great news! Your booking for "${hallName}" on ${bookingDate} has been accepted. Please proceed with payment to secure your reservation.`,
-      data: { bookingId, hallName, bookingDate },
+      message: `Great news! Your booking for "${spaceName}" on ${bookingDate} has been accepted. Please proceed with payment to secure your reservation.`,
+      data: { bookingId, spaceName, bookingDate },
       sendEmail: true,
       emailSubject: 'Booking Confirmed - QaaAt',
     })
@@ -273,7 +297,7 @@ export class NotificationService {
    */
   async notifyBookingRejected(
     userId: number,
-    hallName: string,
+    spaceName: string,
     bookingDate: string,
     reason: string,
     bookingId: number
@@ -282,8 +306,8 @@ export class NotificationService {
       userId,
       type: 'booking_rejected',
       title: 'Booking Rejected',
-      message: `Unfortunately, your booking for "${hallName}" on ${bookingDate} was rejected. Reason: ${reason}`,
-      data: { bookingId, hallName, bookingDate, reason },
+      message: `Unfortunately, your booking for "${spaceName}" on ${bookingDate} was rejected. Reason: ${reason}`,
+      data: { bookingId, spaceName, bookingDate, reason },
       sendEmail: true,
       emailSubject: 'Booking Update - QaaAt',
     })
@@ -294,17 +318,19 @@ export class NotificationService {
    */
   async notifyNewBookingRequest(
     companyUserId: number,
+    companyId: number,
     userName: string,
-    hallName: string,
+    spaceName: string,
     bookingDate: string,
     bookingId: number
   ): Promise<Notification> {
     return this.notify({
       userId: companyUserId,
+      companyId,
       type: 'new_booking_request',
       title: 'New Booking Request',
-      message: `You have a new booking request from ${userName} for "${hallName}" on ${bookingDate}. Please review and respond within 7 days.`,
-      data: { bookingId, hallName, bookingDate, userName },
+      message: `You have a new booking request from ${userName} for "${spaceName}" on ${bookingDate}. Please review and respond within 7 days.`,
+      data: { bookingId, spaceName, bookingDate, userName },
       sendEmail: true,
       emailSubject: 'New Booking Request - QaaAt',
     })
@@ -315,7 +341,7 @@ export class NotificationService {
    */
   async notifyBookingExpired(
     userId: number,
-    hallName: string,
+    spaceName: string,
     bookingDate: string,
     bookingId: number
   ): Promise<Notification> {
@@ -323,8 +349,8 @@ export class NotificationService {
       userId,
       type: 'booking_expired',
       title: 'Booking Request Expired',
-      message: `Your booking request for "${hallName}" on ${bookingDate} has expired as the company did not respond within 7 days. Please try booking again or choose a different hall.`,
-      data: { bookingId, hallName, bookingDate },
+      message: `Your booking request for "${spaceName}" on ${bookingDate} has expired as the company did not respond within 7 days. Please try booking again or choose a different space.`,
+      data: { bookingId, spaceName, bookingDate },
       sendEmail: true,
       emailSubject: 'Booking Request Expired - QaaAt',
     })
@@ -358,7 +384,7 @@ export class NotificationService {
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <h1 style="color: white; margin: 0; font-size: 28px;">QaaAt</h1>
-    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Hall Booking Platform</p>
+    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Venue and Space Booking Platform</p>
   </div>
 
   <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px;">

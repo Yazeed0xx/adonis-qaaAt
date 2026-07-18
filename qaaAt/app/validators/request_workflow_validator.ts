@@ -5,6 +5,7 @@ const contact = vine.enum(['in_app', 'email', 'phone'] as const)
 
 export const createSpaceBookingRequestValidator = vine.create({
   spaceId: vine.number().positive(),
+  ratePlanId: vine.number().positive().optional(),
   startsAt: instant,
   endsAt: instant,
   sessionCode: vine.string().trim().maxLength(80).optional(),

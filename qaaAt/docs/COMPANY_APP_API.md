@@ -15,6 +15,8 @@ Authorization: Bearer <token>
 
 The token is obtained from the `/register` or `/login` response.
 
+Company tokens contain both `client:company_app` and exactly one `company:<id>` ability. The selected Company also requires an explicit active membership; `userType`, wildcard/unscoped tokens, and the legacy Company owner link are not authorization sources.
+
 ---
 
 ## Error Format
@@ -68,12 +70,12 @@ Use `?page=1&limit=20` query params to control pagination. Max limit is 100.
 
 After registration, a company goes through an approval flow controlled by the admin. The company `status` field determines what the company can do:
 
-| Status      | Can login | Can manage halls | Can manage bookings | Description                          |
-|-------------|-----------|------------------|---------------------|--------------------------------------|
-| `pending`   | Yes       | No               | No                  | Waiting for admin approval           |
-| `approved`  | Yes       | Yes              | Yes                 | Fully operational                    |
-| `rejected`  | Yes       | No               | No                  | Admin rejected registration          |
-| `suspended` | Yes       | No               | No                  | Admin suspended an approved company  |
+| Status      | Can login | Can manage halls | Can manage bookings | Description                         |
+| ----------- | --------- | ---------------- | ------------------- | ----------------------------------- |
+| `pending`   | Yes       | No               | No                  | Waiting for admin approval          |
+| `approved`  | Yes       | Yes              | Yes                 | Fully operational                   |
+| `rejected`  | Yes       | No               | No                  | Admin rejected registration         |
+| `suspended` | Yes       | No               | No                  | Admin suspended an approved company |
 
 When a company with a non-approved status tries to access protected endpoints (hall CRUD, booking management), the API returns:
 
@@ -110,23 +112,23 @@ Register a new company account. No auth required. **Uses `multipart/form-data`**
 
 **Request Body (multipart/form-data):**
 
-| Field                 | Type   | Required | Notes                                |
-|-----------------------|--------|----------|--------------------------------------|
-| email                 | string | Yes      | Must be unique, valid email          |
-| password              | string | Yes      | Min 8 characters                     |
-| companyName           | string | Yes      | Display name for the company         |
-| registrationNumber    | string | Yes      | Commercial registration number       |
-| registrationNumberPdf | file   | Yes      | PDF file, max 10MB                   |
-| businessAddress       | string | Yes      | Full business address                |
-| city                  | string | Yes      | City name                            |
-| taxId                 | string | No       | Tax identification number            |
-| businessLicense       | string | No       | Business license number              |
-| contactPerson         | string | No       | Contact person name                  |
-| description           | string | No       | Company description                  |
-| logo                  | string | No       | Logo URL                             |
-| banner                | string | No       | Banner image URL                     |
-| website               | string | No       | Company website URL                  |
-| socialLinks           | object | No       | JSON object of social media links    |
+| Field                 | Type   | Required | Notes                             |
+| --------------------- | ------ | -------- | --------------------------------- |
+| email                 | string | Yes      | Must be unique, valid email       |
+| password              | string | Yes      | Min 8 characters                  |
+| companyName           | string | Yes      | Display name for the company      |
+| registrationNumber    | string | Yes      | Commercial registration number    |
+| registrationNumberPdf | file   | Yes      | PDF file, max 10MB                |
+| businessAddress       | string | Yes      | Full business address             |
+| city                  | string | Yes      | City name                         |
+| taxId                 | string | No       | Tax identification number         |
+| businessLicense       | string | No       | Business license number           |
+| contactPerson         | string | No       | Contact person name               |
+| description           | string | No       | Company description               |
+| logo                  | string | No       | Logo URL                          |
+| banner                | string | No       | Banner image URL                  |
+| website               | string | No       | Company website URL               |
+| socialLinks           | object | No       | JSON object of social media links |
 
 **Example (FormData):**
 
@@ -168,6 +170,7 @@ formData.append('description', 'Premium event hall provider')
 ```
 
 **Notes:**
+
 - Company starts with `status: "pending"` — admin must approve before the company can create halls or manage bookings.
 - The token is still issued immediately so the company can login, view their profile, and receive notifications about approval status.
 
@@ -177,10 +180,12 @@ formData.append('description', 'Premium event hall provider')
 
 Login with existing credentials. No auth required.
 
+The backend resolves the User's single active membership. There is no Company selector or memberships array.
+
 **Request Body (JSON):**
 
 | Field    | Type   | Required |
-|----------|--------|----------|
+| -------- | ------ | -------- |
 | email    | string | Yes      |
 | password | string | Yes      |
 
@@ -241,10 +246,13 @@ Login with existing credentials. No auth required.
 ```
 
 **Login message varies by status:**
+
 - `"approved"` → `"Login successful"`
 - `"pending"` → `"Login successful. Your company is pending admin approval."`
 - `"rejected"` → `"Login successful. Your company registration was rejected."`
-- `"suspended"` → `"Login successful. Your company account is suspended."`
+
+Suspended companies receive `401` and cannot create company-app sessions until reactivated. The
+suspension revokes existing owner and employee sessions; reactivation requires a fresh login.
 
 **Error Response (401):**
 
@@ -328,9 +336,9 @@ List all halls owned by the authenticated company. **Auth required.**
 
 **Query Parameters:**
 
-| Param | Type   | Default | Description          |
-|-------|--------|---------|----------------------|
-| page  | number | 1       | Page number          |
+| Param | Type   | Default | Description                |
+| ----- | ------ | ------- | -------------------------- |
+| page  | number | 1       | Page number                |
 | limit | number | 20      | Results per page (max 100) |
 
 **Success Response (200):** Paginated list.
@@ -369,7 +377,7 @@ Get a single hall with its bookings. **Auth required.** Company can only see its
 **URL Params:**
 
 | Param | Type   |
-|-------|--------|
+| ----- | ------ |
 | id    | number |
 
 **Success Response (200):**
@@ -408,6 +416,7 @@ Get a single hall with its bookings. **Auth required.** Company can only see its
 ```
 
 **Notes:**
+
 - The `bookings` array includes all bookings for this hall (useful for calendar/schedule views).
 
 ---
@@ -418,19 +427,19 @@ Create a new hall. **Auth required + Approved company.**
 
 **Request Body (JSON):**
 
-| Field       | Type     | Required | Notes                              |
-|-------------|----------|----------|------------------------------------|
-| name        | string   | Yes      | Hall name                          |
-| capacity    | number   | Yes      | Min 1                              |
-| location    | string   | Yes      | Location description               |
-| pricing     | number   | Yes      | Price per hour, min 0              |
-| address     | string   | Yes      | Full street address                |
-| city        | string   | Yes      | City name                          |
-| description | string   | No       | Detailed description               |
-| amenities   | object   | No       | Flexible JSON object of amenities  |
-| images      | string[] | No       | Array of image URLs                |
-| services    | string[] | No       | Array of service name strings      |
-| isAvailable | boolean  | No       | Defaults to `true`                 |
+| Field       | Type     | Required | Notes                             |
+| ----------- | -------- | -------- | --------------------------------- |
+| name        | string   | Yes      | Hall name                         |
+| capacity    | number   | Yes      | Min 1                             |
+| location    | string   | Yes      | Location description              |
+| pricing     | number   | Yes      | Price per hour, min 0             |
+| address     | string   | Yes      | Full street address               |
+| city        | string   | Yes      | City name                         |
+| description | string   | No       | Detailed description              |
+| amenities   | object   | No       | Flexible JSON object of amenities |
+| images      | string[] | No       | Array of image URLs               |
+| services    | string[] | No       | Array of service name strings     |
+| isAvailable | boolean  | No       | Defaults to `true`                |
 
 **Example Request:**
 
@@ -448,10 +457,7 @@ Create a new hall. **Auth required + Approved company.**
     "projector": true
   },
   "pricing": 300,
-  "images": [
-    "https://example.com/hall1-main.jpg",
-    "https://example.com/hall1-interior.jpg"
-  ],
+  "images": ["https://example.com/hall1-main.jpg", "https://example.com/hall1-interior.jpg"],
   "address": "123 King Fahd Road, Al Olaya",
   "city": "Riyadh",
   "services": ["Photography", "Catering", "Decoration", "Lighting"],
@@ -470,7 +476,13 @@ Create a new hall. **Auth required + Approved company.**
     "description": "A luxurious ballroom perfect for weddings and corporate events",
     "capacity": 500,
     "location": "King Fahd Road, Al Olaya District",
-    "amenities": { "wifi": true, "parking": true, "stage": true, "soundSystem": true, "projector": true },
+    "amenities": {
+      "wifi": true,
+      "parking": true,
+      "stage": true,
+      "soundSystem": true,
+      "projector": true
+    },
     "pricing": 300,
     "images": ["https://example.com/hall1-main.jpg", "https://example.com/hall1-interior.jpg"],
     "address": "123 King Fahd Road, Al Olaya",
@@ -493,7 +505,7 @@ Update an existing hall. **Auth required + Approved company.** Company can only 
 **URL Params:**
 
 | Param | Type   |
-|-------|--------|
+| ----- | ------ |
 | id    | number |
 
 **Request Body (JSON):** Same fields as create. All fields are sent (full replacement).
@@ -536,7 +548,7 @@ Soft-delete a hall. **Auth required + Approved company.** Company can only delet
 **URL Params:**
 
 | Param | Type   |
-|-------|--------|
+| ----- | ------ |
 | id    | number |
 
 **No request body needed.**
@@ -561,10 +573,10 @@ List all bookings across all company halls. **Auth required + Approved.**
 
 **Query Parameters:**
 
-| Param  | Type   | Default | Description                                    |
-|--------|--------|---------|------------------------------------------------|
-| page   | number | 1       | Page number                                    |
-| limit  | number | 20      | Results per page (max 100)                     |
+| Param  | Type   | Default | Description                                                                                 |
+| ------ | ------ | ------- | ------------------------------------------------------------------------------------------- |
+| page   | number | 1       | Page number                                                                                 |
+| limit  | number | 20      | Results per page (max 100)                                                                  |
 | status | string | —       | Filter: `pending`, `accepted`, `rejected`, `confirmed`, `cancelled`, `completed`, `expired` |
 
 **Example:** `GET /api/companies/bookings?status=accepted&page=1`
@@ -625,13 +637,14 @@ List only pending bookings that need the company's response. Sorted by oldest fi
 **Query Parameters:**
 
 | Param | Type   | Default |
-|-------|--------|---------|
+| ----- | ------ | ------- |
 | page  | number | 1       |
 | limit | number | 20      |
 
 **Success Response (200):** Same paginated format as above, but only includes bookings with `status: "pending"` that haven't expired yet.
 
 **Notes:**
+
 - Only shows bookings where `expiresAt` is still in the future.
 - Sorted by `createdAt ASC` — oldest pending bookings first (most urgent to respond to).
 
@@ -644,7 +657,7 @@ Get a single booking's full details including user info. **Auth required + Appro
 **URL Params:**
 
 | Param | Type   |
-|-------|--------|
+| ----- | ------ |
 | id    | number |
 
 **Success Response (200):**
@@ -717,7 +730,7 @@ Accept a pending booking. The customer will be notified and given 3 days to pay.
 **URL Params:**
 
 | Param | Type   |
-|-------|--------|
+| ----- | ------ |
 | id    | number |
 
 **No request body needed.**
@@ -753,13 +766,13 @@ Reject a pending booking with a reason. The customer will be notified. **Auth re
 **URL Params:**
 
 | Param | Type   |
-|-------|--------|
+| ----- | ------ |
 | id    | number |
 
 **Request Body (JSON):**
 
 | Field  | Type   | Required | Notes                       |
-|--------|--------|----------|-----------------------------|
+| ------ | ------ | -------- | --------------------------- |
 | reason | string | Yes      | Min 10 chars, max 500 chars |
 
 **Example Request:**
@@ -799,13 +812,16 @@ Reject a pending booking with a reason. The customer will be notified. **Auth re
 
 Get the company's notifications. **Auth required.**
 
+The bearer token's `company:<id>` capability selects the notification scope. List, count, and read
+operations never include another Company. A User has at most one current CompanyMembership.
+
 **Query Parameters:**
 
-| Param       | Type    | Default | Description             |
-|-------------|---------|---------|-------------------------|
-| page        | number  | 1       | Page number             |
-| limit       | number  | 20      | Results per page        |
-| unread_only | string  | false   | Set to `"true"` to filter |
+| Param       | Type   | Default | Description               |
+| ----------- | ------ | ------- | ------------------------- |
+| page        | number | 1       | Page number               |
+| limit       | number | 20      | Results per page          |
+| unread_only | string | false   | Set to `"true"` to filter |
 
 **Success Response (200):** Paginated list.
 
@@ -844,14 +860,15 @@ Get the company's notifications. **Auth required.**
 
 **Notification Types (for `type` field):**
 
-| Type                   | When it's sent                                    |
-|------------------------|---------------------------------------------------|
-| `company_approved`     | Admin approved the company registration            |
-| `company_rejected`     | Admin rejected the company registration            |
-| `new_booking_request`  | A customer submitted a new booking for a hall      |
-| `booking_cancelled`    | A customer cancelled their booking                 |
+| Type                  | When it's sent                                |
+| --------------------- | --------------------------------------------- |
+| `company_approved`    | Admin approved the company registration       |
+| `company_rejected`    | Admin rejected the company registration       |
+| `new_booking_request` | A customer submitted a new booking for a hall |
+| `booking_cancelled`   | A customer cancelled their booking            |
 
 **Notes:**
+
 - `readAt` is `null` for unread notifications, a datetime string when read.
 - `data` contains context: `bookingId`, `hallName`, `bookingDate`, `reason` (for rejections).
 - `new_booking_request` notifications are the most important — they require a response within 7 days.
@@ -879,7 +896,7 @@ Mark a single notification as read. **Auth required.**
 **URL Params:**
 
 | Param | Type   |
-|-------|--------|
+| ----- | ------ |
 | id    | number |
 
 **No request body needed.**
@@ -952,6 +969,7 @@ Customer creates a booking
 ```
 
 **Company actions:**
+
 - **View pending** → `GET /api/companies/bookings/pending` — see what needs attention.
 - **Accept** → `POST /api/companies/bookings/:id/accept` — customer gets 3 days to pay.
 - **Reject** → `POST /api/companies/bookings/:id/reject` — must provide a reason (min 10 chars).
@@ -959,30 +977,30 @@ Customer creates a booking
 
 **Status meanings from the company perspective:**
 
-| Status      | What it means                                       |
-|-------------|-----------------------------------------------------|
-| `pending`   | New request — needs company decision                 |
-| `accepted`  | Company accepted — waiting for customer payment      |
-| `rejected`  | Company rejected with a reason                       |
-| `confirmed` | Customer paid — event is confirmed                   |
-| `cancelled` | Customer cancelled the booking                       |
-| `expired`   | Company didn't respond within 7 days                 |
-| `completed` | Event date has passed                                |
+| Status      | What it means                                   |
+| ----------- | ----------------------------------------------- |
+| `pending`   | New request — needs company decision            |
+| `accepted`  | Company accepted — waiting for customer payment |
+| `rejected`  | Company rejected with a reason                  |
+| `confirmed` | Customer paid — event is confirmed              |
+| `cancelled` | Customer cancelled the booking                  |
+| `expired`   | Company didn't respond within 7 days            |
+| `completed` | Event date has passed                           |
 
 ---
 
 ## 6. HTTP Status Codes Reference
 
-| Code | Meaning                                                    |
-|------|------------------------------------------------------------|
-| 200  | Success                                                    |
-| 201  | Created (registration, hall creation)                      |
-| 400  | Bad request (validation error, business logic error)       |
-| 401  | Unauthorized (missing/invalid token, wrong credentials)    |
-| 403  | Forbidden (company not approved, wrong user type)          |
-| 404  | Not found                                                  |
-| 422  | Validation error (field-level errors from VineJS)          |
-| 500  | Server error                                               |
+| Code | Meaning                                                 |
+| ---- | ------------------------------------------------------- |
+| 200  | Success                                                 |
+| 201  | Created (registration, hall creation)                   |
+| 400  | Bad request (validation error, business logic error)    |
+| 401  | Unauthorized (missing/invalid token, wrong credentials) |
+| 403  | Forbidden (company not approved, wrong user type)       |
+| 404  | Not found                                               |
+| 422  | Validation error (field-level errors from VineJS)       |
+| 500  | Server error                                            |
 
 ---
 
@@ -1004,6 +1022,7 @@ Use `GET /api/companies/me` to refresh the status (e.g., on app resume / pull-to
 ### Dashboard Priorities
 
 When the company is approved, the main dashboard should highlight:
+
 1. **Pending bookings count** — from `GET /api/companies/bookings/pending` `meta.total`
 2. **Unread notifications** — from `GET /api/companies/notifications/unread-count`
 3. **Total halls** — from `GET /api/companies/halls` `meta.total`
@@ -1011,6 +1030,7 @@ When the company is approved, the main dashboard should highlight:
 ### Booking Response Urgency
 
 Show pending bookings with a **countdown timer** calculated from `expiresAt`:
+
 - `daysLeft = expiresAt - now`
 - Show in red when < 2 days remaining.
 - After expiry, the booking disappears from pending and appears as `expired` in the full list.

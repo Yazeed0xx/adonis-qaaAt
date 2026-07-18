@@ -15,8 +15,6 @@ export default class VenueTransformer extends BaseTransformer<Venue> {
       buildingNumber: this.resource.buildingNumber,
       postalCode: this.resource.postalCode,
       additionalNumber: this.resource.additionalNumber,
-      legacyLocation: this.resource.legacyLocation,
-      address: this.resource.legacyAddress,
       accessInstructions: {
         ar: this.resource.accessInstructionsAr,
         en: this.resource.accessInstructionsEn,

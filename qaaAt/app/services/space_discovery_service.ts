@@ -20,8 +20,7 @@ type Input = {
   limit?: number
 }
 
-const localized = (ar: string | null, en: string | null, legacy: string | null = null) =>
-  ar ?? en ?? legacy
+const localized = (ar: string | null, en: string | null) => ar ?? en
 
 export class SpaceDiscoveryService {
   async list(input: Input) {
@@ -89,7 +88,6 @@ export class SpaceDiscoveryService {
       .whereNull('c.deleted_at')
       .whereNull('v.deleted_at')
       .where('sc.is_active', true)
-      .where((q) => q.whereNull('s.legacy_hall_id').orWhere('s.legacy_is_available', true))
     if (category) query.where('s.category_id', category.id)
     if (input.city) query.whereRaw('LOWER(v.city) = LOWER(?)', [input.city])
     if (input.capacity) query.where('s.capacity_total', '>=', input.capacity)
@@ -137,16 +135,10 @@ export class SpaceDiscoveryService {
         q
           .whereRaw(`LOWER(COALESCE(s.name_ar, '')) LIKE ? ESCAPE '\\'`, [`%${escapedSearch}%`])
           .orWhereRaw(`LOWER(COALESCE(s.name_en, '')) LIKE ? ESCAPE '\\'`, [`%${escapedSearch}%`])
-          .orWhereRaw(`LOWER(COALESCE(s.legacy_name, '')) LIKE ? ESCAPE '\\'`, [
-            `%${escapedSearch}%`,
-          ])
           .orWhereRaw(`LOWER(COALESCE(s.description_ar, '')) LIKE ? ESCAPE '\\'`, [
             `%${escapedSearch}%`,
           ])
           .orWhereRaw(`LOWER(COALESCE(s.description_en, '')) LIKE ? ESCAPE '\\'`, [
-            `%${escapedSearch}%`,
-          ])
-          .orWhereRaw(`LOWER(COALESCE(s.legacy_description, '')) LIKE ? ESCAPE '\\'`, [
             `%${escapedSearch}%`,
           ])
       )
@@ -156,19 +148,15 @@ export class SpaceDiscoveryService {
       's.venue_id',
       's.name_ar',
       's.name_en',
-      's.legacy_name',
       's.description_ar',
       's.description_en',
-      's.legacy_description',
       's.booking_mode',
       's.capacity_total',
       's.created_at',
       'v.name_ar as venue_name_ar',
       'v.name_en as venue_name_en',
-      'v.legacy_name as venue_legacy_name',
       'v.city',
       'v.district',
-      'v.legacy_location',
       'v.timezone',
       'sc.slug as category_slug',
       'sc.name_ar as category_name_ar',
@@ -196,7 +184,7 @@ export class SpaceDiscoveryService {
     )
     query.select(
       db.raw(
-        `(SELECT json_build_object('id', sm.id, 'type', sm.media_type, 'legacyReference', CASE WHEN sm.provenance='legacy_imported' THEN sm.legacy_reference END, 'storageKey', CASE WHEN sm.provenance='controlled_storage' THEN sm.storage_key END, 'altTextAr', sm.alt_text_ar, 'altTextEn', sm.alt_text_en) FROM space_media sm WHERE sm.space_id=s.id AND sm.moderation_status='approved' ORDER BY sm.is_cover DESC, sm.sort_order, sm.id LIMIT 1) AS cover_media`
+        `(SELECT json_build_object('id', sm.id, 'type', sm.media_type, 'contentUrl', '/api/space-media/' || sm.id || '/content', 'altTextAr', sm.alt_text_ar, 'altTextEn', sm.alt_text_en) FROM space_media sm WHERE sm.space_id=s.id AND sm.moderation_status='approved' AND sm.deleted_at IS NULL ORDER BY sm.is_cover DESC, sm.sort_order, sm.id LIMIT 1) AS cover_media`
       )
     )
     const sort = input.sort ?? (input.q ? 'relevance' : 'newest')
@@ -204,8 +192,8 @@ export class SpaceDiscoveryService {
       throw new SpaceException('sort=relevance requires q', 'RELEVANCE_QUERY_REQUIRED', 422)
     if (sort === 'relevance') {
       const exact = input.q!.toLocaleLowerCase()
-      const names = [`s.name_ar`, `s.name_en`, `s.legacy_name`]
-      const descriptions = [`s.description_ar`, `s.description_en`, `s.legacy_description`]
+      const names = [`s.name_ar`, `s.name_en`]
+      const descriptions = [`s.description_ar`, `s.description_en`]
       const bindings = [
         ...names.map(() => exact),
         ...names.map(() => `${escapedSearch}%`),
@@ -279,9 +267,9 @@ export class SpaceDiscoveryService {
       data: paged.map((r) => ({
         id: r.id,
         venueId: r.venue_id,
-        name: localized(r.name_ar, r.name_en, r.legacy_name),
-        description: localized(r.description_ar, r.description_en, r.legacy_description),
-        venueName: localized(r.venue_name_ar, r.venue_name_en, r.venue_legacy_name),
+        name: localized(r.name_ar, r.name_en),
+        description: localized(r.description_ar, r.description_en),
+        venueName: localized(r.venue_name_ar, r.venue_name_en),
         category: {
           slug: r.category_slug,
           label: localized(r.category_name_ar, r.category_name_en),
@@ -290,8 +278,7 @@ export class SpaceDiscoveryService {
         location: {
           city: r.city,
           district: r.district,
-          display: r.district ? `${r.city}, ${r.district}` : (r.legacy_location ?? r.city),
-          legacyLocation: r.legacy_location,
+          display: r.district ? `${r.city}, ${r.district}` : r.city,
         },
         capacity: { maximumAttendance: r.capacity_total },
         amenities: r.amenity_slugs,

@@ -53,10 +53,9 @@ export default class AdminSpacesController {
     return {
       id: space.id,
       companyId: space.companyId,
-      name: space.nameAr ?? space.nameEn ?? space.legacyName,
+      name: space.nameAr ?? space.nameEn,
       category: space.category?.slug,
       publicationStatus: space.publicationStatus,
-      legacyHallId: space.legacyHallId,
       createdAt: space.createdAt,
       updatedAt: space.updatedAt,
     }

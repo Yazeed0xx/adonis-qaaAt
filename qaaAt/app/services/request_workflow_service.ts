@@ -5,6 +5,7 @@ import Booking from '#models/booking'
 import InventoryException from '#exceptions/inventory_exception'
 import availabilityPolicy from '#services/availability_policy_service'
 import notificationOutbox from '#services/notification_outbox_service'
+import bookingPricing from '#services/booking_pricing_service'
 import bookingManagement from '#services/booking_management_service'
 import {
   resolvePermissions,
@@ -36,6 +37,11 @@ const assertFutureInterval = (startsAt: DateTime, endsAt: DateTime, now = DateTi
 
 const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 
+const minorToMajor = (value: string) => {
+  const minor = BigInt(value)
+  return `${minor / 100n}.${(minor % 100n).toString().padStart(2, '0')}`
+}
+
 export class RequestWorkflowService {
   private async publicSpace(client: any, spaceId: number) {
     const space = await client
@@ -48,9 +54,6 @@ export class RequestWorkflowService {
       .whereNull('spaces.deleted_at')
       .where('companies.status', 'approved')
       .whereNull('companies.deleted_at')
-      .where((query: any) =>
-        query.whereNull('spaces.legacy_hall_id').orWhere('spaces.legacy_is_available', true)
-      )
       .select(
         'spaces.*',
         'venues.timezone',
@@ -109,11 +112,17 @@ export class RequestWorkflowService {
     client: any,
     companyId: number,
     permission: CompanyPermission,
-    payload: Omit<Parameters<typeof notificationOutbox.enqueue>[0], 'userId'>
+    payload: Omit<
+      Parameters<typeof notificationOutbox.enqueue>[0],
+      'clientContext' | 'companyId' | 'userId'
+    >
   ) {
     const recipients = await this.companyRecipients(client, companyId, permission)
     for (const userId of recipients)
-      await notificationOutbox.enqueue({ ...payload, userId }, client)
+      await notificationOutbox.enqueue(
+        { ...payload, userId, clientContext: 'company_app', companyId },
+        client
+      )
   }
 
   private async idempotent(
@@ -189,6 +198,14 @@ export class RequestWorkflowService {
         endsAt,
         sessionCode: input.sessionCode,
       })
+      const pricingSnapshot = await bookingPricing.resolve(trx, {
+        companyId: space.company_id,
+        spaceId: space.id,
+        ratePlanId: input.ratePlanId,
+        startsAt,
+        endsAt,
+        sessionCode: input.sessionCode,
+      })
       const localStart = startsAt.setZone(space.timezone)
       const localEnd = endsAt.setZone(space.timezone)
       const user = await trx
@@ -209,16 +226,14 @@ export class RequestWorkflowService {
       const booking = await Booking.create(
         {
           userId,
-          hallId: space.legacy_hall_id,
           companyId: space.company_id,
           venueId: space.venue_id,
           spaceId: space.id,
           requestReference: `BR-${randomUUID()}`,
-          requestSource: 'space_api',
           bookingDate: localStart.startOf('day'),
           startTime: localStart.toFormat('HH:mm'),
           endTime: localEnd.toFormat('HH:mm'),
-          totalPrice: null,
+          totalPrice: minorToMajor(pricingSnapshot.totalMinor),
           specialRequests: input.notes ?? null,
           status: 'pending',
           paymentStatus: 'unpaid',
@@ -226,7 +241,7 @@ export class RequestWorkflowService {
           responseExpiresAt,
           submittedAt: DateTime.now(),
           spaceNameSnapshotAr: space.name_ar,
-          spaceNameSnapshotEn: space.name_en ?? space.legacy_name,
+          spaceNameSnapshotEn: space.name_en,
           venueNameSnapshotAr: space.venue_name_ar,
           venueNameSnapshotEn: space.venue_name_en,
           categorySlugSnapshot: space.category_slug,
@@ -240,13 +255,14 @@ export class RequestWorkflowService {
           sessionCode: input.sessionCode ?? null,
           startsAt: startsAt.toUTC(),
           endsAt: endsAt.toUTC(),
-          originalStartLocal: localStart.toISO({ includeOffset: false }),
-          originalEndLocal: localEnd.toISO({ includeOffset: false }),
+          originalStartLocal: localStart.toISO({ includeOffset: false })!,
+          originalEndLocal: localEnd.toISO({ includeOffset: false })!,
           originalTimezone: space.timezone,
           categoryRequirements: null,
         },
         { client: trx }
       )
+      await bookingPricing.persist(trx, booking.id, pricingSnapshot)
       await trx.table('booking_audit_logs').insert({
         actor_user_id: userId,
         booking_id: booking.id,
@@ -332,6 +348,12 @@ export class RequestWorkflowService {
       )
       if (replay) return trx.from('space_inquiries').where('id', replay.resource_id).firstOrFail()
       const space = await this.publicSpace(trx, input.spaceId)
+      if (space.booking_mode !== 'quote_required')
+        throw new InventoryException(
+          'Space does not use the inquiry and quote workflow',
+          'SPACE_INQUIRY_MODE_MISMATCH',
+          409
+        )
       const start = parseInstant(input.preferredStartsAt, 'preferredStartsAt')
       const end = parseInstant(input.preferredEndsAt, 'preferredEndsAt')
       if (end <= start)
@@ -365,7 +387,7 @@ export class RequestWorkflowService {
           original_end_local: end.setZone(space.timezone).toISO({ includeOffset: false }),
           original_timezone: space.timezone,
           space_name_snapshot_ar: space.name_ar,
-          space_name_snapshot_en: space.name_en ?? space.legacy_name,
+          space_name_snapshot_en: space.name_en,
           venue_name_snapshot_ar: space.venue_name_ar,
           venue_name_snapshot_en: space.venue_name_en,
           customer_name_snapshot:
@@ -489,6 +511,7 @@ export class RequestWorkflowService {
       await notificationOutbox.enqueue(
         {
           userId: row.user_id,
+          clientContext: 'customer_app',
           type: 'date_inquiry_answered',
           title: 'تم الرد على استفسارك',
           message: input.message,
@@ -590,6 +613,7 @@ export class RequestWorkflowService {
       await notificationOutbox.enqueue(
         {
           userId: row.user_id,
+          clientContext: 'customer_app',
           type: 'date_inquiry_answered',
           title: 'تحديث استفسار الموعد',
           message: reason ?? `حالة الاستفسار: ${next}`,
@@ -805,6 +829,7 @@ export class RequestWorkflowService {
       await notificationOutbox.enqueue(
         {
           userId: row.user_id,
+          clientContext: 'customer_app',
           type: changedInterval ? 'visit_alternative_proposed' : (`visit_${next}` as any),
           title: 'تحديث طلب الزيارة',
           message: input.reason ?? `حالة الزيارة: ${next}`,
@@ -992,6 +1017,7 @@ export class RequestWorkflowService {
         await notificationOutbox.enqueue(
           {
             userId: row.user_id,
+            clientContext: 'customer_app',
             type: 'date_inquiry_expired',
             title: 'انتهت مهلة استفسار الموعد',
             message: 'لم يرد المزود خلال المهلة المحددة',
@@ -1027,6 +1053,7 @@ export class RequestWorkflowService {
         await notificationOutbox.enqueue(
           {
             userId: row.user_id,
+            clientContext: 'customer_app',
             type: 'visit_expired',
             title: 'انتهت مهلة طلب الزيارة',
             message: 'لم يؤكد المزود طلب الزيارة خلال المهلة المحددة',

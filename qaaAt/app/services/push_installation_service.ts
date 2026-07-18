@@ -15,8 +15,8 @@ export interface RegisterPushInstallationInput {
 }
 
 export class PushInstallationService {
-  async registerCompany(userId: number, input: RegisterPushInstallationInput) {
-    await this.assertEligibleCompany(userId)
+  async registerCompany(userId: number, companyId: number, input: RegisterPushInstallationInput) {
+    await this.assertEligibleCompany(userId, companyId)
     return this.register(userId, 'company_app', input)
   }
 
@@ -106,13 +106,12 @@ export class PushInstallationService {
       .update({ notifications_enabled: false, revoked_at: now, updated_at: now })
   }
 
-  private async assertEligibleCompany(userId: number): Promise<void> {
+  private async assertEligibleCompany(userId: number, companyId: number): Promise<void> {
     const company = await Company.query()
+      .where('id', companyId)
       .whereNull('deletedAt')
-      .where((query) => {
-        query.where('userId', userId).orWhereHas('memberships', (memberships) => {
-          memberships.where('userId', userId).where('status', 'active')
-        })
+      .whereHas('memberships', (memberships) => {
+        memberships.where('userId', userId).where('status', 'active')
       })
       .first()
 

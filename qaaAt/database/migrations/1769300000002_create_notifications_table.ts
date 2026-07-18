@@ -16,7 +16,7 @@ export default class extends BaseSchema {
       table.string('type', 50).notNullable() // booking_accepted, booking_rejected, company_approved, etc.
       table.string('title', 255).notNullable()
       table.text('message').notNullable()
-      table.jsonb('data').nullable() // Extra data like booking_id, hall_id, etc.
+      table.jsonb('data').nullable()
       table.timestamp('read_at').nullable()
       table.timestamp('created_at').notNullable()
 

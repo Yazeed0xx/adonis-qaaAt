@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
+import DomainException from '#exceptions/domain_exception'
 
 /**
  * Admin middleware is used to ensure only admin users can access certain routes
@@ -11,9 +12,7 @@ export default class AdminMiddleware {
     const user = ctx.auth.getUserOrFail()
 
     if (user.userType !== 'admin' || !user.currentAccessToken?.allows('client:admin_app')) {
-      return ctx.response.forbidden({
-        message: 'Access denied. Admin privileges required.',
-      })
+      throw new DomainException('Access denied. Admin privileges required.', 403, 'ADMIN_REQUIRED')
     }
 
     return next()

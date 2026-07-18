@@ -8,6 +8,7 @@ import { userLoginValidator } from '#validators/user_login_validator'
 import { verifyEmailValidator } from '#validators/verify_email_validator'
 import emailVerificationService from '#services/email_verification_service'
 import db from '@adonisjs/lucid/services/db'
+import UserProfileTransformer from '#transformers/user_profile_transformer'
 
 export default class UserAuthController {
   /**
@@ -121,7 +122,7 @@ export default class UserAuthController {
   /**
    * Get authenticated user profile
    */
-  async me({ auth, response }: HttpContext) {
+  async me({ auth, response, serialize }: HttpContext) {
     await auth.check()
 
     const user = auth.getUserOrFail()
@@ -137,7 +138,9 @@ export default class UserAuthController {
           email: user.email,
           userType: user.userType,
           emailVerified: user.isEmailVerified,
-          profile: user.userProfile,
+          profile: user.userProfile
+            ? await serialize.withoutWrapping(UserProfileTransformer.transform(user.userProfile))
+            : null,
         },
       },
     })

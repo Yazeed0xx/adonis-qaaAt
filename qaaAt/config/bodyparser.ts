@@ -40,7 +40,7 @@ const bodyParserConfig = defineConfig({
      * move all uploaded files inside the tmp folder of your
      * operating system
      */
-    autoProcess: ['/api/companies/register'],
+    autoProcess: ['/api/companies/register', '/api/companies/spaces/:spaceId/media'],
     convertEmptyStringsToNull: true,
     processManually: [],
 

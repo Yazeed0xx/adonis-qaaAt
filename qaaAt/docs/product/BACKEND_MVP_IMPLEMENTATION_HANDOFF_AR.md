@@ -190,7 +190,7 @@ date_inquiry
 ```text
 User identity
 ├── customer-app capability/session
-└── zero or more CompanyMemberships and company-app sessions
+└── zero or one current CompanyMembership and company-app session
 ```
 
 المتطلبات:
@@ -199,6 +199,7 @@ User identity
 - الموظف المدعو بجوال/بريد مستخدم عميل موجود يعيد استخدام نفس User بعد المصادقة؛ لا تنشئ حسابًا ثانيًا لنفس الهوية.
 - الموظف الجديد يتحقق من وسيلة الدعوة ويضع كلمة مرور أثناء القبول.
 - المستخدم الموجود يسجل بكلمة مروره الحالية. الدعوة لا تغير كلمة مرور حساب موجود ولا تستبدلها.
+- لا يجوز أن يملك User أكثر من CompanyMembership حالية واحدة (`active` أو `suspended`). تبقى العضويات `revoked` كسجل تاريخي ولا تمنع الانضمام لاحقًا إلى شركة أخرى.
 - نسيان كلمة المرور يمر بمسار الاستعادة المعتاد، لا قبول الدعوة.
 - يجب أن تحمل التوكنات أو تحل داخليًا سياقًا موثوقًا مثل `customer_app` أو `company_app`. لا تثق بهيدر يرسله العميل فقط؛ خزّن السياق مع التوكن أو استخدم guards/providers منفصلة بعد التحقق من API الحزمة المنصبة.
 - دخول تطبيق الشركات يحتاج عضوية فعالة واحدة على الأقل، مع الحفاظ مؤقتًا على مسار مالك الشركة الحالي واستعادة حالة الاعتماد أثناء الترحيل.
@@ -325,7 +326,7 @@ company_membership_permissions
 - أنشئ Membership `owner/active` لكل شركة حالية عبر backfill migration آمنة.
 - اجعل `companies.user_id` هو legacy owner pointer مؤقتًا.
 - انقل middleware/controllers/services تدريجيًا إلى Membership context.
-- حدّث `CompanyAuthController` ليعيد memberships والدور والصلاحيات، مع الحفاظ مؤقتًا على fields التي تحتاجها نسخة تطبيق الشركات الحالية.
+- حدّث `CompanyAuthController` ليعيد العضوية الفعالة الوحيدة والدور والصلاحيات مع الحفاظ على `user` و`company` و`token`.
 - طوّر دخول الشركات بحيث يستطيع User عميل موجود وله CompanyMembership فعالة الدخول إلى تطبيق الشركات حتى لو بقي `userType = user`.
 - أدخل سياقًا صريحًا للتوكن/التطبيق دون كسر التوكنات الحالية فجأة، ووثق ترحيل وإلغاء legacy tokens.
 - راجع Push eligibility والإشعارات؛ لا تفترض أن recipient هو `company.user.id` فقط بعد اكتمال العضويات.
@@ -445,13 +446,15 @@ space_media
 
 المعارض/المؤتمرات: square meters، ceiling height، loading access، power، setup/teardown windows، visitor capacity.
 
-### 8.5 ترحيل Halls
+### 8.5 قرار Halls قبل الإطلاق
 
-- لا تكسر `/api/halls` فجأة.
-- صمم migration/backfill إلى Venue/Space أو compatibility adapter واضح.
-- احتفظ بعلاقة الحجوزات التاريخية أثناء الترحيل.
-- لا تعدّل `database/schema.ts` يدويًا؛ migrations/models ثم regenerate عبر آليات المشروع.
-- أضف contract tests للمسارات القديمة والجديدة أثناء فترة التوافق.
+المشروع غير منشور ولا توجد قاعدة بيانات إنتاجية أو حجوزات تاريخية. لذلك فإن طبقة التوافق ستحافظ على عقد تجريبي غير مستخدم وتنتج نطاقي حجز متنافسين. يعتمد الـMVP على Venue وSpace فقط:
+
+- Venue هو الموقع/الحاوية، وSpace هو المورد المستقل القابل للحجز.
+- لا تعرض `/api/halls` ولا تنشئ جداول أو triggers أو backfills أو adapters للتوافق مع Hall.
+- يجب أن يرتبط كل Booking بـCompany وVenue وSpace مع snapshots ثابتة لأسماء العرض.
+- لا تعدّل `database/schema.ts` يدويًا؛ عدّل migrations/models ثم أعد التوليد عبر آليات المشروع.
+- يجب أن تثبت contract tests مسارات Space الأساسية وترفض توثيق Hall القديم.
 
 ## 9. التوافر والحجوزات الخارجية
 
@@ -687,7 +690,7 @@ interface PaymentProvider {
 - membership/permission context and tenant scoping.
 - invitations send/inspect/accept/resend/cancel.
 - member list/update/revoke.
-- company login response compatible with current app plus memberships.
+- company login response with the single active membership and no company selector.
 - دخول تطبيق الشركات بالهوية المشتركة لمستخدم عميل موجود تمت دعوته.
 - فصل صريح لتوكنات/جلسات تطبيق المستخدم وتطبيق الشركات، مع اختبارات رفض cross-app tokens.
 - notification/email message for invitation.
@@ -700,7 +703,7 @@ interface PaymentProvider {
 ### Sprint 2 — Venue/Space and moderation
 
 - schema/categories/amenities/media/publication lifecycle.
-- Hall migration/compatibility.
+- نموذج Venue/Space أساسي من دون طبقة توافق Hall قبل الإطلاق.
 - company CRUD with permissions.
 - admin moderation.
 - public reads and category-aware filters.

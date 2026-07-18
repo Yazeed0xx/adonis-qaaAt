@@ -11,7 +11,7 @@ const corsConfig = defineConfig({
   enabled: true,
   // accept all origins in development
   origin: env.get('NODE_ENV') === 'development' ? true : [env.get('APP_URL')],
-  methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   headers: true,
   exposeHeaders: [],
   credentials: true,

@@ -103,15 +103,12 @@ export class SpaceCatalogService {
       companyId,
       nameAr: input.name.ar ?? null,
       nameEn: input.name.en ?? null,
-      legacyName: null,
       city: input.city,
       district: input.district ?? null,
       street: input.street ?? null,
       buildingNumber: input.buildingNumber ?? null,
       postalCode: input.postalCode ?? null,
       additionalNumber: input.additionalNumber ?? null,
-      legacyLocation: null,
-      legacyAddress: null,
       accessInstructionsAr: input.accessInstructions?.ar ?? null,
       accessInstructionsEn: input.accessInstructions?.en ?? null,
       parkingNotesAr: input.parkingNotes?.ar ?? null,
@@ -129,16 +126,6 @@ export class SpaceCatalogService {
       .where('companyId', companyId)
       .whereNull('deletedAt')
       .firstOrFail()
-    const mapped = await Space.query()
-      .where('venueId', venue.id)
-      .whereNotNull('legacyHallId')
-      .first()
-    if (mapped)
-      throw new SpaceException(
-        'Mapped legacy venues must be updated through the Hall API',
-        'LEGACY_VENUE_READ_ONLY',
-        409
-      )
     if (input.name) this.assertLocalized(input.name)
     if (input.timezone && input.timezone !== venue.timezone) {
       this.assertTimezone(input.timezone)
@@ -211,7 +198,7 @@ export class SpaceCatalogService {
   async createSpace(companyId: number, actorUserId: number, input: SpaceInput) {
     this.assertLocalized(input.name)
     this.assertCategoryDetails(input.category, input)
-    return db.transaction(async (trx) => {
+    const spaceId = await db.transaction(async (trx) => {
       await Venue.query({ client: trx })
         .where('id', input.venueId)
         .where('companyId', companyId)
@@ -226,18 +213,14 @@ export class SpaceCatalogService {
           companyId,
           venueId: input.venueId,
           categoryId: category.id,
-          legacyHallId: null,
           nameAr: input.name.ar ?? null,
           nameEn: input.name.en ?? null,
-          legacyName: null,
           descriptionAr: input.description?.ar ?? null,
           descriptionEn: input.description?.en ?? null,
-          legacyDescription: null,
           bookingMode: input.bookingMode,
           publicationStatus: 'draft',
           capacityTotal: input.capacityTotal,
           requiresVisit: input.requiresVisit ?? false,
-          legacyIsAvailable: null,
           minimumDurationMinutes: input.minimumDurationMinutes ?? null,
           maximumDurationMinutes: input.maximumDurationMinutes ?? null,
           minimumNoticeHours: input.minimumNoticeHours ?? null,
@@ -250,8 +233,9 @@ export class SpaceCatalogService {
       )
       await this.replaceDetails(trx, space.id, input.category, input)
       await this.event(trx, space, actorUserId, 'created', null, 'draft')
-      return this.getSpaceWithClient(trx, companyId, space.id)
+      return space.id
     })
+    return this.getSpace(companyId, spaceId)
   }
 
   async updateSpace(
@@ -260,19 +244,13 @@ export class SpaceCatalogService {
     spaceId: number,
     input: Partial<SpaceInput>
   ) {
-    return db.transaction(async (trx) => {
+    const updatedSpaceId = await db.transaction(async (trx) => {
       const space = await Space.query({ client: trx })
         .where('id', spaceId)
         .where('companyId', companyId)
         .whereNull('deletedAt')
         .forUpdate()
         .firstOrFail()
-      if (space.legacyHallId)
-        throw new SpaceException(
-          'Mapped legacy spaces must be updated through the Hall API',
-          'LEGACY_SPACE_READ_ONLY',
-          409
-        )
       if (!['draft', 'changes_requested', 'published'].includes(space.publicationStatus))
         throw new SpaceException(
           'Only draft, changes-requested, or published spaces may be edited',
@@ -324,8 +302,9 @@ export class SpaceCatalogService {
         previousStatus,
         nextStatus
       )
-      return this.getSpaceWithClient(trx, companyId, space.id)
+      return space.id
     })
+    return this.getSpace(companyId, updatedSpaceId)
   }
 
   async submit(companyId: number, actorUserId: number, spaceId: number) {
@@ -346,11 +325,6 @@ export class SpaceCatalogService {
         .whereNull('deletedAt')
         .forUpdate()
         .firstOrFail()
-      if (space.legacyHallId)
-        throw new SpaceException(
-          'Mapped legacy spaces are archived through the Hall API',
-          'LEGACY_SPACE_READ_ONLY'
-        )
       if (
         !['draft', 'changes_requested', 'published', 'suspended'].includes(space.publicationStatus)
       )
@@ -375,7 +349,6 @@ export class SpaceCatalogService {
         .where('publicationStatus', 'published')
         .whereNull('deletedAt')
         .whereHas('company', (query) => query.where('status', 'approved').whereNull('deletedAt'))
-        .where((query) => query.whereNull('legacyHallId').orWhere('legacyIsAvailable', true))
     ).first()
     if (!space) throw new SpaceException('Published space not found', 'SPACE_NOT_FOUND', 404)
     return space
@@ -396,11 +369,6 @@ export class SpaceCatalogService {
         .whereNull('deletedAt')
         .forUpdate()
         .firstOrFail()
-      if (space.legacyHallId)
-        throw new SpaceException(
-          'Mapped legacy publication is controlled by compatibility rules',
-          'LEGACY_SPACE_READ_ONLY'
-        )
       if (!from.includes(space.publicationStatus))
         throw new SpaceException('Invalid publication transition', 'SPACE_TRANSITION_INVALID_STATE')
       const previous = space.publicationStatus
@@ -526,11 +494,6 @@ export class SpaceCatalogService {
       .preload('layoutCapacities')
       .preload('largeFormatDetails')
       .preload('amenities', (amenities: any) => amenities.preload('amenityDefinition'))
-      .preload('media', (media: any) => media.orderBy('sortOrder', 'asc'))
-  }
-  private getSpaceWithClient(trx: TransactionClientContract, companyId: number, spaceId: number) {
-    return this.preload(
-      Space.query({ client: trx }).where('id', spaceId).where('companyId', companyId)
-    ).firstOrFail()
+      .preload('media', (media: any) => media.whereNull('deletedAt').orderBy('sortOrder', 'asc'))
   }
 }

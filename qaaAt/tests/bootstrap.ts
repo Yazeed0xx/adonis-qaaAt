@@ -2,9 +2,11 @@ import { assert } from '@japa/assert'
 import { apiClient } from '@japa/api-client'
 import { authApiClient } from '@adonisjs/auth/plugins/api_client'
 import app from '@adonisjs/core/services/app'
+import { dbAssertions } from '@adonisjs/lucid/plugins/db'
 import type { Config } from '@japa/runner/types'
 import { pluginAdonisJS } from '@japa/plugin-adonisjs'
 import testUtils from '@adonisjs/core/services/test_utils'
+import { prepareTestDatabase } from '#tests/support/database'
 
 /**
  * This file is imported by the "bin/test.ts" entrypoint file
@@ -19,6 +21,7 @@ export const plugins: Config['plugins'] = [
   apiClient(),
   authApiClient(app),
   pluginAdonisJS(app),
+  dbAssertions(app),
 ]
 
 /**
@@ -29,7 +32,7 @@ export const plugins: Config['plugins'] = [
  * The teardown functions are executed after all the tests
  */
 export const runnerHooks: Required<Pick<Config, 'setup' | 'teardown'>> = {
-  setup: [() => testUtils.db().migrate()],
+  setup: [prepareTestDatabase],
   teardown: [],
 }
 
@@ -38,7 +41,7 @@ export const runnerHooks: Required<Pick<Config, 'setup' | 'teardown'>> = {
  * Learn more - https://japa.dev/docs/test-suites#lifecycle-hooks
  */
 export const configureSuite: Config['configureSuite'] = (suite) => {
-  if (['browser', 'functional', 'e2e'].includes(suite.name)) {
+  if (suite.name === 'functional') {
     return suite.setup(() => testUtils.httpServer().start())
   }
 }

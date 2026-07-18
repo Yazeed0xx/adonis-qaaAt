@@ -14,6 +14,8 @@ Authorization: Bearer {token}
 
 Tokens are returned from `/companies/register` and `/companies/login`.
 
+Each token contains `client:company_app` plus exactly one `company:<id>` ability. Access also requires an explicit active membership in that Company. `userType`, wildcard/unscoped tokens, and `companies.userId` do not authorize company routes and missing memberships are never recreated during a request.
+
 ### Error Responses (Global)
 
 **401 Unauthorized** (missing/invalid token on protected routes):
@@ -22,10 +24,15 @@ Tokens are returned from `/companies/register` and `/companies/login`.
 { "errors": [{ "message": "Unauthorized access" }] }
 ```
 
-**403 Company Account Required** (non-company account accessing company routes):
+**403 Company scope or membership required**:
 
 ```json
-{ "message": "Access denied. Company account required." }
+{
+  "error": {
+    "code": "COMPANY_SCOPE_REQUIRED",
+    "message": "A single valid company token scope is required"
+  }
+}
 ```
 
 **403 Company Not Approved** (approved-only routes when company is pending/rejected/suspended):
@@ -184,6 +191,8 @@ curl -X POST http://localhost:3333/api/companies/register \
 
 **Auth:** None
 
+The backend resolves the User's single active membership. There is no Company selector or memberships array.
+
 **Request Body:**
 
 | Field      | Type   | Required |
@@ -245,7 +254,10 @@ curl -X POST http://localhost:3333/api/companies/register \
 > - `"Login successful"` — approved
 > - `"Login successful. Your company is pending admin approval."` — pending
 > - `"Login successful. Your company registration was rejected."` — rejected
-> - `"Login successful. Your company account is suspended."` — suspended
+
+Suspended companies cannot create new company-app sessions. Login returns `401` until an admin
+reactivates the company. Existing company sessions are revoked during suspension and are not restored
+by reactivation; each owner or employee must sign in again.
 
 **Response 401:**
 
@@ -685,6 +697,9 @@ All notification endpoints require authentication with a company account.
 
 List the authenticated company's notifications.
 
+Results and read-state mutations are scoped to the User's single current Company and the bearer
+token. Company records do not appear in the customer-app notification API.
+
 **Auth:** Bearer token (company)
 
 **Query Parameters:**
@@ -793,7 +808,8 @@ suspended --> approved (reactivated by admin)
 - **pending**: Just registered, waiting for admin review. Can log in and view profile, but cannot manage halls or bookings.
 - **approved**: Fully active. Can create halls, manage bookings, receive notifications.
 - **rejected**: Admin rejected the registration. `rejectionReason` is provided. Cannot manage halls or bookings.
-- **suspended**: Admin suspended the account. Cannot manage halls or bookings.
+- **suspended**: Admin suspended the account. Company-app sessions are revoked and login is disabled
+  until reactivation. Customer-app sessions belonging to the same people are unaffected.
 
 ## 6. Booking Status Flow (Company Perspective)
 

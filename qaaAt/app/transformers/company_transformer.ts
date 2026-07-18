@@ -1,8 +1,6 @@
 import { BaseTransformer } from '@adonisjs/core/transformers'
 import type Company from '#models/company'
 import CompanyProfileTransformer from '#transformers/company_profile_transformer'
-import HallTransformer from '#transformers/hall_transformer'
-import ServiceTransformer from '#transformers/service_transformer'
 import UserTransformer from '#transformers/user_transformer'
 
 export default class CompanyTransformer extends BaseTransformer<Company> {
@@ -31,12 +29,6 @@ export default class CompanyTransformer extends BaseTransformer<Company> {
       rejectedAt: this.resource.rejectedAt,
       deletedAt: this.resource.deletedAt,
       user: UserTransformer.transform(this.whenLoaded(this.resource.user))?.useVariant(
-        'forAdminView'
-      ),
-      halls: HallTransformer.transform(this.whenLoaded(this.resource.halls))?.useVariant(
-        'forAdminView'
-      ),
-      services: ServiceTransformer.transform(this.whenLoaded(this.resource.services))?.useVariant(
         'forAdminView'
       ),
     }

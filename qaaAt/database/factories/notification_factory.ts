@@ -6,6 +6,7 @@ import { UserFactory } from '#database/factories/user_factory'
 export const NotificationFactory = factory
   .define(Notification, ({ faker }) => {
     return {
+      companyId: null,
       type: faker.helpers.arrayElement([
         'email_verified',
         'company_approved',

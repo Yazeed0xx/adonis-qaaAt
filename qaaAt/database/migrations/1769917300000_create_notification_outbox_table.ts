@@ -8,9 +8,13 @@ export default class extends BaseSchema {
       table.integer('attempts').notNullable().defaultTo(0)
       table.timestamp('available_at').notNullable().defaultTo(this.now())
       table.timestamp('processed_at').nullable()
+      table.timestamp('failed_at').nullable()
       table.text('last_error').nullable()
       table.timestamp('created_at').notNullable().defaultTo(this.now())
-      table.index(['processed_at', 'available_at'], 'notification_outbox_pending_index')
+      table.index(
+        ['processed_at', 'failed_at', 'available_at'],
+        'notification_outbox_pending_index'
+      )
     })
 
     this.schema.alterTable('notifications', (table) => {

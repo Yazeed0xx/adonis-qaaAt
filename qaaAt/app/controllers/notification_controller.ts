@@ -7,7 +7,7 @@ export default class NotificationController {
   /**
    * Get all notifications for the authenticated user
    */
-  async index({ auth, request, serialize }: HttpContext) {
+  async index({ auth, companyContext, request, serialize }: HttpContext) {
     await auth.check()
     const user = auth.getUserOrFail()
 
@@ -19,7 +19,8 @@ export default class NotificationController {
       user.id,
       page,
       limit,
-      unreadOnly === 'true' || unreadOnly === true
+      unreadOnly === 'true' || unreadOnly === true,
+      companyContext?.companyId ?? null
     )
 
     return serialize(NotificationTransformer.paginate(notifications.all(), notifications.getMeta()))
@@ -28,11 +29,14 @@ export default class NotificationController {
   /**
    * Get unread notification count
    */
-  async unreadCount({ auth, response }: HttpContext) {
+  async unreadCount({ auth, companyContext, response }: HttpContext) {
     await auth.check()
     const user = auth.getUserOrFail()
 
-    const count = await notificationService.getUnreadCount(user.id)
+    const count = await notificationService.getUnreadCount(
+      user.id,
+      companyContext?.companyId ?? null
+    )
 
     return response.ok({
       data: {
@@ -44,11 +48,15 @@ export default class NotificationController {
   /**
    * Mark a single notification as read
    */
-  async markAsRead({ auth, params, response, serialize }: HttpContext) {
+  async markAsRead({ auth, companyContext, params, response, serialize }: HttpContext) {
     await auth.check()
     const user = auth.getUserOrFail()
 
-    const notification = await notificationService.markAsRead(params.id, user.id)
+    const notification = await notificationService.markAsRead(
+      params.id,
+      user.id,
+      companyContext?.companyId ?? null
+    )
 
     if (!notification) {
       throw new NotificationNotFoundException()
@@ -63,11 +71,14 @@ export default class NotificationController {
   /**
    * Mark all notifications as read
    */
-  async markAllAsRead({ auth, response }: HttpContext) {
+  async markAllAsRead({ auth, companyContext, response }: HttpContext) {
     await auth.check()
     const user = auth.getUserOrFail()
 
-    const count = await notificationService.markAllAsRead(user.id)
+    const count = await notificationService.markAllAsRead(
+      user.id,
+      companyContext?.companyId ?? null
+    )
 
     return response.ok({
       message: 'All notifications marked as read',

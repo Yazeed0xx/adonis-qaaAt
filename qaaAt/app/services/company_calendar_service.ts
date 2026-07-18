@@ -42,7 +42,6 @@ export class CompanyCalendarService {
           maximum_advance_days: input.maximumAdvanceDays,
           preparation_buffer_minutes: input.preparationBufferMinutes,
           cleanup_buffer_minutes: input.cleanupBufferMinutes,
-          source: 'provider',
           created_at: DateTime.now().toSQL(),
         })
         .returning('*')
@@ -100,8 +99,8 @@ export class CompanyCalendarService {
         [
           ...existing.map((row: any) => ({
             weekday: row.weekday,
-            start: row.starts_at_local,
-            end: row.ends_at_local,
+            start: String(row.starts_at_local).slice(0, 5),
+            end: String(row.ends_at_local).slice(0, 5),
             endsNextDay: row.ends_next_day,
           })),
           {
@@ -199,8 +198,8 @@ export class CompanyCalendarService {
         [
           ...rows.map((row: any) => ({
             weekday: 0,
-            start: row.starts_at_local,
-            end: row.ends_at_local,
+            start: String(row.starts_at_local).slice(0, 5),
+            end: String(row.ends_at_local).slice(0, 5),
             endsNextDay: row.ends_next_day,
           })),
           {

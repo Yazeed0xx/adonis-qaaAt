@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
+import DomainException from '#exceptions/domain_exception'
 
 /**
  * Verified email middleware ensures only users with verified email can access certain routes
@@ -9,10 +10,11 @@ export default class VerifiedEmailMiddleware {
     const user = ctx.auth.getUserOrFail()
 
     if (!user.emailVerifiedAt) {
-      return ctx.response.forbidden({
-        message: 'Please verify your email address before proceeding.',
-        code: 'EMAIL_NOT_VERIFIED',
-      })
+      throw new DomainException(
+        'Please verify your email address before proceeding.',
+        403,
+        'EMAIL_NOT_VERIFIED'
+      )
     }
 
     return next()

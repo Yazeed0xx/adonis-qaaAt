@@ -10,15 +10,6 @@ function isOverlap(error: unknown) {
 }
 
 export class InventoryService {
-  async mappedSpace(trx: TransactionClientContract, hallId: number, companyId?: number) {
-    const query = trx.from('spaces').where('legacy_hall_id', hallId)
-    if (companyId) query.where('company_id', companyId)
-    const space = await query.first()
-    if (!space)
-      throw new InventoryException('Hall has no mapped Space', 'SPACE_MAPPING_REQUIRED', 409)
-    return space
-  }
-
   async bookingRange(trx: TransactionClientContract, booking: Booking, space: any) {
     if (booking.startsAt && booking.endsAt) return { start: booking.startsAt, end: booking.endsAt }
     const venue = await trx.from('venues').where('id', space.venue_id).firstOrFail()
@@ -30,49 +21,31 @@ export class InventoryService {
     return { start, end }
   }
 
-  async assertBookingRequestFitsPolicy(
-    trx: TransactionClientContract,
-    input: {
-      hallId: number
-      companyId?: number
-      bookingDate: DateTime
-      startTime: string
-      endTime: string
-    }
-  ) {
-    const space = await this.mappedSpace(trx, input.hallId, input.companyId)
-    const venue = await trx.from('venues').where('id', space.venue_id).firstOrFail()
-    const date = input.bookingDate.toFormat('yyyy-MM-dd')
-    const start = DateTime.fromISO(`${date}T${input.startTime}`, { zone: venue.timezone })
-    const end = DateTime.fromISO(`${date}T${input.endTime}`, { zone: venue.timezone })
-    if (!start.isValid || !end.isValid)
-      throw new InventoryException('Booking local time is invalid', 'BOOKING_TIME_INVALID', 422)
-    return availabilityPolicyService.assertRequestFitsAvailabilityPolicy(trx, {
-      spaceId: space.id,
-      startsAt: start,
-      endsAt: end,
-    })
-  }
-
   async createBookingHold(
     trx: TransactionClientContract,
     booking: Booking,
     companyId: number,
     expiresAt: DateTime
   ) {
-    const space = booking.spaceId
-      ? await trx
-          .from('spaces')
-          .join('companies', 'companies.id', 'spaces.company_id')
-          .where('spaces.id', booking.spaceId)
-          .where('spaces.company_id', companyId)
-          .where('spaces.publication_status', 'published')
-          .whereNull('spaces.deleted_at')
-          .where('companies.status', 'approved')
-          .whereNull('companies.deleted_at')
-          .select('spaces.*')
-          .first()
-      : await this.mappedSpace(trx, booking.hallId!, companyId)
+    if (!booking.spaceId) {
+      throw new InventoryException(
+        'Booking is not associated with a space',
+        'BOOKING_SPACE_REQUIRED',
+        409
+      )
+    }
+
+    const space = await trx
+      .from('spaces')
+      .join('companies', 'companies.id', 'spaces.company_id')
+      .where('spaces.id', booking.spaceId)
+      .where('spaces.company_id', companyId)
+      .where('spaces.publication_status', 'published')
+      .whereNull('spaces.deleted_at')
+      .where('companies.status', 'approved')
+      .whereNull('companies.deleted_at')
+      .select('spaces.*')
+      .first()
     if (!space)
       throw new InventoryException(
         'Space cannot be approved in its current state',

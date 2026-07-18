@@ -1,6 +1,10 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import payments from '#services/payment_service'
+import adminAuditService from '#services/admin_audit_service'
+import AdminOperationException from '#exceptions/admin_operation_exception'
+import { adminResourceParamsValidator } from '#validators/admin_operation_validator'
+import { refundRetryValidator } from '#validators/payment_validator'
 export default class AdminPaymentsController {
   async index({ request, response }: HttpContext) {
     const rows = await payments.list(
@@ -73,5 +77,21 @@ export default class AdminPaymentsController {
   }
   async reconciliation({ request, response }: HttpContext) {
     return response.ok({ data: await payments.reconciliation(undefined, request.input('result')) })
+  }
+
+  async retryRefund({ auth, params, request, response }: HttpContext) {
+    const { id } = await request.validateUsing(adminResourceParamsValidator, { data: params })
+    const { idempotencyKey } = await request.validateUsing(refundRetryValidator)
+    const refund = await db.from('refunds').where('id', id).select('company_id').first()
+    if (!refund) throw new AdminOperationException('Refund not found', 'REFUND_NOT_FOUND', 404)
+    const result = await payments.retryRefund(refund.company_id, id, idempotencyKey)
+    await adminAuditService.record({
+      adminUserId: auth.getUserOrFail().id,
+      action: 'refund.retry',
+      targetType: 'refund',
+      targetId: id,
+      metadata: { resultStatus: result.status },
+    })
+    return response.ok({ data: result })
   }
 }

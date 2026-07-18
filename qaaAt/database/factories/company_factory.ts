@@ -3,6 +3,7 @@ import { DateTime } from 'luxon'
 import Company from '#models/company'
 import { CompanyProfileFactory } from '#database/factories/company_profile_factory'
 import { UserFactory } from '#database/factories/user_factory'
+import CompanyMembership from '#models/company_membership'
 
 export const CompanyFactory = factory
   .define(Company, ({ faker }) => {
@@ -43,4 +44,16 @@ export const CompanyFactory = factory
   })
   .relation('user', () => UserFactory)
   .relation('companyProfile', () => CompanyProfileFactory)
+  .after('create', async (_, company, context) => {
+    await CompanyMembership.create(
+      {
+        companyId: company.id,
+        userId: company.userId,
+        role: 'owner',
+        status: 'active',
+        joinedAt: company.createdAt,
+      },
+      { client: context.$trx }
+    )
+  })
   .build()

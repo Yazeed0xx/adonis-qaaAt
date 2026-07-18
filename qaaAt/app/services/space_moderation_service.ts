@@ -54,13 +54,6 @@ export class SpaceModerationService {
         .whereNull('deletedAt')
         .forUpdate()
         .firstOrFail()
-      if (space.legacyHallId) {
-        throw new SpaceException(
-          'Mapped legacy moderation remains controlled by the Hall compatibility workflow',
-          'LEGACY_SPACE_MODERATION_VIA_HALL',
-          409
-        )
-      }
       if (!from.includes(space.publicationStatus))
         throw new SpaceException('Invalid moderation transition', 'SPACE_MODERATION_INVALID_STATE')
       const previous = space.publicationStatus

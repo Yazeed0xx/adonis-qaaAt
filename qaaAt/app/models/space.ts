@@ -3,7 +3,6 @@ import type { BelongsTo, HasMany, HasOne } from '@adonisjs/lucid/types/relations
 import { SpaceSchema } from '#database/schema'
 import Company from '#models/company'
 import Venue from '#models/venue'
-import Hall from '#models/hall'
 import SpaceCategory from '#models/space_category'
 import SpaceEventDetail from '#models/space_event_detail'
 import SpaceLayoutCapacity from '#models/space_layout_capacity'
@@ -14,17 +13,13 @@ import SpaceModerationEvent from '#models/space_moderation_event'
 
 export default class Space extends SpaceSchema {
   get displayName() {
-    return this.nameAr ?? this.nameEn ?? this.legacyName
+    return this.nameAr ?? this.nameEn
   }
   get displayDescription() {
-    return this.descriptionAr ?? this.descriptionEn ?? this.legacyDescription
-  }
-  get isLegacyOperationallyAvailable() {
-    return this.legacyHallId === null || this.legacyIsAvailable === true
+    return this.descriptionAr ?? this.descriptionEn
   }
   @belongsTo(() => Company) declare company: BelongsTo<typeof Company>
   @belongsTo(() => Venue) declare venue: BelongsTo<typeof Venue>
-  @belongsTo(() => Hall, { foreignKey: 'legacyHallId' }) declare legacyHall: BelongsTo<typeof Hall>
   @belongsTo(() => SpaceCategory, { foreignKey: 'categoryId' }) declare category: BelongsTo<
     typeof SpaceCategory
   >

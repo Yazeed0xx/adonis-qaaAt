@@ -27,12 +27,7 @@ export const companyPermissions = [
 
 export type CompanyPermission = (typeof companyPermissions)[number]
 export type CompanyRole =
-  | 'owner'
-  | 'manager'
-  | 'booking_staff'
-  | 'calendar_staff'
-  | 'accountant'
-  | 'viewer'
+  'owner' | 'manager' | 'booking_staff' | 'calendar_staff' | 'accountant' | 'viewer'
 
 export const rolePermissions: Record<CompanyRole, readonly CompanyPermission[]> = {
   owner: companyPermissions,

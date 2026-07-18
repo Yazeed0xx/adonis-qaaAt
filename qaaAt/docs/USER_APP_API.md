@@ -72,15 +72,15 @@ Register a new user account. No auth required.
 
 **Request Body:**
 
-| Field       | Type   | Required | Notes                       |
-|-------------|--------|----------|-----------------------------|
-| email       | string | Yes      | Must be unique, valid email |
-| password    | string | Yes      | Min 8 characters            |
-| userName    | string | No       | Display name                |
-| firstName   | string | No       | Stored in user profile      |
-| lastName    | string | No       | Stored in user profile      |
-| phone       | string | No       | Stored in user profile      |
-| address     | string | No       | Stored in user profile      |
+| Field     | Type   | Required | Notes                       |
+| --------- | ------ | -------- | --------------------------- |
+| email     | string | Yes      | Must be unique, valid email |
+| password  | string | Yes      | Min 8 characters            |
+| userName  | string | No       | Display name                |
+| firstName | string | No       | Stored in user profile      |
+| lastName  | string | No       | Stored in user profile      |
+| phone     | string | No       | Stored in user profile      |
+| address   | string | No       | Stored in user profile      |
 
 **Example Request:**
 
@@ -117,6 +117,7 @@ Register a new user account. No auth required.
 ```
 
 **Notes:**
+
 - A 6-digit verification code is sent automatically after registration.
 - The user can start using the app immediately but cannot create bookings until email is verified.
 - Store the token securely for subsequent authenticated requests.
@@ -130,7 +131,7 @@ Login with existing credentials. No auth required.
 **Request Body:**
 
 | Field    | Type   | Required |
-|----------|--------|----------|
+| -------- | ------ | -------- |
 | email    | string | Yes      |
 | password | string | Yes      |
 
@@ -209,6 +210,7 @@ Get the authenticated user's profile. **Auth required.**
 ```
 
 **Notes:**
+
 - `profile` will be `null` if no profile data was provided during registration.
 
 ---
@@ -236,7 +238,7 @@ Verify a user's email address using the OTP code from the verification email. No
 **Request Body:**
 
 | Field | Type   | Required | Notes              |
-|-------|--------|----------|--------------------|
+| ----- | ------ | -------- | ------------------ |
 | email | string | Yes      | User email address |
 | code  | string | Yes      | 6-digit OTP code   |
 
@@ -275,7 +277,7 @@ Resend the verification code. No auth required.
 **Request Body:**
 
 | Field | Type   | Required |
-|-------|--------|----------|
+| ----- | ------ | -------- |
 | email | string | Yes      |
 
 **Example Request:**
@@ -295,6 +297,7 @@ Resend the verification code. No auth required.
 ```
 
 **Notes:**
+
 - The response message is intentionally vague to prevent email enumeration.
 
 ---
@@ -309,13 +312,13 @@ Browse all available halls with optional filters.
 
 **Query Parameters:**
 
-| Param        | Type   | Default | Description                        |
-|--------------|--------|---------|------------------------------------|
-| page         | number | 1       | Page number                        |
-| limit        | number | 20      | Results per page (max 100)         |
-| city         | string | —       | Filter by exact city name          |
-| min_capacity | number | —       | Minimum hall capacity              |
-| max_price    | number | —       | Maximum price per hour             |
+| Param        | Type   | Default | Description                           |
+| ------------ | ------ | ------- | ------------------------------------- |
+| page         | number | 1       | Page number                           |
+| limit        | number | 20      | Results per page (max 100)            |
+| city         | string | —       | Filter by exact city name             |
+| min_capacity | number | —       | Minimum hall capacity                 |
+| max_price    | number | —       | Maximum price per hour                |
 | search       | string | —       | Search in name, description, location |
 
 **Example:** `GET /api/halls?city=Riyadh&min_capacity=100&max_price=500&page=1&limit=10`
@@ -368,6 +371,7 @@ Browse all available halls with optional filters.
 ```
 
 **Notes:**
+
 - Only halls from **approved** companies with `isAvailable: true` are returned.
 - `amenities` is a flexible JSON object — keys vary per hall.
 - `images` is an array of URL strings (may be `null`).
@@ -383,7 +387,7 @@ Get a single hall's full details. No auth required.
 **URL Params:**
 
 | Param | Type   |
-|-------|--------|
+| ----- | ------ |
 | id    | number |
 
 **Success Response (200):** Same shape as a single item from the list above.
@@ -405,13 +409,13 @@ Check available time slots for a hall on a specific date. No auth required.
 **URL Params:**
 
 | Param | Type   |
-|-------|--------|
+| ----- | ------ |
 | id    | number |
 
 **Query Parameters:**
 
 | Param | Type   | Required | Format     |
-|-------|--------|----------|------------|
+| ----- | ------ | -------- | ---------- |
 | date  | string | Yes      | YYYY-MM-DD |
 
 **Example:** `GET /api/halls/1/availability?date=2026-03-15`
@@ -436,10 +440,12 @@ Check available time slots for a hall on a specific date. No auth required.
 ```
 
 **Error Responses:**
+
 - `400` — Missing or invalid date, or date is in the past.
 - `404` — Hall not found.
 
 **Notes:**
+
 - Slots are 2-hour blocks from 08:00 to 22:00.
 - `isAvailable: false` means that slot already has a pending/accepted/confirmed booking.
 - Users can book **custom time ranges** (not limited to these slots) — the slots are just a guide.
@@ -468,10 +474,10 @@ List the authenticated user's bookings. **Auth required.**
 
 **Query Parameters:**
 
-| Param  | Type   | Default | Description                                    |
-|--------|--------|---------|------------------------------------------------|
-| page   | number | 1       | Page number                                    |
-| limit  | number | 20      | Results per page (max 100)                     |
+| Param  | Type   | Default | Description                                                                                 |
+| ------ | ------ | ------- | ------------------------------------------------------------------------------------------- |
+| page   | number | 1       | Page number                                                                                 |
+| limit  | number | 20      | Results per page (max 100)                                                                  |
 | status | string | —       | Filter: `pending`, `accepted`, `rejected`, `confirmed`, `cancelled`, `completed`, `expired` |
 
 **Example:** `GET /api/users/bookings?status=pending&page=1`
@@ -537,14 +543,14 @@ Create a new booking request. **Auth required + Email must be verified.**
 
 **Request Body:**
 
-| Field           | Type     | Required | Notes                              |
-|-----------------|----------|----------|------------------------------------|
-| hallId          | number   | Yes      | ID of the hall to book             |
-| bookingDate     | string   | Yes      | Format: `YYYY-MM-DD`, must be today or future |
-| startTime       | string   | Yes      | Format: `HH:MM` (24h), e.g. `"14:00"` |
+| Field           | Type     | Required | Notes                                          |
+| --------------- | -------- | -------- | ---------------------------------------------- |
+| hallId          | number   | Yes      | ID of the hall to book                         |
+| bookingDate     | string   | Yes      | Format: `YYYY-MM-DD`, must be today or future  |
+| startTime       | string   | Yes      | Format: `HH:MM` (24h), e.g. `"14:00"`          |
 | endTime         | string   | Yes      | Format: `HH:MM` (24h), must be after startTime |
-| serviceIds      | number[] | No       | Array of service IDs to add        |
-| specialRequests | string   | No       | Max 1000 characters                |
+| serviceIds      | number[] | No       | Array of service IDs to add                    |
+| specialRequests | string   | No       | Max 1000 characters                            |
 
 **Example Request:**
 
@@ -603,6 +609,7 @@ Create a new booking request. **Auth required + Email must be verified.**
 ```
 
 **Notes:**
+
 - `totalPrice` is calculated automatically: `(hours * hall.pricing) + sum(service prices)`.
 - The booking starts as `"pending"` — the company has 7 days to accept/reject.
 - `expiresAt` is set to 7 days from creation. If the company doesn't respond, it expires.
@@ -616,7 +623,7 @@ Get a single booking's details. **Auth required.** Users can only see their own 
 **URL Params:**
 
 | Param | Type   |
-|-------|--------|
+| ----- | ------ |
 | id    | number |
 
 **Success Response (200):** Same shape as a single booking from the list endpoint.
@@ -638,7 +645,7 @@ Cancel a booking. **Auth required.** Only bookings with status `pending` or `acc
 **URL Params:**
 
 | Param | Type   |
-|-------|--------|
+| ----- | ------ |
 | id    | number |
 
 **No request body needed.**
@@ -672,11 +679,11 @@ Get the user's notifications. **Auth required.**
 
 **Query Parameters:**
 
-| Param       | Type    | Default | Description             |
-|-------------|---------|---------|-------------------------|
-| page        | number  | 1       | Page number             |
-| limit       | number  | 20      | Results per page        |
-| unread_only | string  | false   | Set to `"true"` to filter |
+| Param       | Type   | Default | Description               |
+| ----------- | ------ | ------- | ------------------------- |
+| page        | number | 1       | Page number               |
+| limit       | number | 20      | Results per page          |
+| unread_only | string | false   | Set to `"true"` to filter |
 
 **Success Response (200):** Paginated list.
 
@@ -704,15 +711,16 @@ Get the user's notifications. **Auth required.**
 
 **Notification Types (for `type` field):**
 
-| Type               | When it's sent                                |
-|--------------------|-----------------------------------------------|
-| `email_verified`   | User's email was verified                     |
-| `booking_accepted` | Company accepted the user's booking           |
-| `booking_rejected` | Company rejected the user's booking           |
-| `booking_cancelled`| Booking was cancelled                         |
-| `booking_expired`  | Booking expired (company didn't respond in 7 days) |
+| Type                | When it's sent                                     |
+| ------------------- | -------------------------------------------------- |
+| `email_verified`    | User's email was verified                          |
+| `booking_accepted`  | Company accepted the user's booking                |
+| `booking_rejected`  | Company rejected the user's booking                |
+| `booking_cancelled` | Booking was cancelled                              |
+| `booking_expired`   | Booking expired (company didn't respond in 7 days) |
 
 **Notes:**
+
 - `readAt` is `null` for unread notifications, a datetime string when read.
 - `data` contains context like `bookingId`, `hallName`, `bookingDate`, `reason` (for rejections).
 
@@ -739,7 +747,7 @@ Mark a single notification as read. **Auth required.**
 **URL Params:**
 
 | Param | Type   |
-|-------|--------|
+| ----- | ------ |
 | id    | number |
 
 **No request body needed.**
@@ -823,16 +831,16 @@ User creates booking
 
 ## 7. HTTP Status Codes Reference
 
-| Code | Meaning                                                    |
-|------|------------------------------------------------------------|
-| 200  | Success                                                    |
-| 201  | Created (registration, booking creation)                   |
-| 400  | Bad request (validation error, business logic error)       |
-| 401  | Unauthorized (missing/invalid token, wrong credentials)    |
-| 403  | Forbidden (email not verified, wrong user type)            |
-| 404  | Not found                                                  |
-| 422  | Validation error (field-level errors from VineJS)          |
-| 500  | Server error                                               |
+| Code | Meaning                                                 |
+| ---- | ------------------------------------------------------- |
+| 200  | Success                                                 |
+| 201  | Created (registration, booking creation)                |
+| 400  | Bad request (validation error, business logic error)    |
+| 401  | Unauthorized (missing/invalid token, wrong credentials) |
+| 403  | Forbidden (email not verified, wrong user type)         |
+| 404  | Not found                                               |
+| 422  | Validation error (field-level errors from VineJS)       |
+| 500  | Server error                                            |
 
 ---
 

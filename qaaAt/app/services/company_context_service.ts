@@ -1,6 +1,5 @@
 import CompanyMembership from '#models/company_membership'
 import type Company from '#models/company'
-import CompanyModel from '#models/company'
 import CompanyMembershipException from '#exceptions/company_membership_exception'
 import {
   resolvePermissions,
@@ -17,40 +16,23 @@ export interface CompanyContext {
 }
 
 export class CompanyContextService {
-  async resolve(userId: number, companyId?: number): Promise<CompanyContext> {
-    const query = CompanyMembership.query()
+  async resolve(userId: number, companyId: number): Promise<CompanyContext> {
+    const membership = await CompanyMembership.query()
       .where('userId', userId)
+      .where('companyId', companyId)
       .where('status', 'active')
       .whereHas('company', (company) => company.whereNull('deletedAt'))
       .preload('company')
       .preload('permissionOverrides')
-      .orderBy('id', 'asc')
-    if (companyId) query.where('companyId', companyId)
-    let membership = await query.first()
-    if (!membership && !companyId) {
-      const legacyCompany = await CompanyModel.query()
-        .where('userId', userId)
-        .whereNull('deletedAt')
-        .first()
-      if (legacyCompany) {
-        await CompanyMembership.updateOrCreate(
-          { companyId: legacyCompany.id, userId },
-          { role: 'owner', status: 'active', joinedAt: legacyCompany.createdAt }
-        )
-        membership = await CompanyMembership.query()
-          .where('companyId', legacyCompany.id)
-          .where('userId', userId)
-          .preload('company')
-          .preload('permissionOverrides')
-          .first()
-      }
-    }
+      .first()
     if (!membership)
       throw new CompanyMembershipException(
         'Active company membership required',
         'COMPANY_MEMBERSHIP_REQUIRED',
         403
       )
+    if (membership.company.status === 'suspended')
+      throw new CompanyMembershipException('Company access is suspended', 'COMPANY_SUSPENDED', 403)
     const overrides = membership.permissionOverrides.map((item) => ({
       permission: item.permission as CompanyPermission,
       effect: item.effect as 'allow' | 'deny',

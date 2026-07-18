@@ -5,20 +5,25 @@
 
 /// <reference path="./manifest.d.ts" />
 import type { InferData, InferVariants } from '@adonisjs/core/types/transformers'
+import type AdminOperationTransformer from '#transformers/admin_operation_transformer'
 import type BookingTransformer from '#transformers/booking_transformer'
 import type CompanyProfileTransformer from '#transformers/company_profile_transformer'
 import type CompanyTransformer from '#transformers/company_transformer'
-import type HallTransformer from '#transformers/hall_transformer'
 import type NotificationTransformer from '#transformers/notification_transformer'
 import type PushInstallationTransformer from '#transformers/push_installation_transformer'
+import type QuoteTransformer from '#transformers/quote_transformer'
 import type RequestWorkflowTransformer from '#transformers/request_workflow_transformer'
-import type ServiceTransformer from '#transformers/service_transformer'
+import type SpaceMediaTransformer from '#transformers/space_media_transformer'
 import type SpaceTransformer from '#transformers/space_transformer'
 import type UserProfileTransformer from '#transformers/user_profile_transformer'
 import type UserTransformer from '#transformers/user_transformer'
 import type VenueTransformer from '#transformers/venue_transformer'
 
 export namespace Data {
+  export type AdminOperation = InferData<AdminOperationTransformer>
+  export namespace AdminOperation {
+    export type Variants = InferVariants<AdminOperationTransformer>
+  }
   export type Booking = InferData<BookingTransformer>
   export namespace Booking {
     export type Variants = InferVariants<BookingTransformer>
@@ -31,10 +36,6 @@ export namespace Data {
   export namespace Company {
     export type Variants = InferVariants<CompanyTransformer>
   }
-  export type Hall = InferData<HallTransformer>
-  export namespace Hall {
-    export type Variants = InferVariants<HallTransformer>
-  }
   export type Notification = InferData<NotificationTransformer>
   export namespace Notification {
     export type Variants = InferVariants<NotificationTransformer>
@@ -43,13 +44,17 @@ export namespace Data {
   export namespace PushInstallation {
     export type Variants = InferVariants<PushInstallationTransformer>
   }
+  export type Quote = InferData<QuoteTransformer>
+  export namespace Quote {
+    export type Variants = InferVariants<QuoteTransformer>
+  }
   export type RequestWorkflow = InferData<RequestWorkflowTransformer>
   export namespace RequestWorkflow {
     export type Variants = InferVariants<RequestWorkflowTransformer>
   }
-  export type Service = InferData<ServiceTransformer>
-  export namespace Service {
-    export type Variants = InferVariants<ServiceTransformer>
+  export type SpaceMedia = InferData<SpaceMediaTransformer>
+  export namespace SpaceMedia {
+    export type Variants = InferVariants<SpaceMediaTransformer>
   }
   export type Space = InferData<SpaceTransformer>
   export namespace Space {

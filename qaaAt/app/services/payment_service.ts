@@ -106,7 +106,10 @@ export class PaymentService {
   }
   private async notifyCompany(trx: any, companyId: number, payload: any) {
     for (const userId of await this.companyRecipients(trx, companyId))
-      await notificationOutbox.enqueue({ ...payload, userId }, trx)
+      await notificationOutbox.enqueue(
+        { ...payload, userId, clientContext: 'company_app', companyId },
+        trx
+      )
   }
   private serializePayment(row: any, attempt?: any) {
     return {
@@ -140,6 +143,7 @@ export class PaymentService {
       .first()
     if (!booking) return fail('Booking not found', 'BOOKING_NOT_FOUND', 404)
     const resolved = await this.resolvePayable(db as any, booking)
+    const pricing = await this.payablePricing(db as any, booking)
     const policy = await db
       .from('cancellation_policies')
       .where({ company_id: booking.company_id, is_active: true })
@@ -150,6 +154,7 @@ export class PaymentService {
       status: booking.status,
       currency: 'SAR',
       ...resolved,
+      ...pricing,
       cancellationPolicy: policy
         ? {
             id: policy.id,
@@ -161,14 +166,54 @@ export class PaymentService {
         : null,
     }
   }
+  private async payablePricing(client: any, booking: any) {
+    if (booking.accepted_quote_revision_id) {
+      const revision = await client
+        .from('quote_revisions')
+        .where('id', booking.accepted_quote_revision_id)
+        .firstOrFail()
+      const lines = await client
+        .from('quote_line_items')
+        .where('quote_revision_id', revision.id)
+        .orderBy('sort_order')
+      return {
+        lineItems: lines.map((line: any) => ({
+          itemType: line.item_type,
+          descriptionAr: line.description_ar,
+          descriptionEn: line.description_en,
+          quantity: line.quantity,
+          unitPriceMinor: String(line.unit_price_minor),
+          subtotalMinor: String(line.subtotal_minor),
+          discountMinor: String(line.discount_minor),
+          vatRateBps: line.vat_rate_bps,
+          vatMinor: String(line.vat_minor),
+          totalMinor: String(line.total_minor),
+          pricesIncludeVat: line.prices_include_vat,
+        })),
+        pricesIncludeVat: revision.prices_include_vat,
+        vatRateBps: revision.vat_rate_bps,
+        vatMinor: String(revision.vat_minor),
+      }
+    }
+    const snapshot = await client
+      .from('booking_pricing_snapshots')
+      .where('booking_id', booking.id)
+      .first()
+    return snapshot
+      ? {
+          lineItems: snapshot.line_items,
+          pricesIncludeVat: snapshot.prices_include_vat,
+          vatRateBps: snapshot.vat_rate_bps,
+          vatMinor: String(snapshot.vat_minor),
+        }
+      : { lineItems: [], pricesIncludeVat: null, vatRateBps: null, vatMinor: null }
+  }
   private async resolvePayable(client: any, booking: any) {
-    const total =
-      booking.accepted_total_minor !== null
-        ? amount(booking.accepted_total_minor)
-        : majorToMinor(String(booking.total_price))
-    let payable = total
+    let total: bigint
+    let payable: bigint
     let purpose: 'deposit' | 'full_payment' = 'full_payment'
     if (booking.accepted_quote_revision_id) {
+      total = amount(booking.accepted_total_minor)
       const revision = await client
         .from('quote_revisions')
         .where({
@@ -179,10 +224,20 @@ export class PaymentService {
         .first()
       if (!revision || amount(revision.total_minor) !== total)
         fail('Accepted Quote snapshot is inconsistent', 'BOOKING_NOT_PAYABLE', 409)
+      payable = total
       if (revision.deposit_minor !== null) {
         payable = amount(revision.deposit_minor)
         purpose = 'deposit'
       }
+    } else {
+      const pricingSnapshot = await client
+        .from('booking_pricing_snapshots')
+        .where('booking_id', booking.id)
+        .first()
+      total = pricingSnapshot
+        ? amount(pricingSnapshot.total_minor)
+        : majorToMinor(String(booking.total_price))
+      payable = total
     }
     return {
       purpose,
@@ -556,7 +611,10 @@ export class PaymentService {
           message: 'The booking was cancelled with no refundable amount.',
           data: { bookingId: booking.id },
         }
-        await notificationOutbox.enqueue({ ...payload, userId: booking.user_id }, trx)
+        await notificationOutbox.enqueue(
+          { ...payload, userId: booking.user_id, clientContext: 'customer_app' },
+          trx
+        )
         await this.notifyCompany(trx, booking.company_id, payload)
         await trx.table('booking_cancellation_idempotency').insert({
           actor_user_id: actorUserId,
@@ -609,7 +667,10 @@ export class PaymentService {
         message: 'A cancellation refund was created and sent to the provider.',
         data: { bookingId: booking.id, refundId: String(refund.id) },
       }
-      await notificationOutbox.enqueue({ ...refundPayload, userId: booking.user_id }, trx)
+      await notificationOutbox.enqueue(
+        { ...refundPayload, userId: booking.user_id, clientContext: 'customer_app' },
+        trx
+      )
       await this.notifyCompany(trx, booking.company_id, refundPayload)
       await this.auditFinancial(trx, 'refund.requested', { refund, actorUserId })
       return { refund, payment, existing: false }
@@ -791,7 +852,10 @@ export class PaymentService {
           message: 'The provider could not start the refund. It may be retried safely.',
           data: { bookingId: local.refund.booking_id, refundId: String(local.refund.id) },
         }
-        await notificationOutbox.enqueue({ ...payload, userId: local.refund.user_id }, trx)
+        await notificationOutbox.enqueue(
+          { ...payload, userId: local.refund.user_id, clientContext: 'customer_app' },
+          trx
+        )
         await this.notifyCompany(trx, local.refund.company_id, payload)
         await this.auditFinancial(trx, 'refund.failed_to_initiate', { refund: local.refund })
       })
@@ -949,7 +1013,10 @@ export class PaymentService {
             message: 'The provider reported that the payment attempt did not complete.',
             data: { bookingId: payment.booking_id, paymentId: String(payment.id) },
           }
-          await notificationOutbox.enqueue({ ...payload, userId: payment.user_id }, trx)
+          await notificationOutbox.enqueue(
+            { ...payload, userId: payment.user_id, clientContext: 'customer_app' },
+            trx
+          )
           await this.notifyCompany(trx, payment.company_id, payload)
           outcome = 'processed'
         }
@@ -1200,6 +1267,9 @@ export class PaymentService {
     const revision = payment.quote_revision_id
       ? await trx.from('quote_revisions').where('id', payment.quote_revision_id).firstOrFail()
       : null
+    const pricingSnapshot = revision
+      ? null
+      : await trx.from('booking_pricing_snapshots').where('booking_id', booking.id).first()
     const lineItems = revision
       ? await trx
           .from('quote_line_items')
@@ -1217,7 +1287,7 @@ export class PaymentService {
             'total_minor',
             'prices_include_vat'
           )
-      : []
+      : (pricingSnapshot?.line_items ?? [])
     const paidAt = new Date()
     await trx.table('booking_invoice_snapshots').insert({
       payment_id: payment.id,
@@ -1246,22 +1316,29 @@ export class PaymentService {
           nameAr: booking.venue_name_snapshot_ar,
           nameEn: booking.venue_name_snapshot_en,
         },
-        lineItems: lineItems.map((line: any) => ({
-          itemType: line.item_type,
-          descriptionAr: line.description_ar,
-          descriptionEn: line.description_en,
-          quantity: line.quantity,
-          unitPriceMinor: String(line.unit_price_minor),
-          discountMinor: String(line.discount_minor),
-          vatRateBps: line.vat_rate_bps,
-          vatMinor: String(line.vat_minor),
-          totalMinor: String(line.total_minor),
-          pricesIncludeVat: line.prices_include_vat,
-        })),
+        lineItems: revision
+          ? lineItems.map((line: any) => ({
+              itemType: line.item_type,
+              descriptionAr: line.description_ar,
+              descriptionEn: line.description_en,
+              quantity: line.quantity,
+              unitPriceMinor: String(line.unit_price_minor),
+              discountMinor: String(line.discount_minor),
+              vatRateBps: line.vat_rate_bps,
+              vatMinor: String(line.vat_minor),
+              totalMinor: String(line.total_minor),
+              pricesIncludeVat: line.prices_include_vat,
+            }))
+          : lineItems,
         currency: 'SAR',
-        pricesIncludeVat: revision?.prices_include_vat ?? null,
-        vatRateBps: revision?.vat_rate_bps ?? null,
-        vatMinor: revision ? String(revision.vat_minor) : null,
+        pricesIncludeVat:
+          revision?.prices_include_vat ?? pricingSnapshot?.prices_include_vat ?? null,
+        vatRateBps: revision?.vat_rate_bps ?? pricingSnapshot?.vat_rate_bps ?? null,
+        vatMinor: revision
+          ? String(revision.vat_minor)
+          : pricingSnapshot
+            ? String(pricingSnapshot.vat_minor)
+            : null,
         bookingTotalMinor: String(payment.booking_total_minor),
         paymentPurpose: payment.purpose,
         amountPaidMinor: paid.toString(),
@@ -1280,7 +1357,10 @@ export class PaymentService {
       message: 'Payment was verified and the booking is confirmed.',
       data: { bookingId: booking.id, paymentId: String(payment.id) },
     }
-    await notificationOutbox.enqueue({ ...payload, userId: booking.user_id }, trx)
+    await notificationOutbox.enqueue(
+      { ...payload, userId: booking.user_id, clientContext: 'customer_app' },
+      trx
+    )
     await this.notifyCompany(trx, booking.company_id, payload)
     return 'processed'
   }
@@ -1407,7 +1487,10 @@ export class PaymentService {
         message: 'The refund did not complete and may be retried.',
         data: { bookingId: refund.booking_id, refundId: String(refund.id) },
       }
-      await notificationOutbox.enqueue({ ...payload, userId: refund.user_id }, trx)
+      await notificationOutbox.enqueue(
+        { ...payload, userId: refund.user_id, clientContext: 'customer_app' },
+        trx
+      )
       await this.notifyCompany(trx, refund.company_id, payload)
       await this.auditFinancial(trx, 'refund.failed', { refund })
     } else {
@@ -1445,7 +1528,10 @@ export class PaymentService {
         message: 'The trusted provider confirmed the refund.',
         data: { bookingId: refund.booking_id, refundId: String(refund.id) },
       }
-      await notificationOutbox.enqueue({ ...payload, userId: refund.user_id }, trx)
+      await notificationOutbox.enqueue(
+        { ...payload, userId: refund.user_id, clientContext: 'customer_app' },
+        trx
+      )
       await this.notifyCompany(trx, refund.company_id, payload)
       await this.auditFinancial(trx, 'refund.succeeded', {
         refund,

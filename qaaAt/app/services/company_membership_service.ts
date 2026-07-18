@@ -13,6 +13,7 @@ import {
   type CompanyRole,
 } from '#lib/company_permissions'
 import notificationOutboxService from '#services/notification_outbox_service'
+import { CompanyAccessRevocationService } from '#services/company_access_revocation_service'
 
 type Override = { permission: CompanyPermission; effect: 'allow' | 'deny' }
 
@@ -24,6 +25,8 @@ const maskPhone = (phone: string | null) =>
   phone ? `${phone.slice(0, 3)}***${phone.slice(-2)}` : null
 
 export class CompanyMembershipService {
+  private accessRevocation = new CompanyAccessRevocationService()
+
   async listMembers(context: CompanyContext) {
     return CompanyMembership.query()
       .where('companyId', context.companyId)
@@ -59,12 +62,27 @@ export class CompanyMembershipService {
           'INVITATION_EMAIL_REQUIRED',
           422
         )
+      await trx.rawQuery('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [
+        `company-membership:${email}`,
+      ])
+      const existingUser = await User.query({ client: trx })
+        .whereRaw('LOWER(email) = ?', [email])
+        .first()
+      if (existingUser) {
+        await this.assertMembershipAvailable(trx, existingUser.id, context.companyId)
+        const historicalMembership = await CompanyMembership.query({ client: trx })
+          .where('companyId', context.companyId)
+          .where('userId', existingUser.id)
+          .first()
+        if (historicalMembership)
+          throw new CompanyMembershipException(
+            'This user already has a membership for the company',
+            'MEMBERSHIP_ALREADY_EXISTS'
+          )
+      }
       const duplicate = await CompanyInvitation.query({ client: trx })
-        .where('companyId', context.companyId)
         .where('status', 'pending')
-        .where((query) => {
-          if (email) query.orWhere('invitedEmail', email)
-        })
+        .where('invitedEmail', email)
         .first()
       if (duplicate)
         throw new CompanyMembershipException(
@@ -95,12 +113,11 @@ export class CompanyMembershipService {
         row.id,
         { role: input.role }
       )
-      const existingUser = await User.query({ client: trx })
-        .whereRaw('LOWER(email) = ?', [email])
-        .first()
       await notificationOutboxService.enqueue(
         {
           userId: existingUser?.id,
+          clientContext: 'company_app',
+          companyId: context.companyId,
           recipientEmail: email ?? undefined,
           type: 'company_invitation',
           title: 'Company invitation',
@@ -164,6 +181,8 @@ export class CompanyMembershipService {
       await notificationOutboxService.enqueue(
         {
           userId: existingUser?.id,
+          clientContext: 'company_app',
+          companyId: context.companyId,
           recipientEmail: row!.invitedEmail ?? undefined,
           type: 'company_invitation',
           title: 'Company invitation',
@@ -220,8 +239,20 @@ export class CompanyMembershipService {
           403
         )
 
+      const invitedEmail = invitation!.invitedEmail
+      if (!invitedEmail)
+        throw new CompanyMembershipException(
+          'Email delivery is required for invitation acceptance',
+          'INVITATION_EMAIL_REQUIRED',
+          422
+        )
+      await trx.rawQuery('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [
+        `company-membership:${invitedEmail}`,
+      ])
+
       let user = authenticatedUser
       if (user) {
+        user = await User.query({ client: trx }).where('id', user.id).forUpdate().firstOrFail()
         const emailMatches =
           invitation!.invitedEmail && normalizeEmail(user.email) === invitation!.invitedEmail
         if (!emailMatches)
@@ -231,15 +262,8 @@ export class CompanyMembershipService {
             403
           )
       } else {
-        const email = invitation!.invitedEmail
-        if (!email)
-          throw new CompanyMembershipException(
-            'Email delivery is required for new invitation acceptance',
-            'INVITATION_EMAIL_REQUIRED',
-            422
-          )
         const existing = await User.query({ client: trx })
-          .whereRaw('LOWER(email) = ?', [email])
+          .whereRaw('LOWER(email) = ?', [invitedEmail])
           .first()
         if (existing)
           throw new CompanyMembershipException(
@@ -256,7 +280,7 @@ export class CompanyMembershipService {
         user = await User.create(
           {
             userName: input.name ?? invitation!.name,
-            email,
+            email: invitedEmail,
             password: input.password,
             userType: 'user',
           },
@@ -264,6 +288,7 @@ export class CompanyMembershipService {
         )
       }
 
+      await this.assertMembershipAvailable(trx, user.id, invitation!.companyId)
       const exists = await CompanyMembership.query({ client: trx })
         .where('companyId', invitation!.companyId)
         .where('userId', user.id)
@@ -340,6 +365,14 @@ export class CompanyMembershipService {
         .firstOrFail()
       this.assertMemberMutationAllowed(context, member, input)
       if (
+        member.status === 'revoked' &&
+        input.status &&
+        ['active', 'suspended'].includes(input.status)
+      ) {
+        await User.query({ client: trx }).where('id', member.userId).forUpdate().firstOrFail()
+        await this.assertMembershipAvailable(trx, member.userId, context.companyId, member.id)
+      }
+      if (
         member.role === 'owner' &&
         member.status === 'active' &&
         ((input.role && input.role !== 'owner') || (input.status && input.status !== 'active'))
@@ -360,7 +393,7 @@ export class CompanyMembershipService {
           )
       }
       if (input.status && input.status !== 'active')
-        await this.revokeCompanyTokens(trx, member.userId, context.companyId)
+        await this.accessRevocation.revoke(trx, context.companyId, [member.userId])
       await this.audit(
         trx,
         context.companyId,
@@ -469,24 +502,27 @@ export class CompanyMembershipService {
     }
   }
 
-  private async revokeCompanyTokens(trx: any, userId: number, companyId: number) {
-    const tokens = await trx
-      .from('auth_access_tokens')
-      .where('tokenable_id', userId)
-      .select('id', 'abilities')
-    const ids = tokens
-      .filter((row: any) => {
-        try {
-          const abilities = JSON.parse(row.abilities)
-          return (
-            abilities.includes('client:company_app') && abilities.includes(`company:${companyId}`)
-          )
-        } catch {
-          return false
-        }
-      })
-      .map((row: any) => row.id)
-    if (ids.length) await trx.from('auth_access_tokens').whereIn('id', ids).delete()
+  private async assertMembershipAvailable(
+    trx: any,
+    userId: number,
+    companyId: number,
+    excludedMembershipId?: number
+  ) {
+    const query = CompanyMembership.query({ client: trx })
+      .where('userId', userId)
+      .whereIn('status', ['active', 'suspended'])
+    if (excludedMembershipId) query.whereNot('id', excludedMembershipId)
+    const currentMembership = await query.first()
+    if (!currentMembership) return
+    if (currentMembership.companyId === companyId)
+      throw new CompanyMembershipException(
+        'This user already belongs to the company',
+        'MEMBERSHIP_ALREADY_EXISTS'
+      )
+    throw new CompanyMembershipException(
+      'A user may belong to only one current company',
+      'COMPANY_MEMBERSHIP_LIMIT_REACHED'
+    )
   }
 
   private async audit(

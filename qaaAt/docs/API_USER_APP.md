@@ -255,14 +255,15 @@ GET /api/halls
 ```
 
 **Query Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| page | number | Page number (default: 1) |
-| limit | number | Items per page (default: 20) |
-| city | string | Filter by city |
-| min_capacity | number | Minimum capacity |
-| max_price | number | Maximum price per hour |
-| search | string | Search in name, description, location |
+
+| Parameter    | Type   | Description                           |
+| ------------ | ------ | ------------------------------------- |
+| page         | number | Page number (default: 1)              |
+| limit        | number | Items per page (default: 20)          |
+| city         | string | Filter by city                        |
+| min_capacity | number | Minimum capacity                      |
+| max_price    | number | Maximum price per hour                |
+| search       | string | Search in name, description, location |
 
 **Example:**
 
@@ -385,9 +386,10 @@ GET /api/halls/{id}/availability?date=2024-06-15
 ```
 
 **Query Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| date | string | Yes | Date in YYYY-MM-DD format |
+
+| Parameter | Type   | Required | Description               |
+| --------- | ------ | -------- | ------------------------- |
+| date      | string | Yes      | Date in YYYY-MM-DD format |
 
 **Response (200 OK):**
 
@@ -508,11 +510,12 @@ Authorization: Bearer {token}
 ```
 
 **Query Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| page | number | Page number (default: 1) |
-| limit | number | Items per page (default: 20) |
-| status | string | Filter by status |
+
+| Parameter | Type   | Description                  |
+| --------- | ------ | ---------------------------- |
+| page      | number | Page number (default: 1)     |
+| limit     | number | Items per page (default: 20) |
+| status    | string | Filter by status             |
 
 **Status Values:** `pending`, `accepted`, `rejected`, `confirmed`, `cancelled`, `completed`, `expired`
 
@@ -650,10 +653,11 @@ Authorization: Bearer {token}
 ```
 
 **Query Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| page | number | Page number (default: 1) |
-| limit | number | Items per page (default: 20) |
+
+| Parameter   | Type    | Description                    |
+| ----------- | ------- | ------------------------------ |
+| page        | number  | Page number (default: 1)       |
+| limit       | number  | Items per page (default: 20)   |
 | unread_only | boolean | Only show unread notifications |
 
 **Response (200 OK):**

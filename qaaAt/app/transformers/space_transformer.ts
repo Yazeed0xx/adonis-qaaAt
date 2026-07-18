@@ -30,8 +30,6 @@ export default class SpaceTransformer extends BaseTransformer<Space> {
       minimumDurationMinutes: this.resource.minimumDurationMinutes,
       maximumDurationMinutes: this.resource.maximumDurationMinutes,
       minimumNoticeHours: this.resource.minimumNoticeHours,
-      legacyHallId: this.resource.legacyHallId,
-      legacyIsAvailable: this.resource.legacyIsAvailable,
       venue: VenueTransformer.transform(this.whenLoaded(this.resource.venue)),
       eventDetails: event
         ? {
@@ -66,9 +64,7 @@ export default class SpaceTransformer extends BaseTransformer<Space> {
         .map((item) => ({
           id: item.id,
           type: item.mediaType,
-          storageKey: item.provenance === 'controlled_storage' ? item.storageKey : undefined,
-          legacyReference: item.provenance === 'legacy_imported' ? item.legacyReference : undefined,
-          provenance: item.provenance,
+          contentUrl: `/api/space-media/${item.id}/content`,
           altTextAr: item.altTextAr,
           altTextEn: item.altTextEn,
           sortOrder: item.sortOrder,

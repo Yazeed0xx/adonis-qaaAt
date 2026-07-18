@@ -1,7 +1,5 @@
 import { DateTime } from 'luxon'
-import type Service from '#models/service'
 import type { CompanyFactory } from '#database/factories/company_factory'
-import { BookingFactory } from '#database/factories/booking_factory'
 
 type CompanyBuilder = ReturnType<typeof CompanyFactory.query>
 
@@ -45,32 +43,6 @@ export function approvedCompanyRecipe(
       approvedAt: DateTime.now().minus({ days: 7 }),
       approvedBy: adminId,
     })
-}
-
-interface BookingWithServicesInput {
-  serviceRecords?: Service[]
-  bookingData: Record<string, any>
-  states: Array<
-    'pending' | 'accepted' | 'rejected' | 'confirmed' | 'cancelled' | 'completed' | 'expired'
-  >
-}
-
-export async function createBookingWithServices(input: BookingWithServicesInput) {
-  const booking = await BookingFactory.apply(...input.states)
-    .merge(input.bookingData)
-    .create()
-
-  if (input.serviceRecords?.length) {
-    await booking
-      .related('services')
-      .attach(
-        Object.fromEntries(
-          input.serviceRecords.map((service) => [service.id, { price_at_booking: service.price }])
-        )
-      )
-  }
-
-  return booking
 }
 
 export function pendingCompanyRecipe(builder: CompanyBuilder, recipe: CompanyAccountRecipe) {

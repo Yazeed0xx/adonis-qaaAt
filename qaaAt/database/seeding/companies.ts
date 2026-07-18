@@ -25,7 +25,7 @@ export async function seedCompanies(context: DemoScenarioContext) {
     .merge({
       taxId: '300123456789',
       registrationNumber: 'CR-1234567890',
-      registrationNumberPdf: 'https://example.com/docs/royal-cr.pdf',
+      registrationNumberPdf: 'seed/cr_documents/royal.pdf',
       contactPerson: 'Khalid Al-Mansour',
       businessAddress: '123 King Fahd Road, Al Olaya District',
       city: 'Riyadh',
@@ -47,7 +47,7 @@ export async function seedCompanies(context: DemoScenarioContext) {
     .merge({
       taxId: '300987654321',
       registrationNumber: 'CR-0987654321',
-      registrationNumberPdf: 'https://example.com/docs/golden-cr.pdf',
+      registrationNumberPdf: 'seed/cr_documents/golden.pdf',
       contactPerson: 'Nora Al-Faisal',
       businessAddress: '456 Prince Sultan Street',
       city: 'Jeddah',
@@ -64,7 +64,7 @@ export async function seedCompanies(context: DemoScenarioContext) {
   })
     .merge({
       registrationNumber: 'CR-5555555555',
-      registrationNumberPdf: 'https://example.com/docs/star-cr.pdf',
+      registrationNumberPdf: 'seed/cr_documents/star.pdf',
       contactPerson: 'Omar Al-Harbi',
       businessAddress: '789 Corniche Road',
       city: 'Dammam',
@@ -78,7 +78,7 @@ export async function seedCompanies(context: DemoScenarioContext) {
   })
     .merge({
       registrationNumber: 'CR-9999999999',
-      registrationNumberPdf: 'https://example.com/docs/quick-cr.pdf',
+      registrationNumberPdf: 'seed/cr_documents/quick.pdf',
       businessAddress: '321 Tahlia Street',
       city: 'Riyadh',
       rejectionReason:

@@ -35,7 +35,7 @@ export class PushDeliveryService {
       )
       .join('notifications as notification', 'notification.id', 'delivery.notification_id')
       .join('users as user', 'user.id', 'installation.user_id')
-      .leftJoin('companies as company', 'company.user_id', 'user.id')
+      .leftJoin('companies as company', 'company.id', 'notification.company_id')
       .select(
         'delivery.id',
         'delivery.notification_id',
@@ -50,12 +50,31 @@ export class PushDeliveryService {
       .whereNull('installation.revoked_at')
       .whereNull('user.deleted_at')
       .where((query) => {
-        query.where('user.user_type', 'user').orWhere((companyQuery) => {
-          companyQuery
-            .where('user.user_type', 'company')
-            .whereNull('company.deleted_at')
-            .whereNot('company.status', 'suspended')
-        })
+        query
+          .where((customerQuery) => {
+            customerQuery
+              .whereNull('notification.company_id')
+              .where('installation.client_context', 'customer_app')
+          })
+          .orWhere((companyQuery) => {
+            companyQuery
+              .whereNotNull('notification.company_id')
+              .where('installation.client_context', 'company_app')
+              .whereNull('company.deleted_at')
+              .whereNot('company.status', 'suspended')
+              .where((recipientQuery) => {
+                recipientQuery
+                  .where('notification.type', 'company_invitation')
+                  .orWhereExists(
+                    db
+                      .from('company_memberships as membership')
+                      .select('membership.id')
+                      .whereColumn('membership.user_id', 'installation.user_id')
+                      .whereColumn('membership.company_id', 'notification.company_id')
+                      .where('membership.status', 'active')
+                  )
+              })
+          })
       })) as DeliveryRow[]
 
     const eligibleIds = new Set(rows.map((row) => String(row.id)))

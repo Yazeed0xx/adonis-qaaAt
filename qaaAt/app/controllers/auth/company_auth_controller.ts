@@ -2,7 +2,6 @@ import type { HttpContext } from '@adonisjs/core/http'
 import User from '#models/user'
 import Company from '#models/company'
 import CompanyProfile from '#models/company_profile'
-import AccessDeniedException from '#exceptions/access_denied_exception'
 import InvalidCredentialsException from '#exceptions/invalid_credentials_exception'
 import { companyRegisterValidator } from '#validators/company_register_validator'
 import { companyLoginValidator } from '#validators/company_login_validator'
@@ -11,12 +10,12 @@ import { randomUUID } from 'node:crypto'
 import drive from '@adonisjs/drive/services/main'
 import pdfSecurityService from '#services/pdf_security_service'
 import CompanyMembership from '#models/company_membership'
-import CompanyMembershipException from '#exceptions/company_membership_exception'
 import {
   resolvePermissions,
   type CompanyPermission,
   type CompanyRole,
 } from '#lib/company_permissions'
+import CompanyTransformer from '#transformers/company_transformer'
 
 export default class CompanyAuthController {
   /**
@@ -131,8 +130,8 @@ export default class CompanyAuthController {
   /**
    * Login company
    */
-  async login({ request, response }: HttpContext) {
-    const { email, password, companyId } = await request.validateUsing(companyLoginValidator)
+  async login({ request, response, serialize }: HttpContext) {
+    const { email, password } = await request.validateUsing(companyLoginValidator)
 
     let user: User
     try {
@@ -145,34 +144,13 @@ export default class CompanyAuthController {
       throw new InvalidCredentialsException()
     }
 
-    let memberships = await CompanyMembership.query()
+    const membership = await CompanyMembership.query()
       .where('userId', user.id)
       .where('status', 'active')
       .whereHas('company', (query) => query.whereNull('deletedAt').whereNot('status', 'suspended'))
       .preload('company', (query) => query.preload('companyProfile'))
       .preload('permissionOverrides')
-      .orderBy('id', 'asc')
-    if (memberships.length === 0 && user.userType === 'company') {
-      const legacyCompany = await Company.query()
-        .where('userId', user.id)
-        .whereNull('deletedAt')
-        .whereNot('status', 'suspended')
-        .first()
-      if (legacyCompany) {
-        await CompanyMembership.updateOrCreate(
-          { companyId: legacyCompany.id, userId: user.id },
-          { role: 'owner', status: 'active', joinedAt: legacyCompany.createdAt }
-        )
-        memberships = await CompanyMembership.query()
-          .where('userId', user.id)
-          .where('status', 'active')
-          .preload('company', (query) => query.preload('companyProfile'))
-          .preload('permissionOverrides')
-      }
-    }
-    const membership = companyId
-      ? memberships.find((item) => item.companyId === companyId)
-      : memberships[0]
+      .first()
     if (!membership) {
       throw new InvalidCredentialsException()
     }
@@ -198,9 +176,8 @@ export default class CompanyAuthController {
           email: user.email,
           userType: user.userType,
         },
-        company: membership.company,
+        company: await serialize.withoutWrapping(CompanyTransformer.transform(membership.company)),
         membership: this.serializeMembership(membership),
-        memberships: memberships.map((item) => this.serializeMembership(item)),
         token: {
           type: 'bearer',
           token: token.value!.release(),
@@ -212,31 +189,10 @@ export default class CompanyAuthController {
   /**
    * Get authenticated company profile
    */
-  async me({ auth, response }: HttpContext) {
-    await auth.check()
-
+  async me({ auth, companyContext, response, serialize }: HttpContext) {
     const user = auth.getUserOrFail()
-
-    if (!user.currentAccessToken?.allows('client:company_app') && user.userType !== 'company') {
-      throw new AccessDeniedException('Access denied. Company account required.')
-    }
-
-    const companyAbility = user.currentAccessToken?.abilities.find((ability) =>
-      ability.startsWith('company:')
-    )
-    const membership = await CompanyMembership.query()
-      .where('userId', user.id)
-      .where('status', 'active')
-      .if(companyAbility, (query) => query.where('companyId', Number(companyAbility!.slice(8))))
-      .preload('company', (query) => query.preload('companyProfile'))
-      .preload('permissionOverrides')
-      .first()
-    if (!membership)
-      throw new CompanyMembershipException(
-        'Active company membership required',
-        'COMPANY_MEMBERSHIP_REQUIRED',
-        403
-      )
+    const { membership, company } = companyContext
+    await company.load('companyProfile')
 
     return response.ok({
       data: {
@@ -245,7 +201,7 @@ export default class CompanyAuthController {
           email: user.email,
           userType: user.userType,
         },
-        company: membership.company,
+        company: await serialize.withoutWrapping(CompanyTransformer.transform(company)),
         membership: this.serializeMembership(membership),
       },
     })

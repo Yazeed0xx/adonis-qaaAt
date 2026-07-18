@@ -6,7 +6,7 @@ import Space from '#models/space'
 
 export default class Venue extends VenueSchema {
   get displayName() {
-    return this.nameAr ?? this.nameEn ?? this.legacyName
+    return this.nameAr ?? this.nameEn
   }
   @belongsTo(() => Company) declare company: BelongsTo<typeof Company>
   @hasMany(() => Space) declare spaces: HasMany<typeof Space>

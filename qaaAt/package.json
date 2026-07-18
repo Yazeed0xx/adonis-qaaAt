@@ -15,12 +15,15 @@
     "openapi:generate": "node ace build && node ace openapi:generate",
     "dev": "node ace serve --hmr",
     "test": "node ace test",
-    "lint": "eslint .",
+    "test:coverage": "c8 --reporter=text --reporter=html node ace test",
+    "test:quality": "node scripts/check_test_suite_quality.mjs",
+    "lint": "eslint . && npm run test:quality",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit"
   },
   "imports": {
     "#controllers/*": "./app/controllers/*.js",
+    "#commands/*": "./commands/*.js",
     "#exceptions/*": "./app/exceptions/*.js",
     "#models/*": "./app/models/*.js",
     "#mails/*": "./app/mails/*.js",
@@ -44,22 +47,23 @@
   },
   "devDependencies": {
     "@adonisjs/assembler": "^8.4.0",
-    "@adonisjs/eslint-config": "^3.0.0",
+    "@adonisjs/eslint-config": "^3.1.0",
     "@adonisjs/prettier-config": "^1.5.0",
     "@adonisjs/tsconfig": "^2.0.0",
     "@japa/api-client": "^3.2.1",
     "@japa/assert": "^4.0.1",
     "@japa/plugin-adonisjs": "^5.2.0",
-    "@japa/runner": "^4.2.0",
+    "@japa/runner": "^5.3.0",
     "@outloud/adonis-openapi-generator": "^1.0.8",
     "@poppinss/ts-exec": "^1.4.4",
     "@types/luxon": "^3.7.1",
     "@types/node": "^22.15.18",
-    "eslint": "^9.26.0",
+    "c8": "^12.0.0",
+    "eslint": "^10.7.0",
     "hot-hook": "^0.4.0",
     "pino-pretty": "^13.0.0",
-    "prettier": "^3.5.3",
-    "typescript": "~5.8",
+    "prettier": "^3.9.5",
+    "typescript": "~5.9.3",
     "youch": "^4.1.0"
   },
   "dependencies": {
@@ -80,7 +84,8 @@
     "luxon": "^3.7.2",
     "pg": "^8.17.2",
     "reflect-metadata": "^0.2.2",
-    "resend": "^6.9.1"
+    "resend": "^6.9.1",
+    "sharp": "^0.35.3"
   },
   "hotHook": {
     "boundaries": [

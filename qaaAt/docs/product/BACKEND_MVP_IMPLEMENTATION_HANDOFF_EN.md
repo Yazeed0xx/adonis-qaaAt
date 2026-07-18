@@ -177,10 +177,10 @@ Rules:
 - A customer-app token must never authorize company routes, and a company-app token must never be accepted as a customer-app token merely because both belong to the same User.
 - Company access requires an active CompanyMembership; an existing customer account without a membership cannot sign in to the company app.
 - A company initially registers through one owner account and waits for platform approval.
-- Once approved, the owner enters an employee name, phone or email, and role.
+- Once approved, the owner enters an employee name, verified email, and role. Phone invitations are deferred until a production SMS/OTP provider and phone-authentication contract are approved.
 - The backend creates a pending invitation only. It must not create a fake User or active membership.
 - The employee receives a Universal Link/Deep Link.
-- If no account exists, the employee verifies the invited contact method, sets a password, reviews the role, accepts, and then the backend creates the User and Membership in one transaction.
+- If no account exists, the employee proves control of the invited mailbox through the expiring invitation secret, sets a password, reviews the role, accepts, and then the backend creates the User and Membership in one transaction.
 - If an account already exists, the employee signs in, proves that the invitation matches that account, and accepts without creating a duplicate account.
 - Removing an employee revokes company access but does not delete the identity or historical audit attribution.
 
@@ -191,18 +191,19 @@ The approved identity model is:
 ```text
 User identity
 ├── customer-app capability/session
-└── zero or more CompanyMemberships and company-app sessions
+└── zero or one current CompanyMembership and company-app session
 ```
 
 Requirements:
 
-- Phone and email remain normalized identities on the shared User record.
-- An employee invited using a phone/email already attached to a customer User must reuse that User after authenticating; never create a second account for the same normalized identity.
-- A new employee verifies the invited phone/email and sets a password during invitation acceptance.
+- Email is the normalized shared identity for the MVP. Phone remains optional profile/contact data and must not authorize an account or invitation until the future SMS/OTP phase.
+- An employee invited using an email already attached to a customer User must reuse that User after authenticating; never create a second account for the same normalized email.
+- A new employee verifies the invited email and sets a password during invitation acceptance.
 - An existing User signs in using the current password. An invitation must never reset or replace an existing password.
+- A User may have at most one current CompanyMembership (`active` or `suspended`). Revoked memberships remain as history and do not prevent joining another company.
 - A forgotten password uses the standard recovery flow, not invitation acceptance.
 - Access tokens must carry or resolve a trusted client context such as `customer_app` or `company_app`. Do not trust a client-supplied header alone; persist the context with the token or issue tokens through distinct guards/providers proven against the installed auth package.
-- Company-app authentication additionally requires at least one active membership, except for the existing owner registration/approval restoration flow during compatibility migration.
+- Company-app authentication requires the User's single current membership to be active, except for the existing owner registration/approval restoration flow during compatibility migration.
 - Revoking one CompanyMembership terminates access to that company and the relevant company-app sessions according to the documented session policy, but does not revoke customer-app sessions or personal bookings.
 - Push installations must be scoped by application/client context so customer and company notifications do not cross applications.
 - Keep `users.user_type` temporarily for compatibility, but do not use it as the authorization source for newly invited employees. A User may retain `userType = user` and still access the company app through an active membership.
@@ -271,6 +272,7 @@ company_memberships
 - created_at
 - updated_at
 - unique(company_id, user_id)
+- unique current membership per user where status is `active` or `suspended`
 - index(company_id, status)
 - index(user_id, status)
 ```
@@ -295,7 +297,7 @@ company_invitations
 - updated_at
 ```
 
-Require at least one invitation contact method. Normalize phone/email before uniqueness checks and enforce important invariants in the database, not only VineJS.
+Require one invited email for the MVP. Normalize it before uniqueness checks and enforce important invariants in the database, not only VineJS. The nullable phone column is reserved for the future verified-phone phase and is not currently accepted by the API.
 
 ```text
 company_membership_permissions
@@ -329,7 +331,7 @@ For an existing User, invitation acceptance must require normal authentication o
 - Backfill an active `owner` Membership for every existing company.
 - Treat `companies.user_id` as a temporary legacy owner pointer.
 - Migrate middleware, controllers, and services incrementally to membership context.
-- Update company login to return memberships, role, and permissions while temporarily preserving fields needed by the current company app.
+- Update company login to return the single active membership, role, and permissions while preserving the existing `user`, `company`, and `token` fields.
 - Evolve company login so an existing customer User with an active CompanyMembership can authenticate in the company app even when `userType = user`.
 - Introduce explicit token/application context without breaking existing issued tokens abruptly. Document migration and revocation behavior for legacy tokens.
 - Audit push registration and company notifications; they must eventually support eligible employees rather than only `company.user.id`.
@@ -364,6 +366,7 @@ The inspection response must never expose token hashes, full phone/email values,
 - A member without `members.manage` cannot invite or modify employees.
 - Expired, cancelled, and previously accepted invitations are rejected.
 - Concurrent acceptance creates at most one Membership.
+- Invitation creation and membership reactivation reject `COMPANY_MEMBERSHIP_LIMIT_REACHED` when the User already has a current membership in another Company.
 - A mismatched phone/email identity is rejected.
 - An existing User is reused and not duplicated.
 - A customer User with a valid membership can sign in to the company app, while the same User without a membership is rejected.
@@ -448,13 +451,15 @@ Meeting/training spaces may require seating layouts and capacities, projector/di
 
 Exhibition/conference spaces may require floor area, ceiling height, loading access, power requirements, setup/teardown windows, and visitor capacity.
 
-### 8.5 Hall migration
+### 8.5 Pre-launch Hall decision
 
-- Do not break `/api/halls` without a compatibility period.
-- Create a deliberate migration/backfill or compatibility adapter from Hall to Venue/Space.
-- Preserve historical Booking relations.
+The project has no deployed API, production database, or historical Booking data. Therefore, compatibility would preserve an unused prototype contract and create two competing booking domains. The MVP uses Venue and Space only:
+
+- A Venue is the location/container; a Space is the independently bookable unit.
+- Do not expose `/api/halls` or create Hall compatibility tables, triggers, backfills, or adapters.
+- Every Booking must reference its Company, Venue, and Space and retain immutable display snapshots.
 - Never edit generated `database/schema.ts` manually; change migrations/models and regenerate through project tooling.
-- Add contract tests for legacy and new endpoints during migration.
+- Contract tests must enforce the canonical Space endpoints and reject stale Hall documentation.
 
 ## 9. Availability and external reservations
 
@@ -689,7 +694,7 @@ Do not implement the entire MVP in one pull request.
 - Membership/permission request context and tenant scoping.
 - Invitation create, inspect, accept, resend, and cancel.
 - Member list, update, suspend/revoke.
-- Backward-compatible company login response plus memberships.
+- Company login response with the single active membership and no company selector.
 - Shared-identity company login for invited existing customer Users.
 - Explicit separation of customer-app and company-app tokens/sessions, including regression coverage for cross-app token rejection.
 - Invitation email/message.
@@ -702,7 +707,7 @@ Do not implement the entire MVP in one pull request.
 ### Sprint 2 — Venue, Space, and moderation
 
 - Schema, categories, amenities, media, and publication lifecycle.
-- Hall migration/compatibility.
+- Canonical Venue/Space model with no pre-launch Hall compatibility layer.
 - Permission-aware company CRUD.
 - Admin moderation.
 - Public reads and category-aware filters.

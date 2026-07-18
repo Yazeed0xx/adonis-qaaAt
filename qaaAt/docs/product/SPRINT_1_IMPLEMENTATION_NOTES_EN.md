@@ -20,4 +20,4 @@ These decisions narrow the approved MVP handoff until dedicated phone verificati
 
 ## Session revocation
 
-Suspending or revoking a membership removes only access tokens containing both `client:company_app` and the affected `company:{id}` ability. Customer-app tokens and company-app tokens for other memberships remain valid.
+Suspending or revoking a membership removes access tokens containing both `client:company_app` and the affected `company:{id}` ability and revokes active company-app push installations. Customer-app tokens and customer-app push installations remain valid. A User may have only one current (`active` or `suspended`) CompanyMembership.

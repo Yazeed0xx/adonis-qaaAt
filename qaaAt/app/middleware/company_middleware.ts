@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import companyContextService, { type CompanyContext } from '#services/company_context_service'
+import CompanyMembershipException from '#exceptions/company_membership_exception'
 
 declare module '@adonisjs/core/http' {
   interface HttpContext {
@@ -8,9 +9,7 @@ declare module '@adonisjs/core/http' {
   }
 }
 
-/**
- * Company middleware ensures only company users can access certain routes
- */
+/** Resolves the company tenant exclusively from an explicitly scoped access token. */
 export default class CompanyMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
     await ctx.auth.check()
@@ -18,18 +17,24 @@ export default class CompanyMiddleware {
     const user = ctx.auth.getUserOrFail()
 
     const token = user.currentAccessToken
-    const isCompanyToken = token?.allows('client:company_app')
-    const isLegacyOwnerToken =
-      !token?.abilities.some((ability) => ability.startsWith('client:')) &&
-      user.userType === 'company'
-    if (!isCompanyToken && !isLegacyOwnerToken) {
-      return ctx.response.forbidden({
-        message: 'Access denied. Company account required.',
-      })
+    if (!token?.allows('client:company_app')) {
+      throw new CompanyMembershipException(
+        'A company application token is required',
+        'COMPANY_TOKEN_REQUIRED',
+        403
+      )
     }
 
-    const companyAbility = token?.abilities.find((ability) => ability.startsWith('company:'))
-    const companyId = companyAbility ? Number(companyAbility.slice('company:'.length)) : undefined
+    const companyAbilities = token.abilities.filter((ability) => ability.startsWith('company:'))
+    const companyId = Number(companyAbilities[0]?.slice('company:'.length))
+    if (companyAbilities.length !== 1 || !Number.isSafeInteger(companyId) || companyId <= 0) {
+      throw new CompanyMembershipException(
+        'A single valid company token scope is required',
+        'COMPANY_SCOPE_REQUIRED',
+        403
+      )
+    }
+
     ctx.companyContext = await companyContextService.resolve(user.id, companyId)
     return next()
   }

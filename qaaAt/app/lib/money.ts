@@ -20,7 +20,7 @@ export function canonicalMajorAmount(value: string): string {
   return `${whole}.${fraction}`
 }
 
-export function legacyCompatibleAmount(value: string): number | null {
+export function numericMajorAmount(value: string): number | null {
   const canonical = canonicalMajorAmount(value)
   const [whole, fraction] = canonical.split('.')
   const minor = BigInt(whole) * 100n + BigInt(fraction)

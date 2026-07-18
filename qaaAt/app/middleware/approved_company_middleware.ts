@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
+import DomainException from '#exceptions/domain_exception'
 
 /**
  * Approved company middleware ensures only approved companies can access certain routes
@@ -11,33 +12,32 @@ export default class ApprovedCompanyMiddleware {
 
     switch (company.status) {
       case 'pending':
-        return ctx.response.forbidden({
-          message: 'Your company is pending admin approval. You cannot perform this action yet.',
-          code: 'COMPANY_PENDING_APPROVAL',
-        })
+        throw new DomainException(
+          'Your company is pending admin approval. You cannot perform this action yet.',
+          403,
+          'COMPANY_PENDING_APPROVAL'
+        )
 
       case 'rejected':
-        return ctx.response.forbidden({
-          message:
-            'Your company registration was rejected. Please contact support for more information.',
-          code: 'COMPANY_REJECTED',
-          reason: company.rejectionReason,
-        })
+        throw new DomainException(
+          'Your company registration was rejected. Please contact support for more information.',
+          403,
+          'COMPANY_REJECTED'
+        )
 
       case 'suspended':
-        return ctx.response.forbidden({
-          message: 'Your company account has been suspended. Please contact support.',
-          code: 'COMPANY_SUSPENDED',
-        })
+        throw new DomainException(
+          'Your company account has been suspended. Please contact support.',
+          403,
+          'COMPANY_SUSPENDED'
+        )
 
       case 'approved':
         // Company is approved, proceed
         break
 
       default:
-        return ctx.response.forbidden({
-          message: 'Invalid company status.',
-        })
+        throw new DomainException('Invalid company status.', 403, 'COMPANY_STATUS_INVALID')
     }
 
     return next()

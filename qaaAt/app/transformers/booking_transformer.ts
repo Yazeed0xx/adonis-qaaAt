@@ -1,8 +1,6 @@
 import { BaseTransformer } from '@adonisjs/core/transformers'
 import type Booking from '#models/booking'
-import { canonicalMajorAmount, legacyCompatibleAmount } from '#lib/money'
-import HallTransformer from '#transformers/hall_transformer'
-import ServiceTransformer from '#transformers/service_transformer'
+import { canonicalMajorAmount, numericMajorAmount } from '#lib/money'
 import UserTransformer from '#transformers/user_transformer'
 
 export default class BookingTransformer extends BaseTransformer<Booking> {
@@ -24,16 +22,24 @@ export default class BookingTransformer extends BaseTransformer<Booking> {
         'updatedAt',
       ]),
       totalPrice:
-        this.resource.totalPrice === null ? null : legacyCompatibleAmount(this.resource.totalPrice),
+        this.resource.totalPrice === null ? null : numericMajorAmount(this.resource.totalPrice),
       totalPriceDecimal:
         this.resource.totalPrice === null ? null : canonicalMajorAmount(this.resource.totalPrice),
       totalPriceMinor:
         this.resource.acceptedTotalMinor === null ? null : String(this.resource.acceptedTotalMinor),
       requestReference: this.resource.requestReference,
-      requestSource: this.resource.requestSource,
       companyId: this.resource.companyId,
       venueId: this.resource.venueId,
       spaceId: this.resource.spaceId,
+      spaceNameSnapshot: {
+        ar: this.resource.spaceNameSnapshotAr,
+        en: this.resource.spaceNameSnapshotEn,
+      },
+      venueNameSnapshot: {
+        ar: this.resource.venueNameSnapshotAr,
+        en: this.resource.venueNameSnapshotEn,
+      },
+      categorySlugSnapshot: this.resource.categorySlugSnapshot,
       eventType: this.resource.eventType,
       attendance: this.resource.attendance,
       contactPreference: this.resource.contactPreference,
@@ -43,9 +49,7 @@ export default class BookingTransformer extends BaseTransformer<Booking> {
       responseExpiresAt: this.resource.responseExpiresAt,
       lockVersion: this.resource.lockVersion,
       isExpired: this.resource.isExpired,
-      hall: HallTransformer.transform(this.whenLoaded(this.resource.hall)),
       user: UserTransformer.transform(this.whenLoaded(this.resource.user)),
-      services: ServiceTransformer.transform(this.whenLoaded(this.resource.services)),
     }
   }
 
@@ -54,14 +58,7 @@ export default class BookingTransformer extends BaseTransformer<Booking> {
       ...this.toObject(),
       deletedAt: this.resource.deletedAt,
       userId: this.resource.userId,
-      hallId: this.resource.hallId,
-      hall: HallTransformer.transform(this.whenLoaded(this.resource.hall))?.useVariant(
-        'forAdminView'
-      ),
       user: UserTransformer.transform(this.whenLoaded(this.resource.user))?.useVariant(
-        'forAdminView'
-      ),
-      services: ServiceTransformer.transform(this.whenLoaded(this.resource.services))?.useVariant(
         'forAdminView'
       ),
     }

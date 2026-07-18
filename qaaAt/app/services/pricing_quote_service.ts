@@ -86,7 +86,10 @@ export class PricingQuoteService {
 
   private async notifyCompany(client: any, companyId: number, payload: any) {
     for (const userId of await this.recipients(client, companyId, 'quotes.view'))
-      await notificationOutbox.enqueue({ ...payload, userId }, client)
+      await notificationOutbox.enqueue(
+        { ...payload, userId, clientContext: 'company_app', companyId },
+        client
+      )
   }
 
   private assertLocalized(input: { nameAr?: string; nameEn?: string }) {
@@ -771,6 +774,7 @@ export class PricingQuoteService {
       await notificationOutbox.enqueue(
         {
           userId: quote.user_id,
+          clientContext: 'customer_app',
           type: 'quote_sent',
           title: 'عرض سعر جديد',
           message: 'أرسل مقدم الخدمة عرض سعر جديد',
@@ -805,13 +809,24 @@ export class PricingQuoteService {
         .from('spaces')
         .join('companies', 'companies.id', 'spaces.company_id')
         .join('venues', 'venues.id', 'spaces.venue_id')
+        .join('space_categories', 'space_categories.id', 'spaces.category_id')
+        .join('users', 'users.id', quote.user_id)
+        .leftJoin('user_profiles', 'user_profiles.user_id', 'users.id')
         .where('spaces.id', quote.space_id)
         .where('spaces.company_id', quote.company_id)
         .where('spaces.publication_status', 'published')
         .where('companies.status', 'approved')
         .whereNull('spaces.deleted_at')
         .whereNull('companies.deleted_at')
-        .select('spaces.*', 'venues.timezone')
+        .select(
+          'spaces.*',
+          'venues.timezone',
+          'space_categories.slug as category_slug',
+          'users.email as customer_email',
+          'users.user_name as customer_user_name',
+          'user_profiles.first_name as customer_first_name',
+          'user_profiles.last_name as customer_last_name'
+        )
         .first()
       if (!space) fail('Space cannot accept this quote', 'SPACE_NOT_APPROVABLE')
       const start = DateTime.fromJSDate(quote.starts_at).setZone(quote.timezone)
@@ -836,12 +851,10 @@ export class PricingQuoteService {
       const booking = await Booking.create(
         {
           userId,
-          hallId: space.legacy_hall_id,
           companyId: quote.company_id,
           venueId: quote.venue_id,
           spaceId: quote.space_id,
           requestReference: `QB-${randomUUID()}`,
-          requestSource: 'space_api',
           bookingDate: start.startOf('day'),
           startTime: start.toFormat('HH:mm'),
           endTime: end.toFormat('HH:mm'),
@@ -855,6 +868,12 @@ export class PricingQuoteService {
           spaceNameSnapshotEn: quote.space_name_en,
           venueNameSnapshotAr: quote.venue_name_ar,
           venueNameSnapshotEn: quote.venue_name_en,
+          categorySlugSnapshot: space.category_slug,
+          customerNameSnapshot:
+            [space.customer_first_name, space.customer_last_name].filter(Boolean).join(' ') ||
+            space.customer_user_name ||
+            space.customer_email,
+          customerEmailSnapshot: space.customer_email,
           contactPreference: 'in_app',
           startsAt: DateTime.fromJSDate(quote.starts_at),
           endsAt: DateTime.fromJSDate(quote.ends_at),
@@ -999,6 +1018,7 @@ export class PricingQuoteService {
         await notificationOutbox.enqueue(
           {
             userId: quote.user_id,
+            clientContext: 'customer_app',
             type: 'quote_withdrawn',
             title: 'تم سحب عرض السعر',
             message: reason ?? 'سحب مقدم الخدمة عرض السعر',
@@ -1043,6 +1063,7 @@ export class PricingQuoteService {
         await notificationOutbox.enqueue(
           {
             userId: quote.user_id,
+            clientContext: 'customer_app',
             type: 'quote_expired',
             title: 'انتهت صلاحية عرض السعر',
             message: 'انتهت صلاحية عرض السعر',

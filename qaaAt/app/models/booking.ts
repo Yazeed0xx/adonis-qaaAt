@@ -1,11 +1,9 @@
 import { DateTime } from 'luxon'
-import { belongsTo, hasMany, manyToMany, scope } from '@adonisjs/lucid/orm'
-import type { BelongsTo, HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
+import { belongsTo, hasMany, scope } from '@adonisjs/lucid/orm'
+import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import { BookingSchema } from '#database/schema'
 import User from '#models/user'
-import Hall from '#models/hall'
-import BookingService from '#models/booking_service'
-import Service from '#models/service'
+import PaymentDispute from '#models/payment_dispute'
 
 export type BookingStatus =
   | 'pending'
@@ -54,18 +52,6 @@ export default class Booking extends BookingSchema {
   @belongsTo(() => User)
   declare user: BelongsTo<typeof User>
 
-  @belongsTo(() => Hall)
-  declare hall: BelongsTo<typeof Hall>
-
-  @hasMany(() => BookingService)
-  declare bookingServices: HasMany<typeof BookingService>
-
-  @manyToMany(() => Service, {
-    pivotTable: 'booking_services',
-    pivotForeignKey: 'booking_id',
-    pivotRelatedForeignKey: 'service_id',
-    pivotColumns: ['price_at_booking'],
-    pivotTimestamps: true,
-  })
-  declare services: ManyToMany<typeof Service>
+  @hasMany(() => PaymentDispute)
+  declare paymentDisputes: HasMany<typeof PaymentDispute>
 }
